@@ -2246,49 +2246,27 @@ void adjust_difficulty(void)
 	            adjusted_score = roundf(score * score_multiplier[initialDifficulty]);
 
 	uint new_difficulty = 0;
+	float playerWeight = 1 + 0.5*((uint)twoPlayerMode + (uint)twoPlayerFullMode);
+    const uint scoreMilestone = 30000;
 
-	if (twoPlayerMode)
-	{
-		if (adjusted_score < 10000)
-			new_difficulty = DIFFICULTY_EASY;
-		else if (adjusted_score < 20000)
-			new_difficulty = DIFFICULTY_NORMAL;
-		else if (adjusted_score < 50000)
-			new_difficulty = DIFFICULTY_HARD;
-		else if (adjusted_score < 80000)
-			new_difficulty = DIFFICULTY_IMPOSSIBLE;
-		else if (adjusted_score < 125000)
-			new_difficulty = DIFFICULTY_INSANITY;
-		else if (adjusted_score < 200000)
-			new_difficulty = DIFFICULTY_SUICIDE;
-		else if (adjusted_score < 400000)
-			new_difficulty = DIFFICULTY_MANIACAL;
-		else if (adjusted_score < 600000)
-			new_difficulty = DIFFICULTY_ZINGLON;
-		else
-			new_difficulty = DIFFICULTY_NORTANEOUS;
-	}
-	else
-	{
-		if (adjusted_score < 40000)
-			new_difficulty = DIFFICULTY_EASY;
-		else if (adjusted_score < 70000)
-			new_difficulty = DIFFICULTY_NORMAL;
-		else if (adjusted_score < 150000)
-			new_difficulty = DIFFICULTY_HARD;
-		else if (adjusted_score < 300000)
-			new_difficulty = DIFFICULTY_IMPOSSIBLE;
-		else if (adjusted_score < 600000)
-			new_difficulty = DIFFICULTY_INSANITY;
-		else if (adjusted_score < 1000000)
-			new_difficulty = DIFFICULTY_SUICIDE;
-		else if (adjusted_score < 2000000)
-			new_difficulty = DIFFICULTY_MANIACAL;
-		else if (adjusted_score < 3000000)
-			new_difficulty = DIFFICULTY_ZINGLON;
-		else
-			new_difficulty = DIFFICULTY_NORTANEOUS;
-	}
+    if (adjusted_score < 1*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_EASY;
+    else if (adjusted_score < 2*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_NORMAL;
+    else if (adjusted_score < 4*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_HARD;
+    else if (adjusted_score < 8*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_IMPOSSIBLE;
+    else if (adjusted_score < 16*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_INSANITY;
+    else if (adjusted_score < 32*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_SUICIDE;
+    else if (adjusted_score < 64*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_MANIACAL;
+    else if (adjusted_score < 128*scoreMilestone/playerWeight)
+        new_difficulty = DIFFICULTY_ZINGLON;
+    else
+        new_difficulty = DIFFICULTY_NORTANEOUS;
 
 	difficultyLevel = MAX((unsigned)difficultyLevel, new_difficulty);
 }
