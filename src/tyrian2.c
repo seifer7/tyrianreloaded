@@ -2654,13 +2654,204 @@ static void play_map_transition(const char *section, Uint8 pic_buffer[320 * 200]
 	memcpy(VGAScreen->pixels, pic_buffer, sizeof(Uint8) * 320 * 200);
 }
 
+static bool show_episode_completion(FILE *ep_f, char *s, char buffer[256])
+{
+	ESCPressed = false;
+	temp = secretHint + (mt_rand() % 3) * 3;
+
+	if (twoPlayerMode)
+	{
+		for (uint i = 0; i < 2; ++i)
+			snprintf(levelWarningText[i], sizeof(*levelWarningText), "%s %lu", miscText[40 + i], player[i].cash);
+		strcpy(levelWarningText[2], "");
+		levelWarningLines = 3;
+	}
+	else
+	{
+		sprintf(levelWarningText[0], "%s %lu", miscText[37], JE_totalScore(&player[0]));
+		strcpy(levelWarningText[1], "");
+		levelWarningLines = 2;
+	}
+
+	for (int i = 0; i < temp - 1; ++i)
+	{
+		do
+		{
+			read_encrypted_pascal_string(s, 256, ep_f);
+		} while (s[0] != '#');
+	}
+
+	do
+	{
+		read_encrypted_pascal_string(s, 256, ep_f);
+		strcpy(levelWarningText[levelWarningLines], s);
+		levelWarningLines++;
+	} while (s[0] != '#');
+	levelWarningLines--;
+
+	JE_wipeKey();
+	frameCountMax = 4;
+	if (!constantPlay)
+		JE_displayText();
+
+	fade_black(15);
+	JE_nextEpisode();
+
+	if (!jumpBackToEpisode1 || twoPlayerMode)
+		return false;
+
+	JE_loadPic(VGAScreen, 1, false);
+	JE_clr256(VGAScreen);
+
+	if (superTyrian)
+	{
+		// if completed Zinglon's Revenge, show SuperTyrian and Destruct codes
+		// if completed SuperTyrian, show Nort-Ship Z code
+		superArcadeMode = (initialDifficulty == DIFFICULTY_ZINGLON) ? 8 : 1;
+	}
+
+	if (superArcadeMode < SA_ENGAGE)
+	{
+		if (SANextShip[superArcadeMode] == SA_ENGAGE)
+		{
+			sprintf(buffer, "%s %s", miscTextB[4], pName[0]);
+			JE_dString(VGAScreen, JE_fontCenter(buffer, FONT_SHAPES), 100, buffer, FONT_SHAPES);
+
+			sprintf(buffer, "Or play... %s", specialName[7]);
+			JE_dString(VGAScreen, 80, 180, buffer, SMALL_FONT_SHAPES);
+		}
+		else
+		{
+			JE_dString(VGAScreen, JE_fontCenter(superShips[0], FONT_SHAPES), 30, superShips[0], FONT_SHAPES);
+			JE_dString(VGAScreen, JE_fontCenter(superShips[SANextShip[superArcadeMode]], SMALL_FONT_SHAPES), 100, superShips[SANextShip[superArcadeMode]], SMALL_FONT_SHAPES);
+		}
+
+		if (SANextShip[superArcadeMode] < SA_NORTSHIPZ)
+			blit_sprite2x2(VGAScreen, 148, 70, spriteSheet9, ships[SAShip[SANextShip[superArcadeMode]-1]].shipgraphic);
+		else if (SANextShip[superArcadeMode] == SA_NORTSHIPZ)
+			trentWin = true;
+
+		sprintf(buffer, "Type %s at Title", specialName[SANextShip[superArcadeMode]-1]);
+		JE_dString(VGAScreen, JE_fontCenter(buffer, SMALL_FONT_SHAPES), 160, buffer, SMALL_FONT_SHAPES);
+		JE_showVGA();
+
+		fade_palette(colors, 50, 0, 255);
+
+		if (!constantPlay)
+			wait_input(true, true, true);
+	}
+
+	jumpSection = true;
+
+	if (isNetworkGame)
+		JE_readTextSync();
+
+	if (!superTyrian)
+		return false;
+
+	fade_black(10);
+	mainLevel = 0;
+	return true;
+}
+
+static void show_episode_picture(const char *section)
+{
+	if (constantPlay)
+		return;
+
+	tempX = atoi(section + 3);
+	if (tempX > 900)
+	{
+		memcpy(colors, palettes[pcxpal[tempX-1 - 900]], sizeof(colors));
+		JE_clr256(VGAScreen);
+		JE_showVGA();
+		fade_palette(colors, 1, 0, 255);
+	}
+	else
+	{
+		if (tempX == 0)
+			JE_loadPCX("tshp2.pcx");
+		else
+			JE_loadPic(VGAScreen, tempX, false);
+
+		JE_showVGA();
+		fade_palette(colors, 10, 0, 255);
+	}
+}
+
+static void show_episode_warning(FILE *ep_f, char *s)
+{
+	if (constantPlay || ESCPressed)
+		return;
+
+	JE_wipeKey();
+	warningCol = 14 * 16 + 5;
+	warningColChange = 1;
+	warningSoundDelay = 0;
+	levelWarningDisplay = (s[2] == 'y');
+	levelWarningLines = 0;
+	frameCountMax = atoi(s + 4);
+	setDelay2(6);
+	warningRed = frameCountMax / 10;
+	frameCountMax = frameCountMax % 10;
+
+	do
+	{
+		read_encrypted_pascal_string(s, 256, ep_f);
+
+		if (s[0] != '#')
+		{
+			strcpy(levelWarningText[levelWarningLines], s);
+			levelWarningLines++;
+		}
+	} while (s[0] != '#');
+
+	JE_displayText();
+	newkey = false;
+}
+
+static void read_episode_item_availability(FILE *ep_f, char *s)
+{
+	memset(&itemAvail, 0, sizeof(itemAvail));
+
+	for (int i = 0; i < 9; ++i)
+	{
+		read_encrypted_pascal_string(s, 256, ep_f);
+
+		char buf[256];
+		strncpy(buf, (strlen(s) > 8) ? s + 8 : "", sizeof(buf));
+
+		int j = 0, temp;
+		while (str_pop_int(buf, &temp))
+			itemAvail[i][j++] = temp;
+		itemAvailMax[i] = j;
+	}
+
+	JE_itemScreen();
+}
+
+static void load_selected_level_map(JE_byte *ref[3][128])
+{
+	FILE *level_f = dir_fopen_die(data_dir(), levelFile, "rb");
+	fseek(level_f, lvlPos[(lvlFileNum-1) * 2], SEEK_SET);
+
+	JE_char char_shapeFile;
+	read_level_header_and_events(level_f, &char_shapeFile);
+
+	load_level_shapes(level_f, char_shapeFile, ref);
+	load_level_map_layer(level_f, ref[0], &megaData1.mainmap[0][0], 14, 300);
+	load_level_map_layer(level_f, ref[1], &megaData2.mainmap[0][0], 14, 600);
+	load_level_map_layer(level_f, ref[2], &megaData3.mainmap[0][0], 15, 600);
+
+	fclose(level_f);
+}
+
 void JE_loadMap(void)
 {
 	JE_byte *ref[3][128]; /* [1..3, 0..127] */
 	char s[256];
 
 	char buffer[256];
-	int i;
 	Uint8 pic_buffer[320*200]; /* screen buffer, 8-bit specific */
 
 	lastCubeMax = cubeMax;
@@ -2728,7 +2919,7 @@ new_game:
 					case 'G':
 						mapOrigin = atoi(s + 4);
 						mapPNum   = atoi(s + 7);
-						for (i = 0; i < mapPNum; i++)
+						for (int i = 0; i < mapPNum; i++)
 						{
 							mapPlanet[i] = atoi(s + 1 + (i + 1) * 8);
 							mapSection[i] = atoi(s + 4 + (i + 1) * 8);
@@ -2737,7 +2928,7 @@ new_game:
 
 					case '?':
 						temp = atoi(s + 4);
-						for (i = 0; i < temp; i++)
+						for (int i = 0; i < temp; i++)
 						{
 							cubeList[i] = atoi(s + 3 + (i + 1) * 4);
 						}
@@ -2850,23 +3041,8 @@ new_game:
 						songBuy = temp - 1;
 						break;
 
-					case 'I': /*Load Items Available Information*/
-						memset(&itemAvail, 0, sizeof(itemAvail));
-
-						for (int i = 0; i < 9; ++i)
-						{
-							read_encrypted_pascal_string(s, sizeof(s), ep_f);
-
-							char buf[256];
-							strncpy(buf, (strlen(s) > 8) ? s + 8 : "", sizeof(buf));
-
-							int j = 0, temp;
-							while (str_pop_int(buf, &temp))
-								itemAvail[i][j++] = temp;
-							itemAvailMax[i] = j;
-						}
-
-						JE_itemScreen();
+					case 'I':
+						read_episode_item_availability(ep_f, s);
 						break;
 
 					case 'L':
@@ -2889,139 +3065,16 @@ new_game:
 						break;
 
 					case 'Q':
-						ESCPressed = false;
-						temp = secretHint + (mt_rand() % 3) * 3;
-
-						if (twoPlayerMode)
-						{
-							for (uint i = 0; i < 2; ++i)
-								snprintf(levelWarningText[i], sizeof(*levelWarningText), "%s %lu", miscText[40 + i], player[i].cash);
-							strcpy(levelWarningText[2], "");
-							levelWarningLines = 3;
-						}
-						else
-						{
-							sprintf(levelWarningText[0], "%s %lu", miscText[37], JE_totalScore(&player[0]));
-							strcpy(levelWarningText[1], "");
-							levelWarningLines = 2;
-						}
-
-						for (x = 0; x < temp - 1; x++)
-						{
-							do
-							{
-								read_encrypted_pascal_string(s, sizeof(s), ep_f);
-							} while (s[0] != '#');
-						}
-
-						do
-						{
-							read_encrypted_pascal_string(s, sizeof(s), ep_f);
-							strcpy(levelWarningText[levelWarningLines], s);
-							levelWarningLines++;
-						} while (s[0] != '#');
-						levelWarningLines--;
-
-						JE_wipeKey();
-						frameCountMax = 4;
-						if (!constantPlay)
-							JE_displayText();
-
-						fade_black(15);
-
-						JE_nextEpisode();
-
-						if (jumpBackToEpisode1 && !twoPlayerMode)
-						{
-							JE_loadPic(VGAScreen, 1, false); // huh?
-							JE_clr256(VGAScreen);
-
-							if (superTyrian)
-							{
-								// if completed Zinglon's Revenge, show SuperTyrian and Destruct codes
-								// if completed SuperTyrian, show Nort-Ship Z code
-								superArcadeMode = (initialDifficulty == DIFFICULTY_ZINGLON) ? 8 : 1;
-							}
-
-							if (superArcadeMode < SA_ENGAGE)
-							{
-								if (SANextShip[superArcadeMode] == SA_ENGAGE)
-								{
-									sprintf(buffer, "%s %s", miscTextB[4], pName[0]);
-									JE_dString(VGAScreen, JE_fontCenter(buffer, FONT_SHAPES), 100, buffer, FONT_SHAPES);
-
-									sprintf(buffer, "Or play... %s", specialName[7]);
-									JE_dString(VGAScreen, 80, 180, buffer, SMALL_FONT_SHAPES);
-								}
-								else
-								{
-									JE_dString(VGAScreen, JE_fontCenter(superShips[0], FONT_SHAPES), 30, superShips[0], FONT_SHAPES);
-									JE_dString(VGAScreen, JE_fontCenter(superShips[SANextShip[superArcadeMode]], SMALL_FONT_SHAPES), 100, superShips[SANextShip[superArcadeMode]], SMALL_FONT_SHAPES);
-								}
-
-								if (SANextShip[superArcadeMode] < SA_NORTSHIPZ)
-									blit_sprite2x2(VGAScreen, 148, 70, spriteSheet9, ships[SAShip[SANextShip[superArcadeMode]-1]].shipgraphic);
-								else if (SANextShip[superArcadeMode] == SA_NORTSHIPZ)
-									trentWin = true;
-
-								sprintf(buffer, "Type %s at Title", specialName[SANextShip[superArcadeMode]-1]);
-								JE_dString(VGAScreen, JE_fontCenter(buffer, SMALL_FONT_SHAPES), 160, buffer, SMALL_FONT_SHAPES);
-								JE_showVGA();
-
-								fade_palette(colors, 50, 0, 255);
-
-								if (!constantPlay)
-									wait_input(true, true, true);
-							}
-
-							jumpSection = true;
-
-							if (isNetworkGame)
-								JE_readTextSync();
-
-							if (superTyrian)
-							{
-								fade_black(10);
-
-								// back to titlescreen
-								mainLevel = 0;
-								return;
-							}
-						}
+						if (show_episode_completion(ep_f, s, buffer))
+							return;
 						break;
 
 					case 'P':
-						if (!constantPlay)
-						{
-							tempX = atoi(s + 3);
-							if (tempX > 900)
-							{
-								memcpy(colors, palettes[pcxpal[tempX-1 - 900]], sizeof(colors));
-								JE_clr256(VGAScreen);
-								JE_showVGA();
-								fade_palette(colors, 1, 0, 255);
-							}
-							else
-							{
-								if (tempX == 0)
-									JE_loadPCX("tshp2.pcx");
-								else
-									JE_loadPic(VGAScreen, tempX, false);
-
-								JE_showVGA();
-								fade_palette(colors, 10, 0, 255);
-							}
-						}
+						show_episode_picture(s);
 						break;
 
 					case 'U':
-						play_map_transition(s, pic_buffer);
-						break;
-
 					case 'V':
-						play_map_transition(s, pic_buffer);
-						break;
-
 					case 'R':
 						play_map_transition(s, pic_buffer);
 						break;
@@ -3054,36 +3107,7 @@ new_game:
 						break;
 
 					case 'W':
-						if (!constantPlay)
-						{
-							if (!ESCPressed)
-							{
-								JE_wipeKey();
-								warningCol = 14 * 16 + 5;
-								warningColChange = 1;
-								warningSoundDelay = 0;
-								levelWarningDisplay = (s[2] == 'y');
-								levelWarningLines = 0;
-								frameCountMax = atoi(s + 4);
-								setDelay2(6);
-								warningRed = frameCountMax / 10;
-								frameCountMax = frameCountMax % 10;
-
-								do
-								{
-									read_encrypted_pascal_string(s, sizeof(s), ep_f);
-
-									if (s[0] != '#')
-									{
-										strcpy(levelWarningText[levelWarningLines], s);
-										levelWarningLines++;
-									}
-								} while (!(s[0] == '#'));
-
-								JE_displayText();
-								newkey = false;
-							}
-						}
+						show_episode_warning(ep_f, s);
 						break;
 
 					case 'H':
@@ -3131,31 +3155,7 @@ new_game:
 	else
 		fade_black(50);
 
-	FILE *level_f = dir_fopen_die(data_dir(), levelFile, "rb");
-	fseek(level_f, lvlPos[(lvlFileNum-1) * 2], SEEK_SET);
-
-	JE_char char_shapeFile;
-	read_level_header_and_events(level_f, &char_shapeFile);
-
-	/*debuginfo('Level loaded.');*/
-
-	/*debuginfo('Loading Map');*/
-
-	/* MAP SHAPE LOOKUP TABLE - Each map is directly after level */
-	load_level_shapes(level_f, char_shapeFile, ref);
-	load_level_map_layer(level_f, ref[0], &megaData1.mainmap[0][0], 14, 300);
-	load_level_map_layer(level_f, ref[1], &megaData2.mainmap[0][0], 14, 600);
-	load_level_map_layer(level_f, ref[2], &megaData3.mainmap[0][0], 15, 600);
-
-	fclose(level_f);
-
-	/* Note: The map data is automatically calculated with the correct mapsh
-	value and then the pointer is calculated using the formula (MAPSH-1)*168.
-	Then, we'll automatically add S2Ofs to get the exact offset location into
-	the shape table! This makes it VERY FAST! */
-
-	/*debuginfo('Map file done.');*/
-	/* End of find loop for LEVEL??.DAT */
+	load_selected_level_map(ref);
 }
 
 #ifdef WITH_NETWORK
