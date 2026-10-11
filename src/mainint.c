@@ -4247,7 +4247,7 @@ static void draw_player_sidekicks(Player *this_player, JE_byte playerNum_)
 
 				const int x = this_player->sidekick[i].x,
 				          y = this_player->sidekick[i].y;
-				const uint sprite = this_option->gr[this_player->sidekick[i].animation_frame] + this_player->sidekick[i].charge;
+				const uint sprite = this_option->gr[this_player->sidekick[i].charge][this_player->sidekick[i].animation_frame];
 
 				if (this_player->sidekick[i].style == 1 || this_player->sidekick[i].style == 2)
 					blit_sprite2x2(VGAScreen, x - 6, y, spriteSheet10, sprite);

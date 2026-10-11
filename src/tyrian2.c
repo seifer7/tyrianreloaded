@@ -1246,7 +1246,7 @@ static void play_level_sounds(void)
 
 static bool player_shot_hits_enemy(int shotIndex, int enemyIndex, bool is_special,
                                    int shotX, int shotY, JE_word hitWidth, JE_word hitHeight,
-                                   JE_byte *chain, JE_integer *damage)
+                                   JE_word *chain, JE_integer *damage)
 {
 	if (shotIndex == MAX_PWEAPON - 1)
 	{
@@ -1443,7 +1443,7 @@ static void process_player_shot(int z)
 {
 	bool is_special = false;
 	int tempShotX = 0, tempShotY = 0;
-	JE_byte chain;
+	JE_word chain;
 	JE_byte playerNum;
 	JE_word tempX2, tempY2;
 	JE_integer damage;

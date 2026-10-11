@@ -59,6 +59,27 @@
 const char *opentyrian_str = "OpenTyrian";
 const char *opentyrian_version = OPENTYRIAN_VERSION;
 
+bool str_pop_str(char *str, char *val, size_t val_size)
+{
+	const char *start = str + strspn(str, " \t");
+	const size_t length = strcspn(start, " \t");
+	if (length == 0)
+		return false;
+
+	if (length >= val_size)
+	{
+		fprintf(stderr, "error: item reference exceeds its maximum length\n");
+		exit(EXIT_FAILURE);
+	}
+
+	memcpy(val, start, length);
+	val[length] = '\0';
+	const char *end = start + length;
+	end += strspn(end, " \t");
+	memmove(str, end, strlen(end) + 1);
+	return true;
+}
+
 static size_t getDisplayPickerItemsCount(void)
 {
 	return 1 + (size_t)SDL_GetNumVideoDisplays();
@@ -693,6 +714,8 @@ int main(int argc, char *argv[])
 	JE_paramCheck(argc, argv);
 
 	JE_scanForEpisodes();
+
+	load_items();
 
 	init_video();
 	init_keyboard();

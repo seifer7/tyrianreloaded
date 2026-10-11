@@ -58,7 +58,7 @@ extern const char *opentyrian_str;
 extern const char *opentyrian_version;
 
 extern bool str_pop_int(char* str, int* val);
-extern bool str_pop_str(char* str, char* val);
+extern bool str_pop_str(char* str, char* val, size_t val_size);
 void setupMenu(void);
 
 #endif /* OPENTYR_H */

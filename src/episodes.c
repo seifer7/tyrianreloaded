@@ -438,14 +438,14 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 					char tempC[11];
 					enum ITEM_TYPE shotItemType = ItemType_Shot;
 					int j = 0;
-					while (str_pop_str(value, tempC) && j < COUNTOF(weaponPort[item_i].op[0]))
+					while (j < COUNTOF(weaponPort[item_i].op[0]) && str_pop_str(value, tempC, sizeof(tempC)))
 						weaponPort[item_i].op[0][j++] = item_idx(&shotItemType, tempC);
 				}
 				else if (strcmp(key, "op1") == 0) {
 					char tempC[11];
 					enum ITEM_TYPE shotItemType = ItemType_Shot;
 					int j = 0;
-					while (str_pop_str(value, tempC) && j < COUNTOF(weaponPort[item_i].op[1]))
+					while (j < COUNTOF(weaponPort[item_i].op[1]) && str_pop_str(value, tempC, sizeof(tempC)))
 						weaponPort[item_i].op[1][j++] = item_idx(&shotItemType, tempC);
 				}
 				else if (strcmp(key, "cost") == 0) {
@@ -481,8 +481,11 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 				else if (strcmp(key, "chargegunweapons") == 0) {
 					char tempC[11];
 					int j = 0;
-					while (str_pop_str(value, tempC) && j < COUNTOF(weaponPort[item_i].chargegunweaponIds))
-						memcpy(weaponPort[item_i].chargegunweaponIds[j++], tempC, sizeof(weaponPort[item_i].chargegunweaponIds[j++]) - 1);
+					while (j < COUNTOF(weaponPort[item_i].chargegunweaponIds) && str_pop_str(value, tempC, sizeof(tempC)))
+					{
+						strcpy(weaponPort[item_i].chargegunweaponIds[j], tempC);
+						j++;
+					}
 				}
 				else if (strcmp(key, "probability") == 0) {
 					weaponPort[item_i].probability = atoi(value);
@@ -677,7 +680,7 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 				else if (strcmp(key, "chain") == 0) {
 					int j = 0;
 					char tempC[11];
-					while (str_pop_str(value, tempC) && j < COUNTOF(weapons[item_i].chainIds))
+					while (j < COUNTOF(weapons[item_i].chainIds) && str_pop_str(value, tempC, sizeof(tempC)))
 					{
 						memcpy(weapons[item_i].chainIds[j], tempC, sizeof(weapons[item_i].chainIds[j]));
 						j++;
@@ -870,7 +873,7 @@ void load_items(void) {
 		if (item_type == ItemType_SidekickRight) continue;
 		tinydir_dir dir;
 
-		int numItems = 0;
+		size_t numItems = 0;
 		char itemFileExt[7] = "";
 		switch (item_type) {
 			case ItemType_Shot:
@@ -979,7 +982,7 @@ void load_items(void) {
 	}
 
 	tempItemType = ItemType_Shot;
-	for (int i = 0; i < weapons[0].count; i++) {
+	for (size_t i = 0; i < weapons[0].count; i++) {
 		int chainlen = COUNTOF(weapons[0].chainIds);
 		for (int j = 0; j < chainlen; j++) {
 			if (strcmp(weapons[i].chainIds[j], "0") == 0) continue;
@@ -988,7 +991,7 @@ void load_items(void) {
 	}
 
 	tempItemType = ItemType_Shot;
-	for (int i = 0; i < weaponPort[0].count; i++) {
+	for (size_t i = 0; i < weaponPort[0].count; i++) {
 		if (strcmp(weaponPort[i].linkgunweaponId, "0") != 0)
 			get_item_index(&tempItemType, weaponPort[i].linkgunweaponId, &weaponPort[i].linkgunweapon);
 
@@ -1000,14 +1003,14 @@ void load_items(void) {
 	}
 
 	tempItemType = ItemType_WeaponFront;
-	for (int i = 0; i < options[0].count; i++) {
+	for (size_t i = 0; i < options[0].count; i++) {
 		if (strcmp(options[i].wportId, "0") != 0) {
 			get_item_index(&tempItemType, options[i].wportId, &options[i].wport);
 		}
 	}
 
 	tempItemType = ItemType_Enemy;
-	for (int i = 0; i < enemyDat[0].count; i++) {
+	for (size_t i = 0; i < enemyDat[0].count; i++) {
 		if (strcmp(enemyDat[i].eenemydieId, "0") != 0) {
 			get_item_index(&tempItemType, enemyDat[i].eenemydieId, &enemyDat[i].eenemydie);
 		}
