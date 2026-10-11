@@ -2846,6 +2846,134 @@ static void load_selected_level_map(JE_byte *ref[3][128])
 	fclose(level_f);
 }
 
+static void configure_episode_mode(char command)
+{
+	switch (command)
+	{
+	case 'g':
+		galagaMode = true;
+		player[1].items = player[0].items;
+		player[1].items.weapon[REAR_WEAPON].id = 15;
+		for (uint i = 0; i < COUNTOF(player[1].items.sidekick); ++i)
+			player[1].items.sidekick[i] = 0;
+		break;
+
+	case 'x':
+		extraGame = true;
+		break;
+
+	case 'e':
+		doNotSaveBackup = true;
+		constantDie = false;
+		onePlayerAction = true;
+		superTyrian = true;
+		twoPlayerMode = false;
+		player[0].cash = 0;
+		player[0].items.ship = 13;
+		player[0].items.weapon[FRONT_WEAPON].id = 39;
+		player[0].items.weapon[REAR_WEAPON].id = 0;
+		for (uint i = 0; i < COUNTOF(player[0].items.sidekick); ++i)
+			player[0].items.sidekick[i] = 0;
+		player[0].items.generator = 2;
+		player[0].items.shield = 4;
+		player[0].items.special = 0;
+		player[0].items.weapon[FRONT_WEAPON].power = 3;
+		player[0].items.weapon[REAR_WEAPON].power = 1;
+		break;
+	}
+}
+
+static void handle_episode_level_jump(char command, const char *section)
+{
+	const int destination = atoi(section + (command == 'H' ? 4 : 3));
+
+	switch (command)
+	{
+	case 'J':
+		mainLevel = destination;
+		jumpSection = true;
+		break;
+	case '2':
+		if (twoPlayerMode || onePlayerAction)
+		{
+			mainLevel = destination;
+			jumpSection = true;
+		}
+		break;
+	case 'w':
+		if (player[0].items.ship == 13)
+		{
+			mainLevel = destination;
+			jumpSection = true;
+		}
+		break;
+	case 't':
+		if (levelTimer && levelTimerCountdown == 0)
+		{
+			mainLevel = destination;
+			jumpSection = true;
+		}
+		break;
+	case 'l':
+		if (!all_players_alive())
+		{
+			mainLevel = destination;
+			jumpSection = true;
+		}
+		break;
+	case 'H':
+		if (initialDifficulty < DIFFICULTY_HARD)
+		{
+			mainLevel = destination;
+			jumpSection = true;
+		}
+		break;
+	}
+}
+
+static bool handle_episode_presentation(char command, FILE *ep_f, char *section,
+                                        char buffer[256], Uint8 pic_buffer[320 * 200])
+{
+	switch (command)
+	{
+	case 'P':
+		show_episode_picture(section);
+		break;
+	case 'U':
+	case 'V':
+	case 'R':
+		play_map_transition(section, pic_buffer);
+		break;
+	case 'C':
+		if (!isNetworkGame)
+			fade_black(10);
+		JE_clr256(VGAScreen);
+		JE_showVGA();
+		memcpy(colors, palettes[7], sizeof(colors));
+		set_palette(colors, 0, 255);
+		break;
+	case 'B':
+		if (!isNetworkGame)
+			fade_black(10);
+		break;
+	case 'F':
+		if (!isNetworkGame)
+		{
+			fade_white(100);
+			fade_black(30);
+		}
+		JE_clr256(VGAScreen);
+		JE_showVGA();
+		break;
+	case 'Q':
+		return show_episode_completion(ep_f, section, buffer);
+	case 'W':
+		show_episode_warning(ep_f, section);
+		break;
+	}
+	return false;
+}
+
 void JE_loadMap(void)
 {
 	JE_byte *ref[3][128]; /* [1..3, 0..127] */
@@ -2948,80 +3076,18 @@ new_game:
 						break;
 
 					case 'g':
-						galagaMode = true;   /*GALAGA mode*/
-
-						player[1].items = player[0].items;
-						player[1].items.weapon[REAR_WEAPON].id = 15;  // Vulcan Cannon
-						for (uint i = 0; i < COUNTOF(player[1].items.sidekick); ++i)
-							player[1].items.sidekick[i] = 0;          // None
-						break;
-
 					case 'x':
-						extraGame = true;
-						break;
-
 					case 'e': // ENGAGE mode, used for mini-games
-						doNotSaveBackup = true;
-						constantDie = false;
-						onePlayerAction = true;
-						superTyrian = true;
-						twoPlayerMode = false;
-
-						player[0].cash = 0;
-
-						player[0].items.ship = 13;                     // The Stalker 21.126
-						player[0].items.weapon[FRONT_WEAPON].id = 39;  // Atomic RailGun
-						player[0].items.weapon[REAR_WEAPON].id = 0;    // None
-						for (uint i = 0; i < COUNTOF(player[0].items.sidekick); ++i)
-							player[0].items.sidekick[i] = 0;           // None
-						player[0].items.generator = 2;                 // Advanced MR-12
-						player[0].items.shield = 4;                    // Advanced Integrity Field
-						player[0].items.special = 0;                   // None
-
-						player[0].items.weapon[FRONT_WEAPON].power = 3;
-						player[0].items.weapon[REAR_WEAPON].power = 1;
+						configure_episode_mode(s[1]);
 						break;
 
 					case 'J':  // section jump
-						temp = atoi(s + 3);
-						mainLevel = temp;
-						jumpSection = true;
-						break;
-
 					case '2':  // two-player section jump
-						temp = atoi(s + 3);
-						if (twoPlayerMode || onePlayerAction)
-						{
-							mainLevel = temp;
-							jumpSection = true;
-						}
-						break;
-
 					case 'w':  // Stalker 21.126 section jump
-						temp = atoi(s + 3);   /*Allowed to go to Time War?*/
-						if (player[0].items.ship == 13)
-						{
-							mainLevel = temp;
-							jumpSection = true;
-						}
-						break;
-
 					case 't':
-						temp = atoi(s + 3);
-						if (levelTimer && levelTimerCountdown == 0)
-						{
-							mainLevel = temp;
-							jumpSection = true;
-						}
-						break;
-
 					case 'l':
-						temp = atoi(s + 3);
-						if (!all_players_alive())
-						{
-							mainLevel = temp;
-							jumpSection = true;
-						}
+					case 'H':
+						handle_episode_level_jump(s[1], s);
 						break;
 
 					case 's':
@@ -3065,57 +3131,16 @@ new_game:
 						break;
 
 					case 'Q':
-						if (show_episode_completion(ep_f, s, buffer))
-							return;
-						break;
-
 					case 'P':
-						show_episode_picture(s);
-						break;
-
 					case 'U':
 					case 'V':
 					case 'R':
-						play_map_transition(s, pic_buffer);
-						break;
-
 					case 'C':
-						if (!isNetworkGame)
-						{
-							fade_black(10);
-						}
-						JE_clr256(VGAScreen);
-						JE_showVGA();
-						memcpy(colors, palettes[7], sizeof(colors));
-						set_palette(colors, 0, 255);
-						break;
-
 					case 'B':
-						if (!isNetworkGame)
-						{
-							fade_black(10);
-						}
-						break;
 					case 'F':
-						if (!isNetworkGame)
-						{
-							fade_white(100);
-							fade_black(30);
-						}
-						JE_clr256(VGAScreen);
-						JE_showVGA();
-						break;
-
 					case 'W':
-						show_episode_warning(ep_f, s);
-						break;
-
-					case 'H':
-						if (initialDifficulty < DIFFICULTY_HARD)
-						{
-							mainLevel = atoi(s + 4);
-							jumpSection = true;
-						}
+						if (handle_episode_presentation(s[1], ep_f, s, buffer, pic_buffer))
+							return;
 						break;
 
 					case 'h':
