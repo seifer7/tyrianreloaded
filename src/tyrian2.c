@@ -1242,6 +1242,201 @@ static void play_level_sounds(void)
 	}
 }
 
+static bool player_shot_hits_enemy(int shotIndex, int enemyIndex, bool is_special,
+                                   int shotX, int shotY, JE_word hitWidth, JE_word hitHeight,
+                                   JE_byte *chain, JE_integer *damage)
+{
+	if (shotIndex == MAX_PWEAPON - 1)
+	{
+		temp = 25 - abs(zinglonDuration - 25);
+		temp2 = 9;
+		*chain = 0;
+		*damage = 10;
+		return abs(enemy[enemyIndex].ex + enemy[enemyIndex].mapoffset - (player[0].x + 7)) < temp;
+	}
+
+	if (is_special)
+		return ((enemy[enemyIndex].enemycycle == 0) &&
+		        (abs(enemy[enemyIndex].ex + enemy[enemyIndex].mapoffset - shotX - hitWidth) < (25 + hitWidth)) &&
+		        (abs(enemy[enemyIndex].ey - shotY - 12 - hitHeight) < (29 + hitHeight))) ||
+		       ((enemy[enemyIndex].enemycycle > 0) &&
+		        (abs(enemy[enemyIndex].ex + enemy[enemyIndex].mapoffset - shotX - hitWidth) < (13 + hitWidth)) &&
+		        (abs(enemy[enemyIndex].ey - shotY - 6 - hitHeight) < (15 + hitHeight)));
+
+	return ((enemy[enemyIndex].enemycycle == 0) &&
+	        (abs(enemy[enemyIndex].ex + enemy[enemyIndex].mapoffset - shotX) < 25) &&
+	        (abs(enemy[enemyIndex].ey - shotY - 12) < 29)) ||
+	       ((enemy[enemyIndex].enemycycle > 0) &&
+	        (abs(enemy[enemyIndex].ex + enemy[enemyIndex].mapoffset - shotX) < 13) &&
+	        (abs(enemy[enemyIndex].ey - shotY - 6) < 15));
+}
+
+static void mark_player_shot_linked_enemies(int enemyIndex, int linkNumber, int filter, int iced)
+{
+	if (enemy[enemyIndex].armorleft >= 255)
+		return;
+
+	for (unsigned int i = 0; i < COUNTOF(boss_bar); i++)
+		if (linkNumber == boss_bar[i].link_num)
+			boss_bar[i].color = 6;
+
+	if (enemy[enemyIndex].enemyground)
+		enemy[enemyIndex].filter = filter;
+
+	for (unsigned int e = 0; e < COUNTOF(enemy); e++)
+	{
+		if (enemy[e].linknum == linkNumber && enemyAvail[e] != 1 && enemy[e].enemyground != 0)
+		{
+			if (iced)
+				enemy[e].iced = iced;
+			enemy[e].filter = filter;
+		}
+	}
+}
+
+static void animate_player_shot_damaged_enemies(int enemyIndex, int linkNumber)
+{
+	for (temp3 = 0; temp3 < 100; temp3++)
+	{
+		if (enemyAvail[temp3] == 1)
+			continue;
+
+		int linkedEnemy = enemy[temp3].linknum;
+		const bool linked = temp3 == enemyIndex ||
+		                    (linkNumber != 255 &&
+		                     ((enemy[temp3].edlevel > 0 && linkedEnemy == linkNumber) ||
+		                      (enemyContinualDamage && linkNumber - 100 == linkedEnemy) ||
+		                      (linkedEnemy > 40 && linkedEnemy / 20 == linkNumber / 20 && linkedEnemy <= linkNumber)));
+		if (!linked)
+			continue;
+
+		enemy[temp3].enemycycle = 1;
+		enemy[temp3].edamaged = !enemy[temp3].edamaged;
+		if (enemy[temp3].edani != 0)
+		{
+			enemy[temp3].ani = abs(enemy[temp3].edani);
+			enemy[temp3].aniactive = 1;
+			enemy[temp3].animax = 0;
+			enemy[temp3].animin = enemy[temp3].edgr;
+			enemy[temp3].enemycycle = enemy[temp3].animin - 1;
+		}
+		else if (enemy[temp3].edgr > 0)
+		{
+			enemy[temp3].egr[1-1] = enemy[temp3].edgr;
+			enemy[temp3].ani = 1;
+			enemy[temp3].aniactive = 0;
+			enemy[temp3].animax = 0;
+			enemy[temp3].animin = 1;
+		}
+		else
+		{
+			enemyAvail[temp3] = 1;
+			enemyKilled++;
+		}
+
+		enemy[temp3].aniwhenfire = 0;
+		if (enemy[temp3].armorleft > (unsigned char)enemy[temp3].edlevel)
+			enemy[temp3].armorleft = enemy[temp3].edlevel;
+
+		tempX = enemy[temp3].ex + enemy[temp3].mapoffset;
+		tempY = enemy[temp3].ey;
+		if (enemyDat[enemy[temp3].enemytype].esize != 1)
+			JE_setupExplosion(tempX, tempY - 6, 0, 1, false, false);
+		else
+			JE_setupExplosionLarge(enemy[temp3].enemyground, enemy[temp3].explonum / 2, tempX, tempY);
+	}
+}
+
+static void destroy_player_shot_linked_enemies(int enemyIndex, int playerNum, int linkNumber)
+{
+	if (linkNumber == 254 && superEnemy254Jump > 0)
+		JE_eventJump(superEnemy254Jump);
+
+	for (temp2 = 0; temp2 < 100; temp2++)
+	{
+		if (enemyAvail[temp2] == 1)
+			continue;
+
+		temp3 = enemy[temp2].linknum;
+		if (!(temp2 == enemyIndex || linkNumber == 254 ||
+		      (linkNumber != 255 &&
+		       (linkNumber == temp3 || linkNumber - 100 == temp3 ||
+		        (temp3 > 40 && temp3 / 20 == linkNumber / 20 && temp3 <= linkNumber)))))
+			continue;
+
+		int enemy_screen_x = enemy[temp2].ex + enemy[temp2].mapoffset;
+		if (enemy[temp2].special)
+		{
+			assert((unsigned int) enemy[temp2].flagnum-1 < COUNTOF(globalFlags));
+			globalFlags[enemy[temp2].flagnum-1] = enemy[temp2].setto;
+		}
+
+		if (enemy[temp2].enemydie > 0 &&
+		    !((superArcadeMode != SA_NONE) && enemyDat[enemy[temp2].enemydie].value == 30000))
+		{
+			int savedEnemyIndex = b;
+			tempW = enemy[temp2].enemydie;
+			int enemy_offset = temp2 - (temp2 % 25);
+			if (enemyDat[tempW].value > 30000)
+				enemy_offset = 0;
+			b = JE_newEnemy(enemy_offset, tempW, 0);
+			if (b != 0)
+			{
+				if (superArcadeMode != SA_NONE && enemy[b-1].evalue > 30000)
+				{
+					superArcadePowerUp++;
+					if (superArcadePowerUp > 5)
+						superArcadePowerUp = 1;
+					enemy[b-1].egr[1-1] = 5 + superArcadePowerUp * 2;
+					enemy[b-1].evalue = 30000 + superArcadePowerUp;
+				}
+
+				enemy[b-1].scoreitem = enemy[b-1].evalue != 0;
+				enemy[b-1].ex = enemy[temp2].ex;
+				enemy[b-1].ey = enemy[temp2].ey;
+			}
+			b = savedEnemyIndex;
+		}
+
+		if (enemy[temp2].evalue > 0 && enemy[temp2].evalue < 10000)
+		{
+			if (enemy[temp2].evalue == 1)
+				cubeMax++;
+			else
+				player[galagaMode ? 0 : playerNum - 1].cash += enemy[temp2].evalue;
+		}
+
+		if (enemy[temp2].edlevel == -1 && linkNumber == temp3)
+		{
+			enemy[temp2].edlevel = 0;
+			enemyAvail[temp2] = 2;
+			enemy[temp2].egr[1-1] = enemy[temp2].edgr;
+			enemy[temp2].ani = 1;
+			enemy[temp2].aniactive = 0;
+			enemy[temp2].animax = 0;
+			enemy[temp2].animin = 1;
+			enemy[temp2].edamaged = true;
+			enemy[temp2].enemycycle = 1;
+		}
+		else
+		{
+			enemyAvail[temp2] = 1;
+			enemyKilled++;
+		}
+
+		if (enemyDat[enemy[temp2].enemytype].esize == 1)
+		{
+			JE_setupExplosionLarge(enemy[temp2].enemyground, enemy[temp2].explonum, enemy_screen_x, enemy[temp2].ey);
+			soundQueue[6] = S_EXPLOSION_9;
+		}
+		else
+		{
+			JE_setupExplosion(enemy_screen_x, enemy[temp2].ey, 0, 1, false, false);
+			soundQueue[6] = S_EXPLOSION_8;
+		}
+	}
+}
+
 static void process_player_shot(int z)
 {
 	bool is_special = false;
@@ -1258,37 +1453,11 @@ static void process_player_shot(int z)
 
 	for (b = 0; b < 100; b++)
 	{
-		if (enemyAvail[b] == 0)
-		{
-			bool collided;
+		if (enemyAvail[b] != 0 ||
+		    !player_shot_hits_enemy(z, b, is_special, tempShotX, tempShotY,
+		                            tempX2, tempY2, &chain, &damage))
+			continue;
 
-			if (z == MAX_PWEAPON - 1)
-			{
-				temp = 25 - abs(zinglonDuration - 25);
-				collided = abs(enemy[b].ex + enemy[b].mapoffset - (player[0].x + 7)) < temp;
-				temp2 = 9;
-				chain = 0;
-				damage = 10;
-			}
-			else if (is_special)
-			{
-				collided = ((enemy[b].enemycycle == 0) &&
-				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX - tempX2) < (25 + tempX2)) &&
-				            (abs(enemy[b].ey - tempShotY - 12 - tempY2)                 < (29 + tempY2))) ||
-				           ((enemy[b].enemycycle > 0) &&
-				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX - tempX2) < (13 + tempX2)) &&
-				            (abs(enemy[b].ey - tempShotY - 6 - tempY2)                  < (15 + tempY2)));
-			}
-			else
-			{
-				collided = ((enemy[b].enemycycle == 0) &&
-				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX) < 25) && (abs(enemy[b].ey - tempShotY - 12) < 29)) ||
-				           ((enemy[b].enemycycle > 0) &&
-				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX) < 13) && (abs(enemy[b].ey - tempShotY - 6) < 15));
-			}
-
-			if (collided)
-			{
 				if (chain > 0)
 				{
 					shotMultiPos[SHOT_MISC] = 0;
@@ -1321,27 +1490,7 @@ static void process_player_shot(int z)
 				if (temp == 0)
 					temp = 255;
 
-				if (enemy[b].armorleft < 255)
-				{
-					for (unsigned int i = 0; i < COUNTOF(boss_bar); i++)
-						if (temp == boss_bar[i].link_num)
-							boss_bar[i].color = 6;
-
-					if (enemy[b].enemyground)
-						enemy[b].filter = temp2;
-
-					for (unsigned int e = 0; e < COUNTOF(enemy); e++)
-					{
-						if (enemy[e].linknum == temp &&
-						    enemyAvail[e] != 1 &&
-						    enemy[e].enemyground != 0)
-						{
-							if (doIced)
-								enemy[e].iced = doIced;
-							enemy[e].filter = temp2;
-						}
-					}
-				}
+				mark_player_shot_linked_enemies(b, temp, temp2, doIced);
 
 				if (armorleft > damage)
 				{
@@ -1362,173 +1511,11 @@ static void process_player_shot(int z)
 
 					if ((armorleft - damage <= enemy[b].edlevel) &&
 					    ((!enemy[b].edamaged) ^ (enemy[b].edani < 0)))
-					{
-
-						for (temp3 = 0; temp3 < 100; temp3++)
-						{
-							if (enemyAvail[temp3] != 1)
-							{
-								int linknum = enemy[temp3].linknum;
-								if (
-								     (temp3 == b) ||
-								     (
-								       (temp != 255) &&
-								       (
-								         ((enemy[temp3].edlevel > 0) && (linknum == temp)) ||
-								         (
-								           (enemyContinualDamage && (temp - 100 == linknum)) ||
-								           ((linknum > 40) && (linknum / 20 == temp / 20) && (linknum <= temp))
-								         )
-								       )
-								     )
-								   )
-								{
-									enemy[temp3].enemycycle = 1;
-
-									enemy[temp3].edamaged = !enemy[temp3].edamaged;
-
-									if (enemy[temp3].edani != 0)
-									{
-										enemy[temp3].ani = abs(enemy[temp3].edani);
-										enemy[temp3].aniactive = 1;
-										enemy[temp3].animax = 0;
-										enemy[temp3].animin = enemy[temp3].edgr;
-										enemy[temp3].enemycycle = enemy[temp3].animin - 1;
-
-									}
-									else if (enemy[temp3].edgr > 0)
-									{
-										enemy[temp3].egr[1-1] = enemy[temp3].edgr;
-										enemy[temp3].ani = 1;
-										enemy[temp3].aniactive = 0;
-										enemy[temp3].animax = 0;
-										enemy[temp3].animin = 1;
-									}
-									else
-									{
-										enemyAvail[temp3] = 1;
-										enemyKilled++;
-									}
-
-									enemy[temp3].aniwhenfire = 0;
-
-									if (enemy[temp3].armorleft > (unsigned char)enemy[temp3].edlevel)
-										enemy[temp3].armorleft = enemy[temp3].edlevel;
-
-									tempX = enemy[temp3].ex + enemy[temp3].mapoffset;
-									tempY = enemy[temp3].ey;
-
-									if (enemyDat[enemy[temp3].enemytype].esize != 1)
-										JE_setupExplosion(tempX, tempY - 6, 0, 1, false, false);
-									else
-										JE_setupExplosionLarge(enemy[temp3].enemyground, enemy[temp3].explonum / 2, tempX, tempY);
-								}
-							}
-						}
-					}
+						animate_player_shot_damaged_enemies(b, temp);
 				}
 				else
 				{
-
-					if ((temp == 254) && (superEnemy254Jump > 0))
-						JE_eventJump(superEnemy254Jump);
-
-					for (temp2 = 0; temp2 < 100; temp2++)
-					{
-						if (enemyAvail[temp2] != 1)
-						{
-							temp3 = enemy[temp2].linknum;
-							if ((temp2 == b) || (temp == 254) ||
-							    ((temp != 255) && ((temp == temp3) || (temp - 100 == temp3) ||
-							                       ((temp3 > 40) && (temp3 / 20 == temp / 20) && (temp3 <= temp)))))
-							{
-
-								int enemy_screen_x = enemy[temp2].ex + enemy[temp2].mapoffset;
-
-								if (enemy[temp2].special)
-								{
-									assert((unsigned int) enemy[temp2].flagnum-1 < COUNTOF(globalFlags));
-									globalFlags[enemy[temp2].flagnum-1] = enemy[temp2].setto;
-								}
-
-								if ((enemy[temp2].enemydie > 0) &&
-								    !((superArcadeMode != SA_NONE) &&
-								      (enemyDat[enemy[temp2].enemydie].value == 30000)))
-								{
-									int temp_b = b;
-									tempW = enemy[temp2].enemydie;
-									int enemy_offset = temp2 - (temp2 % 25);
-									if (enemyDat[tempW].value > 30000)
-									{
-										enemy_offset = 0;
-									}
-									b = JE_newEnemy(enemy_offset, tempW, 0);
-									if (b != 0)
-									{
-										if ((superArcadeMode != SA_NONE) && (enemy[b-1].evalue > 30000))
-										{
-											superArcadePowerUp++;
-											if (superArcadePowerUp > 5)
-												superArcadePowerUp = 1;
-											enemy[b-1].egr[1-1] = 5 + superArcadePowerUp * 2;
-											enemy[b-1].evalue = 30000 + superArcadePowerUp;
-										}
-
-										if (enemy[b-1].evalue != 0)
-											enemy[b-1].scoreitem = true;
-										else
-											enemy[b-1].scoreitem = false;
-
-										enemy[b-1].ex = enemy[temp2].ex;
-										enemy[b-1].ey = enemy[temp2].ey;
-									}
-									b = temp_b;
-								}
-
-								if ((enemy[temp2].evalue > 0) && (enemy[temp2].evalue < 10000))
-								{
-									if (enemy[temp2].evalue == 1)
-									{
-										cubeMax++;
-									}
-									else
-									{
-										// in galaga mode player 2 is sidekick, so give cash to player 1
-										player[galagaMode ? 0 : playerNum - 1].cash += enemy[temp2].evalue;
-									}
-								}
-
-								if ((enemy[temp2].edlevel == -1) && (temp == temp3))
-								{
-									enemy[temp2].edlevel = 0;
-									enemyAvail[temp2] = 2;
-									enemy[temp2].egr[1-1] = enemy[temp2].edgr;
-									enemy[temp2].ani = 1;
-									enemy[temp2].aniactive = 0;
-									enemy[temp2].animax = 0;
-									enemy[temp2].animin = 1;
-									enemy[temp2].edamaged = true;
-									enemy[temp2].enemycycle = 1;
-								}
-								else
-								{
-									enemyAvail[temp2] = 1;
-									enemyKilled++;
-								}
-
-								if (enemyDat[enemy[temp2].enemytype].esize == 1)
-								{
-									JE_setupExplosionLarge(enemy[temp2].enemyground, enemy[temp2].explonum, enemy_screen_x, enemy[temp2].ey);
-									soundQueue[6] = S_EXPLOSION_9;
-								}
-								else
-								{
-									JE_setupExplosion(enemy_screen_x, enemy[temp2].ey, 0, 1, false, false);
-									soundQueue[6] = S_EXPLOSION_8;
-								}
-							}
-						}
-					}
+					destroy_player_shot_linked_enemies(b, playerNum, temp);
 				}
 
 				if (infiniteShot)
@@ -1547,8 +1534,6 @@ static void process_player_shot(int z)
 						playerShotData[z].shotDmg -= armorleft;
 					}
 				}
-			}
-		}
 	}
 }
 
@@ -3263,19 +3248,277 @@ void networkStartScreen(void)
 }
 #endif /* WITH_NETWORK */
 
+enum MenuItemIndex
+{
+	MENU_ITEM_NEW_GAME = 0,
+	MENU_ITEM_LOAD_GAME,
+	MENU_ITEM_HIGH_SCORES,
+	MENU_ITEM_INSTRUCTIONS,
+	MENU_ITEM_SETUP,
+	MENU_ITEM_DEMO,
+	MENU_ITEM_QUIT,
+};
+
+static void draw_title_screen(bool restart, size_t selectedIndex, int wMenuItem[COUNTOF(menuText)])
+{
+	const int xCenter = VGAScreen->w / 2;
+	const int yMenuItems = 104;
+	const int hMenuItem = 13;
+
+	if (restart)
+	{
+		play_song(SONG_TITLE);
+		JE_loadPic(VGAScreen, 4, false);
+		draw_font_hv_shadow(VGAScreen, 2, 192, opentyrian_version, small_font, left_aligned, 15, 0, false, 1);
+
+		if (moveTyrianLogoUp)
+		{
+			memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
+			blit_sprite(VGAScreenSeg, 11, 62, PLANET_SHAPES, 146);
+			fade_palette(colors, 10, 0, 255 - 16);
+			for (int y = 60; y >= 4; y -= 2)
+			{
+				setDelay(2);
+				memcpy(VGAScreen->pixels, VGAScreen2->pixels, VGAScreen->pitch * VGAScreen->h);
+				blit_sprite(VGAScreenSeg, 11, y, PLANET_SHAPES, 146);
+				JE_showVGA();
+				service_wait_delay();
+			}
+			moveTyrianLogoUp = false;
+		}
+		else
+		{
+			blit_sprite(VGAScreenSeg, 11, 4, PLANET_SHAPES, 146);
+			fade_palette(colors, 10, 0, 255 - 16);
+		}
+
+		for (size_t i = 0; i < COUNTOF(menuText); ++i)
+		{
+			const char *const text = menuText[i];
+			wMenuItem[i] = JE_textWidth(text, normal_font);
+			const int x = xCenter - wMenuItem[i] / 2;
+			const int y = yMenuItems + hMenuItem * i;
+			draw_font_hv(VGAScreen, x - 1, y - 1, text, normal_font, left_aligned, 15, -10);
+			draw_font_hv(VGAScreen, x + 1, y + 1, text, normal_font, left_aligned, 15, -10);
+			draw_font_hv(VGAScreen, x + 1, y - 1, text, normal_font, left_aligned, 15, -10);
+			draw_font_hv(VGAScreen, x - 1, y + 1, text, normal_font, left_aligned, 15, -10);
+			draw_font_hv(VGAScreen, x, y, text, normal_font, left_aligned, 15, -3);
+		}
+
+		memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
+		mouseCursor = MOUSE_POINTER_NORMAL;
+		fade_palette(colors, 20, 255 - 16 + 1, 255);
+	}
+
+	memcpy(VGAScreen->pixels, VGAScreen2->pixels, VGAScreen->pitch * VGAScreen->h);
+	draw_font_hv(VGAScreen, VGAScreen->w / 2, yMenuItems + hMenuItem * selectedIndex,
+	             menuText[selectedIndex], normal_font, centered, 15, -1);
+}
+
+static bool wait_for_title_screen_input(bool *mouseMoved)
+{
+	service_SDL_events(true);
+	JE_mouseStartFilter(0xF0);
+	JE_showVGA();
+	JE_mouseReplace();
+	const Uint32 idleStartTick = SDL_GetTicks();
+
+	do
+	{
+		if (SDL_GetTicks() - idleStartTick > 30000)
+		{
+			fade_black(15);
+			play_demo = true;
+			return false;
+		}
+
+		SDL_Delay(16);
+		const Uint16 oldMouseX = mouse_x;
+		const Uint16 oldMouseY = mouse_y;
+		push_joysticks_as_keyboard();
+		service_SDL_events(false);
+		*mouseMoved = mouse_x != oldMouseX || mouse_y != oldMouseY;
+	} while (!(newkey || new_text || newmouse || *mouseMoved));
+
+	return true;
+}
+
+typedef struct
+{
+	bool action;
+	bool done;
+} TitleScreenInput;
+
+static TitleScreenInput read_title_screen_input(size_t *selectedIndex,
+                                                const int wMenuItem[COUNTOF(menuText)],
+                                                bool mouseMoved)
+{
+	const int xCenter = VGAScreen->w / 2;
+	const int yMenuItems = 104;
+	const int hMenuItem = 13;
+	TitleScreenInput input = { false, false };
+
+	if (mouseMoved || newmouse)
+	{
+		for (size_t i = 0; i < COUNTOF(menuText); ++i)
+		{
+			const int xMenuItem = xCenter - wMenuItem[i] / 2;
+			if (mouse_x < xMenuItem || mouse_x >= xMenuItem + wMenuItem[i])
+				continue;
+
+			const int yMenuItem = yMenuItems + hMenuItem * i;
+			if (mouse_y >= yMenuItem && mouse_y < yMenuItem + hMenuItem)
+			{
+				if (*selectedIndex != i)
+				{
+					JE_playSampleNum(S_CURSOR);
+					*selectedIndex = i;
+				}
+				if (newmouse && lastmouse_but == SDL_BUTTON_LEFT &&
+				    lastmouse_x >= xMenuItem && lastmouse_x < xMenuItem + wMenuItem[i] &&
+				    lastmouse_y >= yMenuItem && lastmouse_y < yMenuItem + hMenuItem)
+					input.action = true;
+				break;
+			}
+		}
+	}
+
+	if (newmouse)
+	{
+		if (lastmouse_but == SDL_BUTTON_RIGHT)
+		{
+			JE_playSampleNum(S_SPRING);
+			input.done = true;
+		}
+	}
+	else if (newkey)
+	{
+		switch (lastkey_scan)
+		{
+		case SDL_SCANCODE_UP:
+			JE_playSampleNum(S_CURSOR);
+			*selectedIndex = *selectedIndex == 0 ? COUNTOF(menuText) - 1 : *selectedIndex - 1;
+			break;
+		case SDL_SCANCODE_DOWN:
+			JE_playSampleNum(S_CURSOR);
+			*selectedIndex = *selectedIndex == COUNTOF(menuText) - 1 ? 0 : *selectedIndex + 1;
+			break;
+		case SDL_SCANCODE_SPACE:
+		case SDL_SCANCODE_RETURN:
+			input.action = true;
+			break;
+		case SDL_SCANCODE_ESCAPE:
+			JE_playSampleNum(S_SPRING);
+			input.done = true;
+		default:
+			break;
+		}
+	}
+
+	return input;
+}
+
+typedef enum
+{
+	TITLE_SCREEN_CONTINUE,
+	TITLE_SCREEN_RETURN_FALSE,
+	TITLE_SCREEN_RETURN_TRUE,
+} TitleScreenResult;
+
+static TitleScreenResult dispatch_title_screen_action(size_t selectedIndex, bool *restart)
+{
+	JE_playSampleNum(S_SELECT);
+	switch (selectedIndex)
+	{
+	case MENU_ITEM_NEW_GAME:
+		fade_black(15);
+		if (newGame())
+			return TITLE_SCREEN_RETURN_TRUE;
+		*restart = true;
+		break;
+	case MENU_ITEM_LOAD_GAME:
+		fade_black(15);
+		if (JE_loadScreen())
+			return TITLE_SCREEN_RETURN_TRUE;
+		*restart = true;
+		break;
+	case MENU_ITEM_HIGH_SCORES:
+		fade_black(15);
+		JE_highScoreScreen();
+		*restart = true;
+		break;
+	case MENU_ITEM_INSTRUCTIONS:
+		fade_black(15);
+		JE_helpSystem(1);
+		*restart = true;
+		break;
+	case MENU_ITEM_SETUP:
+		fade_black(15);
+		setupMenu();
+		*restart = true;
+		break;
+	case MENU_ITEM_DEMO:
+		fade_black(15);
+		play_demo = true;
+		return TITLE_SCREEN_RETURN_TRUE;
+	case MENU_ITEM_QUIT:
+		fade_black(15);
+		return TITLE_SCREEN_RETURN_FALSE;
+	default:
+		break;
+	}
+	return TITLE_SCREEN_CONTINUE;
+}
+
+static TitleScreenResult handle_title_screen_secret_codes(size_t specialNameProgress[SA_ENGAGE],
+                                                           bool *restart)
+{
+	if (!new_text)
+		return TITLE_SCREEN_CONTINUE;
+
+	for (size_t ti = 0U; last_text[ti] != '\0'; ++ti)
+	{
+		const char c = toupper(last_text[ti]);
+		for (size_t i = 0; i < SA_ENGAGE; ++i)
+		{
+			if (specialNameProgress[i] >= COUNTOF(specialName[i]) - 1 ||
+			    c != specialName[i][specialNameProgress[i]])
+			{
+				specialNameProgress[i] = 0;
+				continue;
+			}
+
+			++specialNameProgress[i];
+			if (specialName[i][specialNameProgress[i]] != '\0')
+				continue;
+
+			if (i + 1 == SA_DESTRUCT)
+			{
+				fade_black(10);
+				loadDestruct = true;
+				return TITLE_SCREEN_RETURN_TRUE;
+			}
+			if (i + 1 == SA_ENGAGE)
+			{
+				JE_playSampleNum(V_DATA_CUBE);
+				JE_whoa();
+				set_colors((SDL_Color) { 0, 0, 0 }, 0, 255);
+				newSuperTyrianGame();
+				return TITLE_SCREEN_RETURN_TRUE;
+			}
+
+			fade_black(10);
+			if (newSuperArcadeGame(i))
+				return TITLE_SCREEN_RETURN_TRUE;
+			*restart = true;
+		}
+	}
+
+	return TITLE_SCREEN_CONTINUE;
+}
+
 bool titleScreen(void)
 {
-	enum MenuItemIndex
-	{
-		MENU_ITEM_NEW_GAME = 0,
-		MENU_ITEM_LOAD_GAME,
-		MENU_ITEM_HIGH_SCORES,
-		MENU_ITEM_INSTRUCTIONS,
-		MENU_ITEM_SETUP,
-		MENU_ITEM_DEMO,
-		MENU_ITEM_QUIT,
-	};
-
 	SDL_strlcpy(menuText[4], "Setup", sizeof menuText[4]);  // override "Ordering Info"
 
 	if (shopSpriteSheet.data == NULL)
@@ -3286,316 +3529,34 @@ bool titleScreen(void)
 	size_t selectedIndex = MENU_ITEM_NEW_GAME;
 	size_t specialNameProgress[SA_ENGAGE] = { 0 };
 
-	const int xCenter = VGAScreen->w / 2;
-	const int yMenuItems = 104;
-	const int hMenuItem = 13;
 	int wMenuItem[COUNTOF(menuText)] = { 0 };
 
 	for (; ; )
 	{
-		if (restart)
-		{
-			play_song(SONG_TITLE);
-
-			JE_loadPic(VGAScreen, 4, false);
-
-			draw_font_hv_shadow(VGAScreen, 2, 192, opentyrian_version, small_font, left_aligned, 15, 0, false, 1);
-
-			if (moveTyrianLogoUp)
-			{
-				memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
-
-				blit_sprite(VGAScreenSeg, 11, 62, PLANET_SHAPES, 146); // tyrian logo
-
-				fade_palette(colors, 10, 0, 255 - 16);
-
-				for (int y = 60; y >= 4; y -= 2)
-				{
-					setDelay(2);
-
-					memcpy(VGAScreen->pixels, VGAScreen2->pixels, VGAScreen->pitch * VGAScreen->h);
-
-					blit_sprite(VGAScreenSeg, 11, y, PLANET_SHAPES, 146); // tyrian logo
-
-					JE_showVGA();
-
-					service_wait_delay();
-				}
-
-				moveTyrianLogoUp = false;
-			}
-			else
-			{
-				blit_sprite(VGAScreenSeg, 11, 4, PLANET_SHAPES, 146); // tyrian logo
-
-				fade_palette(colors, 10, 0, 255 - 16);
-			}
-
-			// Draw menu items.
-			for (size_t i = 0; i < COUNTOF(menuText); ++i)
-			{
-				const char *const text = menuText[i];
-
-				wMenuItem[i] = JE_textWidth(text, normal_font);
-				const int x = xCenter - wMenuItem[i] / 2;
-				const int y = yMenuItems + hMenuItem * i;
-
-				draw_font_hv(VGAScreen, x - 1, y - 1, menuText[i], normal_font, left_aligned, 15, -10);
-				draw_font_hv(VGAScreen, x + 1, y + 1, menuText[i], normal_font, left_aligned, 15, -10);
-				draw_font_hv(VGAScreen, x + 1, y - 1, menuText[i], normal_font, left_aligned, 15, -10);
-				draw_font_hv(VGAScreen, x - 1, y + 1, menuText[i], normal_font, left_aligned, 15, -10);
-				draw_font_hv(VGAScreen, x,     y,     menuText[i], normal_font, left_aligned, 15, -3);
-			}
-
-			memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
-
-			mouseCursor = MOUSE_POINTER_NORMAL;
-
-			// Fade in menu items.
-			fade_palette(colors, 20, 255 - 16 + 1, 255);
-
-			restart = false;
-		}
-
-		memcpy(VGAScreen->pixels, VGAScreen2->pixels, VGAScreen->pitch * VGAScreen->h);
-
-		// Highlight selected menu item.
-		draw_font_hv(VGAScreen, VGAScreen->w / 2, yMenuItems + hMenuItem * selectedIndex, menuText[selectedIndex], normal_font, centered, 15, -1);
-
-		service_SDL_events(true);
-
-		JE_mouseStartFilter(0xF0);
-		JE_showVGA();
-		JE_mouseReplace();
-
-		const Uint32 idleStartTick = SDL_GetTicks();
+		draw_title_screen(restart, selectedIndex, wMenuItem);
+		restart = false;
 
 		bool mouseMoved = false;
-		do
+		if (!wait_for_title_screen_input(&mouseMoved))
 		{
-			// Play demo after idle for 30 seconds.
-			if (SDL_GetTicks() - idleStartTick > 30000)
-			{
-				fade_black(15);
-
-				play_demo = true;
-				return true;
-			}
-
-			SDL_Delay(16);
-
-			Uint16 oldMouseX = mouse_x;
-			Uint16 oldMouseY = mouse_y;
-
-			push_joysticks_as_keyboard();
-			service_SDL_events(false);
-
-			mouseMoved = mouse_x != oldMouseX || mouse_y != oldMouseY;
-		} while (!(newkey || new_text || newmouse || mouseMoved));
+			return true;
+		}
 
 		// Handle interaction.
 
-		bool action = false;
-		bool done = false;
+		const TitleScreenInput input = read_title_screen_input(&selectedIndex, wMenuItem, mouseMoved);
+		bool action = input.action;
+		bool done = input.done;
 
-		if (mouseMoved || newmouse)
-		{
-			// Find menu item that was hovered or clicked.
-			for (size_t i = 0; i < COUNTOF(menuText); ++i)
-			{
-				const int xMenuItem = xCenter - wMenuItem[i] / 2;
-				if (mouse_x >= xMenuItem && mouse_x < xMenuItem + wMenuItem[i])
-				{
-					const int yMenuItem = yMenuItems + hMenuItem * i;
-					if (mouse_y >= yMenuItem && mouse_y < yMenuItem + hMenuItem)
-					{
-						if (selectedIndex != i)
-						{
-							JE_playSampleNum(S_CURSOR);
-
-							selectedIndex = i;
-						}
-
-						if (newmouse && lastmouse_but == SDL_BUTTON_LEFT &&
-						    lastmouse_x >= xMenuItem && lastmouse_x < xMenuItem + wMenuItem[i] &&
-						    lastmouse_y >= yMenuItem && lastmouse_y < yMenuItem + hMenuItem)
-						{
-							action = true;
-						}
-
-						break;
-					}
-				}
-			}
-		}
-
-		if (newmouse)
-		{
-			if (lastmouse_but == SDL_BUTTON_RIGHT)
-			{
-				JE_playSampleNum(S_SPRING);
-
-				done = true;
-			}
-		}
-		else if (newkey)
-		{
-			switch (lastkey_scan)
-			{
-			case SDL_SCANCODE_UP:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				selectedIndex = selectedIndex == 0
-					? COUNTOF(menuText) - 1
-					: selectedIndex - 1;
-				break;
-			}
-			case SDL_SCANCODE_DOWN:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				selectedIndex = selectedIndex == COUNTOF(menuText) - 1
-					? 0
-					: selectedIndex + 1;
-				break;
-			}
-			case SDL_SCANCODE_SPACE:
-			case SDL_SCANCODE_RETURN:
-			{
-				action = true;
-				break;
-			}
-			case SDL_SCANCODE_ESCAPE:
-			{
-				JE_playSampleNum(S_SPRING);
-
-				done = true;
-			}
-			default:
-				break;
-			}
-		}
-
-		if (new_text)
-		{
-			for (size_t ti = 0U; last_text[ti] != '\0'; ++ti)
-			{
-				const char c = toupper(last_text[ti]);
-
-				for (size_t i = 0; i < SA_ENGAGE; i++)
-				{
-					if (specialNameProgress[i] >= COUNTOF(specialName[i]) - 1 ||
-						c != specialName[i][specialNameProgress[i]])
-					{
-						specialNameProgress[i] = 0;
-						continue;
-					}
-
-					specialNameProgress[i]++;
-
-					if (specialName[i][specialNameProgress[i]] == '\0')
-					{
-						if (i + 1 == SA_DESTRUCT)
-						{
-							fade_black(10);
-
-							loadDestruct = true;
-							return true;
-						}
-						else if (i + 1 == SA_ENGAGE)
-						{
-							JE_playSampleNum(V_DATA_CUBE);
-
-							JE_whoa();
-							set_colors((SDL_Color) { 0, 0, 0 }, 0, 255);
-
-							newSuperTyrianGame();
-							return true;
-						}
-						else
-						{
-							fade_black(10);
-
-							if (newSuperArcadeGame(i))
-								return true;
-
-							restart = true;
-						}
-					}
-				}
-			}
-		}
+		TitleScreenResult secretResult = handle_title_screen_secret_codes(specialNameProgress, &restart);
+		if (secretResult != TITLE_SCREEN_CONTINUE)
+			return secretResult == TITLE_SCREEN_RETURN_TRUE;
 
 		if (action)
 		{
-			JE_playSampleNum(S_SELECT);
-
-			switch (selectedIndex)
-			{
-			case MENU_ITEM_NEW_GAME:
-			{
-				fade_black(15);
-
-				if (newGame())
-					return true;
-
-				restart = true;
-				break;
-			}
-			case MENU_ITEM_LOAD_GAME:
-			{
-				fade_black(15);
-
-				if (JE_loadScreen())
-					return true;
-
-				restart = true;
-				break;
-			}
-			case MENU_ITEM_HIGH_SCORES:
-			{
-				fade_black(15);
-
-				JE_highScoreScreen();
-
-				restart = true;
-				break;
-			}
-			case MENU_ITEM_INSTRUCTIONS:
-			{
-				fade_black(15);
-
-				JE_helpSystem(1);
-
-				restart = true;
-				break;
-			}
-			case MENU_ITEM_SETUP:
-			{
-				fade_black(15);
-
-				setupMenu();
-
-				restart = true;
-				break;
-			}
-			case MENU_ITEM_DEMO:
-			{
-				fade_black(15);
-
-				play_demo = true;
-				return true;
-			}
-			case MENU_ITEM_QUIT:
-			{
-				fade_black(15);
-
-				return false;
-			}
-			default:
-				break;
-			}
+			const TitleScreenResult result = dispatch_title_screen_action(selectedIndex, &restart);
+			if (result != TITLE_SCREEN_CONTINUE)
+				return result == TITLE_SCREEN_RETURN_TRUE;
 		}
 
 		if (done)
@@ -3847,6 +3808,144 @@ void JE_displayText(void)
 	levelWarningDisplay = false;
 }
 
+static int scale_enemy_score(Uint16 enemyType)
+{
+	const int baseValue = enemyDat[enemyType].value;
+	int score = 0;
+
+	if (baseValue > 1 && baseValue < 10000)
+	{
+		switch (difficultyLevel)
+		{
+		case -1:
+		case DIFFICULTY_WIMP:
+			score = baseValue * 0.75f;
+			break;
+		case DIFFICULTY_EASY:
+		case DIFFICULTY_NORMAL:
+			score = baseValue;
+			break;
+		case DIFFICULTY_HARD:
+			score = baseValue * 1.125f;
+			break;
+		case DIFFICULTY_IMPOSSIBLE:
+			score = baseValue * 1.5f;
+			break;
+		case DIFFICULTY_INSANITY:
+			score = baseValue * 2;
+			break;
+		case DIFFICULTY_SUICIDE:
+			score = baseValue * 2.5f;
+			break;
+		case DIFFICULTY_MANIACAL:
+		case DIFFICULTY_ZINGLON:
+			score = baseValue * 4;
+			break;
+		case DIFFICULTY_NORTANEOUS:
+		case DIFFICULTY_10:
+			score = baseValue * 8;
+			break;
+		}
+		if (score > 10000)
+			score = 10000;
+		return score;
+	}
+
+	return baseValue;
+}
+
+static int scale_enemy_armor(Uint16 enemyType)
+{
+	const int baseArmor = enemyDat[enemyType].armor;
+	int armor = 1;
+
+	if (baseArmor > 0)
+	{
+		if (baseArmor != 255)
+		{
+			switch (difficultyLevel)
+			{
+			case -1:
+			case DIFFICULTY_WIMP:
+				armor = baseArmor * 0.5f + 1;
+				break;
+			case DIFFICULTY_EASY:
+				armor = baseArmor * 0.75f + 1;
+				break;
+			case DIFFICULTY_NORMAL:
+				armor = baseArmor;
+				break;
+			case DIFFICULTY_HARD:
+				armor = baseArmor * 1.2f;
+				break;
+			case DIFFICULTY_IMPOSSIBLE:
+				armor = baseArmor * 1.5f;
+				break;
+			case DIFFICULTY_INSANITY:
+				armor = baseArmor * 1.8f;
+				break;
+			case DIFFICULTY_SUICIDE:
+				armor = baseArmor * 2;
+				break;
+			case DIFFICULTY_MANIACAL:
+				armor = baseArmor * 3;
+				break;
+			case DIFFICULTY_ZINGLON:
+				armor = baseArmor * 4;
+				break;
+			case DIFFICULTY_NORTANEOUS:
+			case DIFFICULTY_10:
+				armor = baseArmor * 8;
+				break;
+			}
+
+			if (armor > 254)
+				armor = 254;
+		}
+		else
+		{
+			armor = 255;
+		}
+	}
+
+	return armor;
+}
+
+static uint initialize_enemy_score_and_armor(struct JE_SingleEnemyType *enemy, Uint16 enemyType)
+{
+	enemy->evalue = scale_enemy_score(enemyType);
+
+	if (enemyDat[enemyType].armor > 0)
+	{
+		enemy->armorleft = scale_enemy_armor(enemyType);
+		enemy->scoreitem = false;
+		if (!enemy->scoreitem)
+			totalEnemy++;
+		return 0;
+	}
+
+	enemy->armorleft = 255;
+	if (enemy->evalue != 0)
+		enemy->scoreitem = true;
+	if (!enemy->scoreitem)
+		totalEnemy++;
+	return 2;
+}
+
+static Sprite2_array *find_enemy_sprite_sheet(JE_byte shapeTableI)
+{
+	if (shapeTableI == 21)
+		return &spriteSheet11;
+	if (shapeTableI == 26)
+		return &spriteSheet10;
+
+	for (size_t i = 0; i < COUNTOF(enemySpriteSheetIds); ++i)
+		if (shapeTableI == enemySpriteSheetIds[i])
+			return &enemySpriteSheets[i];
+
+	return NULL;
+}
+
 Sint16 JE_newEnemy(int enemyOffset, Uint16 eDatI, Sint16 uniqueShapeTableI)
 {
 	for (int i = enemyOffset; i < enemyOffset + 25; ++i)
@@ -3879,21 +3978,7 @@ uint JE_makeEnemy(struct JE_SingleEnemyType *enemy, Uint16 eDatI, Sint16 uniqueS
 		shapeTableI = enemyDat[eDatI].shapebank;
 	}
 
-	Sprite2_array *sprite2s = NULL;
-	if (shapeTableI == 21)
-	{
-		sprite2s = &spriteSheet11;  // Coins&Gems
-	}
-	else if (shapeTableI == 26)
-	{
-		sprite2s = &spriteSheet10;  // Two-Player Stuff
-	}
-	else
-	{
-		for (size_t i = 0; i < COUNTOF(enemySpriteSheetIds); ++i)
-			if (shapeTableI == enemySpriteSheetIds[i])
-				sprite2s = &enemySpriteSheets[i];
-	}
+	Sprite2_array *sprite2s = find_enemy_sprite_sheet(shapeTableI);
 	
 	if (sprite2s != NULL)
 		enemy->sprite2s = sprite2s;
@@ -4027,117 +4112,7 @@ uint JE_makeEnemy(struct JE_SingleEnemyType *enemy, Uint16 eDatI, Sint16 uniqueS
 
 	enemy->filter = 0x00;
 
-	int tempValue = 0;
-	if (enemyDat[eDatI].value > 1 && enemyDat[eDatI].value < 10000)
-	{
-		switch (difficultyLevel)
-		{
-		case -1:
-		case DIFFICULTY_WIMP:
-			tempValue = enemyDat[eDatI].value * 0.75f;
-			break;
-		case DIFFICULTY_EASY:
-		case DIFFICULTY_NORMAL:
-			tempValue = enemyDat[eDatI].value;
-			break;
-		case DIFFICULTY_HARD:
-			tempValue = enemyDat[eDatI].value * 1.125f;
-			break;
-		case DIFFICULTY_IMPOSSIBLE:
-			tempValue = enemyDat[eDatI].value * 1.5f;
-			break;
-		case DIFFICULTY_INSANITY:
-			tempValue = enemyDat[eDatI].value * 2;
-			break;
-		case DIFFICULTY_SUICIDE:
-			tempValue = enemyDat[eDatI].value * 2.5f;
-			break;
-		case DIFFICULTY_MANIACAL:
-		case DIFFICULTY_ZINGLON:
-			tempValue = enemyDat[eDatI].value * 4;
-			break;
-		case DIFFICULTY_NORTANEOUS:
-		case DIFFICULTY_10:
-			tempValue = enemyDat[eDatI].value * 8;
-			break;
-		}
-		if (tempValue > 10000)
-			tempValue = 10000;
-		enemy->evalue = tempValue;
-	}
-	else
-	{
-		enemy->evalue = enemyDat[eDatI].value;
-	}
-
-	int tempArmor = 1;
-	if (enemyDat[eDatI].armor > 0)
-	{
-		if (enemyDat[eDatI].armor != 255)
-		{
-			switch (difficultyLevel)
-			{
-			case -1:
-			case DIFFICULTY_WIMP:
-				tempArmor = enemyDat[eDatI].armor * 0.5f + 1;
-				break;
-			case DIFFICULTY_EASY:
-				tempArmor = enemyDat[eDatI].armor * 0.75f + 1;
-				break;
-			case DIFFICULTY_NORMAL:
-				tempArmor = enemyDat[eDatI].armor;
-				break;
-			case DIFFICULTY_HARD:
-				tempArmor = enemyDat[eDatI].armor * 1.2f;
-				break;
-			case DIFFICULTY_IMPOSSIBLE:
-				tempArmor = enemyDat[eDatI].armor * 1.5f;
-				break;
-			case DIFFICULTY_INSANITY:
-				tempArmor = enemyDat[eDatI].armor * 1.8f;
-				break;
-			case DIFFICULTY_SUICIDE:
-				tempArmor = enemyDat[eDatI].armor * 2;
-				break;
-			case DIFFICULTY_MANIACAL:
-				tempArmor = enemyDat[eDatI].armor * 3;
-				break;
-			case DIFFICULTY_ZINGLON:
-				tempArmor = enemyDat[eDatI].armor * 4;
-				break;
-			case DIFFICULTY_NORTANEOUS:
-			case DIFFICULTY_10:
-				tempArmor = enemyDat[eDatI].armor * 8;
-				break;
-			}
-
-			if (tempArmor > 254)
-			{
-				tempArmor = 254;
-			}
-		}
-		else
-		{
-			tempArmor = 255;
-		}
-
-		enemy->armorleft = tempArmor;
-
-		avail = 0;
-		enemy->scoreitem = false;
-	}
-	else
-	{
-		avail = 2;
-		enemy->armorleft = 255;
-		if (enemy->evalue != 0)
-			enemy->scoreitem = true;
-	}
-
-	if (!enemy->scoreitem)
-	{
-		totalEnemy++;  /*Destruction ratio*/
-	}
+	avail = initialize_enemy_score_and_armor(enemy, eDatI);
 
 	/* indicates what to set ENEMYAVAIL to */
 	return avail;
@@ -4472,120 +4447,210 @@ static void handle_environment_event(void)
 }
 
 
+static void handle_enemy_global_move_event(void)
+{
+	int initial_i = 0, max_i = 0;
+	bool all_enemies = false;
+
+	if (eventRec[eventLoc-1].eventdat3 > 79 && eventRec[eventLoc-1].eventdat3 < 90)
+	{
+		max_i = 100;
+		eventRec[eventLoc-1].eventdat4 = newPL[eventRec[eventLoc-1].eventdat3 - 80];
+	}
+	else
+	{
+		switch (eventRec[eventLoc-1].eventdat3)
+		{
+		case 0:
+			max_i = 100;
+			break;
+		case 2:
+			max_i = 25;
+			all_enemies = true;
+			break;
+		case 1:
+			initial_i = 25;
+			max_i = 50;
+			all_enemies = true;
+			break;
+		case 3:
+			initial_i = 50;
+			max_i = 75;
+			all_enemies = true;
+			break;
+		case 99:
+			max_i = 100;
+			all_enemies = true;
+			break;
+		}
+	}
+
+	for (int i = initial_i; i < max_i; i++)
+	{
+		if (all_enemies || enemy[i].linknum == eventRec[eventLoc-1].eventdat4)
+		{
+			if (eventRec[eventLoc-1].eventdat != -99)
+				enemy[i].exc = eventRec[eventLoc-1].eventdat;
+			if (eventRec[eventLoc-1].eventdat2 != -99)
+				enemy[i].eyc = eventRec[eventLoc-1].eventdat2;
+			if (eventRec[eventLoc-1].eventdat6 != 0)
+				enemy[i].fixedmovey = eventRec[eventLoc-1].eventdat6;
+			if (eventRec[eventLoc-1].eventdat6 == -99)
+				enemy[i].fixedmovey = 0;
+			if (eventRec[eventLoc-1].eventdat5 > 0)
+				enemy[i].enemycycle = eventRec[eventLoc-1].eventdat5;
+		}
+	}
+}
+
+static void handle_enemy_global_accel_event(void)
+{
+	resolve_event_enemy_link();
+
+	for (temp = 0; temp < 100; temp++)
+	{
+		if (enemyAvail[temp] == 1 ||
+		    (enemy[temp].linknum != eventRec[eventLoc-1].eventdat4 && eventRec[eventLoc-1].eventdat4 != 0))
+			continue;
+
+		if (eventRec[eventLoc-1].eventdat != -99)
+		{
+			enemy[temp].excc = eventRec[eventLoc-1].eventdat;
+			enemy[temp].exccw = abs(eventRec[eventLoc-1].eventdat);
+			enemy[temp].exccwmax = abs(eventRec[eventLoc-1].eventdat);
+			enemy[temp].exccadd = eventRec[eventLoc-1].eventdat > 0 ? 1 : -1;
+		}
+		if (eventRec[eventLoc-1].eventdat2 != -99)
+		{
+			enemy[temp].eycc = eventRec[eventLoc-1].eventdat2;
+			enemy[temp].eyccw = abs(eventRec[eventLoc-1].eventdat2);
+			enemy[temp].eyccwmax = abs(eventRec[eventLoc-1].eventdat2);
+			enemy[temp].eyccadd = eventRec[eventLoc-1].eventdat2 > 0 ? 1 : -1;
+		}
+		if (eventRec[eventLoc-1].eventdat5 > 0)
+			enemy[temp].enemycycle = eventRec[eventLoc-1].eventdat5;
+		if (eventRec[eventLoc-1].eventdat6 > 0)
+		{
+			enemy[temp].ani = eventRec[eventLoc-1].eventdat6;
+			enemy[temp].animin = eventRec[eventLoc-1].eventdat5;
+			enemy[temp].animax = 0;
+			enemy[temp].aniactive = 1;
+		}
+	}
+}
+
+static void handle_enemy_global_animation_event(void)
+{
+	for (temp = 0; temp < 100; temp++)
+	{
+		if (enemy[temp].linknum != eventRec[eventLoc-1].eventdat4)
+			continue;
+
+		enemy[temp].aniactive = 1;
+		enemy[temp].aniwhenfire = 0;
+		if (eventRec[eventLoc-1].eventdat2 > 0)
+		{
+			enemy[temp].enemycycle = eventRec[eventLoc-1].eventdat2;
+			enemy[temp].animin = enemy[temp].enemycycle;
+		}
+		else
+			enemy[temp].enemycycle = 0;
+
+		if (eventRec[eventLoc-1].eventdat > 0)
+			enemy[temp].ani = eventRec[eventLoc-1].eventdat;
+		if (eventRec[eventLoc-1].eventdat3 == 1)
+			enemy[temp].animax = enemy[temp].ani;
+		else if (eventRec[eventLoc-1].eventdat3 == 2)
+		{
+			enemy[temp].aniactive = 2;
+			enemy[temp].animax = enemy[temp].ani;
+			enemy[temp].aniwhenfire = 2;
+		}
+	}
+}
+
+static void handle_enemy_global_damage_event(void)
+{
+	for (temp = 0; temp < 100; temp++)
+	{
+		if (eventRec[eventLoc-1].eventdat4 == 0 || enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
+		{
+			if (galagaMode)
+				enemy[temp].armorleft = roundf(eventRec[eventLoc-1].eventdat * (difficultyLevel / 2));
+			else
+				enemy[temp].armorleft = eventRec[eventLoc-1].eventdat;
+		}
+	}
+}
+
+static void handle_enemy_acceleration_reverse_event(void)
+{
+	resolve_event_enemy_link();
+
+	for (temp = 0; temp < 100; temp++)
+	{
+		if (eventRec[eventLoc-1].eventdat4 == 0 || enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
+		{
+			if (eventRec[eventLoc-1].eventdat != -99)
+				enemy[temp].exrev = eventRec[eventLoc-1].eventdat;
+			if (eventRec[eventLoc-1].eventdat2 != -99)
+				enemy[temp].eyrev = eventRec[eventLoc-1].eventdat2;
+			if (eventRec[eventLoc-1].eventdat3 != 0 && eventRec[eventLoc-1].eventdat3 < 17)
+				enemy[temp].filter = eventRec[eventLoc-1].eventdat3;
+		}
+	}
+}
+
+static void handle_enemy_fire_override_event(void)
+{
+	for (temp = 0; temp < 100; temp++)
+	{
+		if (eventRec[eventLoc-1].eventdat4 != 99 && enemy[temp].linknum != eventRec[eventLoc-1].eventdat4)
+			continue;
+
+		enemy[temp].freq[1-1] = eventRec[eventLoc-1].eventdat;
+		enemy[temp].freq[2-1] = eventRec[eventLoc-1].eventdat2;
+		enemy[temp].freq[3-1] = eventRec[eventLoc-1].eventdat3;
+		for (temp2 = 0; temp2 < 3; temp2++)
+			enemy[temp].eshotwait[temp2] = 1;
+		if (enemy[temp].launchtype > 0)
+		{
+			enemy[temp].launchfreq = eventRec[eventLoc-1].eventdat5;
+			enemy[temp].launchwait = 1;
+		}
+	}
+}
+
+static void handle_enemy_death_event(void)
+{
+	if ((eventRec[eventLoc-1].eventdat == 512 || eventRec[eventLoc-1].eventdat == 513) &&
+	    (twoPlayerMode || onePlayerAction || superTyrian))
+		return;
+
+	if (superArcadeMode != SA_NONE)
+	{
+		if (eventRec[eventLoc-1].eventdat == 534)
+			eventRec[eventLoc-1].eventdat = 827;
+	}
+	else if (!superTyrian)
+		apply_event_random_special_drop();
+
+	if (eventRec[eventLoc-1].eventdat == 534 && superTyrian)
+		eventRec[eventLoc-1].eventdat = 828 + superTyrianSpecials[mt_rand() % 4];
+
+	set_event_enemy_death();
+}
+
 static void handle_enemy_event(void)
 {
 	switch (eventRec[eventLoc-1].eventtype)
 	{
 	case 19: /* Enemy Global Move */
-	{
-		int initial_i = 0, max_i = 0;
-		bool all_enemies = false;
-
-		if (eventRec[eventLoc-1].eventdat3 > 79 && eventRec[eventLoc-1].eventdat3 < 90)
-		{
-			initial_i = 0;
-			max_i = 100;
-			all_enemies = false;
-			eventRec[eventLoc-1].eventdat4 = newPL[eventRec[eventLoc-1].eventdat3 - 80];
-		}
-		else
-		{
-			switch (eventRec[eventLoc-1].eventdat3)
-			{
-			case 0:
-				initial_i = 0;
-				max_i = 100;
-				all_enemies = false;
-				break;
-			case 2:
-				initial_i = 0;
-				max_i = 25;
-				all_enemies = true;
-				break;
-			case 1:
-				initial_i = 25;
-				max_i = 50;
-				all_enemies = true;
-				break;
-			case 3:
-				initial_i = 50;
-				max_i = 75;
-				all_enemies = true;
-				break;
-			case 99:
-				initial_i = 0;
-				max_i = 100;
-				all_enemies = true;
-				break;
-			}
-		}
-
-		for (int i = initial_i; i < max_i; i++)
-		{
-			if (all_enemies || enemy[i].linknum == eventRec[eventLoc-1].eventdat4)
-			{
-				if (eventRec[eventLoc-1].eventdat != -99)
-					enemy[i].exc = eventRec[eventLoc-1].eventdat;
-
-				if (eventRec[eventLoc-1].eventdat2 != -99)
-					enemy[i].eyc = eventRec[eventLoc-1].eventdat2;
-
-				if (eventRec[eventLoc-1].eventdat6 != 0)
-					enemy[i].fixedmovey = eventRec[eventLoc-1].eventdat6;
-
-				if (eventRec[eventLoc-1].eventdat6 == -99)
-					enemy[i].fixedmovey = 0;
-
-				if (eventRec[eventLoc-1].eventdat5 > 0)
-					enemy[i].enemycycle = eventRec[eventLoc-1].eventdat5;
-			}
-		}
+		handle_enemy_global_move_event();
 		break;
-	}
 
 	case 20: /* Enemy Global Accel */
-		resolve_event_enemy_link();
-
-		for (temp = 0; temp < 100; temp++)
-		{
-			if (enemyAvail[temp] != 1 &&
-			    (enemy[temp].linknum == eventRec[eventLoc-1].eventdat4 || eventRec[eventLoc-1].eventdat4 == 0))
-			{
-				if (eventRec[eventLoc-1].eventdat != -99)
-				{
-					enemy[temp].excc = eventRec[eventLoc-1].eventdat;
-					enemy[temp].exccw = abs(eventRec[eventLoc-1].eventdat);
-					enemy[temp].exccwmax = abs(eventRec[eventLoc-1].eventdat);
-					if (eventRec[eventLoc-1].eventdat > 0)
-						enemy[temp].exccadd = 1;
-					else
-						enemy[temp].exccadd = -1;
-				}
-
-				if (eventRec[eventLoc-1].eventdat2 != -99)
-				{
-					enemy[temp].eycc = eventRec[eventLoc-1].eventdat2;
-					enemy[temp].eyccw = abs(eventRec[eventLoc-1].eventdat2);
-					enemy[temp].eyccwmax = abs(eventRec[eventLoc-1].eventdat2);
-					if (eventRec[eventLoc-1].eventdat2 > 0)
-						enemy[temp].eyccadd = 1;
-					else
-						enemy[temp].eyccadd = -1;
-				}
-
-				if (eventRec[eventLoc-1].eventdat5 > 0)
-				{
-					enemy[temp].enemycycle = eventRec[eventLoc-1].eventdat5;
-				}
-				if (eventRec[eventLoc-1].eventdat6 > 0)
-				{
-					enemy[temp].ani = eventRec[eventLoc-1].eventdat6;
-					enemy[temp].animin = eventRec[eventLoc-1].eventdat5;
-					enemy[temp].animax = 0;
-					enemy[temp].aniactive = 1;
-				}
-			}
-		}
+		handle_enemy_global_accel_event();
 		break;
 
 	case 21:
@@ -4601,50 +4666,11 @@ static void handle_enemy_event(void)
 		break;
 
 	case 24: /* Enemy Global Animate */
-		for (temp = 0; temp < 100; temp++)
-		{
-			if (enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
-			{
-				enemy[temp].aniactive = 1;
-				enemy[temp].aniwhenfire = 0;
-				if (eventRec[eventLoc-1].eventdat2 > 0)
-				{
-					enemy[temp].enemycycle = eventRec[eventLoc-1].eventdat2;
-					enemy[temp].animin = enemy[temp].enemycycle;
-				}
-				else
-				{
-					enemy[temp].enemycycle = 0;
-				}
-
-				if (eventRec[eventLoc-1].eventdat > 0)
-					enemy[temp].ani = eventRec[eventLoc-1].eventdat;
-
-				if (eventRec[eventLoc-1].eventdat3 == 1)
-				{
-					enemy[temp].animax = enemy[temp].ani;
-				}
-				else if (eventRec[eventLoc-1].eventdat3 == 2)
-				{
-					enemy[temp].aniactive = 2;
-					enemy[temp].animax = enemy[temp].ani;
-					enemy[temp].aniwhenfire = 2;
-				}
-			}
-		}
+		handle_enemy_global_animation_event();
 		break;
 
 	case 25: /* Enemy Global Damage change */
-		for (temp = 0; temp < 100; temp++)
-		{
-			if (eventRec[eventLoc-1].eventdat4 == 0 || enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
-			{
-				if (galagaMode)
-					enemy[temp].armorleft = roundf(eventRec[eventLoc-1].eventdat * (difficultyLevel / 2));
-				else
-					enemy[temp].armorleft = eventRec[eventLoc-1].eventdat;
-			}
-		}
+		handle_enemy_global_damage_event();
 		break;
 
 	case 26:
@@ -4652,20 +4678,7 @@ static void handle_enemy_event(void)
 		break;
 
 	case 27: /* Enemy Global AccelRev */
-		resolve_event_enemy_link();
-
-		for (temp = 0; temp < 100; temp++)
-		{
-			if (eventRec[eventLoc-1].eventdat4 == 0 || enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
-			{
-				if (eventRec[eventLoc-1].eventdat != -99)
-					enemy[temp].exrev = eventRec[eventLoc-1].eventdat;
-				if (eventRec[eventLoc-1].eventdat2 != -99)
-					enemy[temp].eyrev = eventRec[eventLoc-1].eventdat2;
-				if (eventRec[eventLoc-1].eventdat3 != 0 && eventRec[eventLoc-1].eventdat3 < 17)
-					enemy[temp].filter = eventRec[eventLoc-1].eventdat3;
-			}
-		}
+		handle_enemy_acceleration_reverse_event();
 		break;
 
 	case 28:
@@ -4689,24 +4702,7 @@ static void handle_enemy_event(void)
 		break;
 
 	case 31: /* Enemy Fire Override */
-		for (temp = 0; temp < 100; temp++)
-		{
-			if (eventRec[eventLoc-1].eventdat4 == 99 || enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
-			{
-				enemy[temp].freq[1-1] = eventRec[eventLoc-1].eventdat ;
-				enemy[temp].freq[2-1] = eventRec[eventLoc-1].eventdat2;
-				enemy[temp].freq[3-1] = eventRec[eventLoc-1].eventdat3;
-				for (temp2 = 0; temp2 < 3; temp2++)
-				{
-					enemy[temp].eshotwait[temp2] = 1;
-				}
-				if (enemy[temp].launchtype > 0)
-				{
-					enemy[temp].launchfreq = eventRec[eventLoc-1].eventdat5;
-					enemy[temp].launchwait = 1;
-				}
-			}
-		}
+		handle_enemy_fire_override_event();
 		break;
 
 	case 32:  // create enemy
@@ -4714,23 +4710,7 @@ static void handle_enemy_event(void)
 		break;
 
 	case 33: /* Enemy From other Enemies */
-		if (!((eventRec[eventLoc-1].eventdat == 512 || eventRec[eventLoc-1].eventdat == 513) && (twoPlayerMode || onePlayerAction || superTyrian)))
-		{
-			if (superArcadeMode != SA_NONE)
-			{
-				if (eventRec[eventLoc-1].eventdat == 534)
-					eventRec[eventLoc-1].eventdat = 827;
-			}
-			else if (!superTyrian)
-			{
-				// enemy will drop random special weapon
-				apply_event_random_special_drop();
-			}
-			if (eventRec[eventLoc-1].eventdat == 534 && superTyrian)
-				eventRec[eventLoc-1].eventdat = 828 + superTyrianSpecials[mt_rand() % 4];
-
-			set_event_enemy_death();
-		}
+		handle_enemy_death_event();
 		break;
 
 	default:

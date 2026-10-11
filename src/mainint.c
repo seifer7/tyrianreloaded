@@ -624,6 +624,258 @@ ulong JE_getCost(JE_byte itemType, JE_word itemNum)
 	return cost;
 }
 
+enum
+{
+	LOAD_SCREEN_MENU_ITEMS = 12,
+	LOAD_SCREEN_X_CENTER = 320 / 2,
+	LOAD_SCREEN_Y_HEADER = 5,
+	LOAD_SCREEN_X_ITEM = 10,
+	LOAD_SCREEN_X_LAST_LEVEL = 120,
+	LOAD_SCREEN_X_EPISODE = 250,
+	LOAD_SCREEN_W_ITEM = 300,
+	LOAD_SCREEN_Y_ITEMS = 30,
+	LOAD_SCREEN_DY_ITEMS = 13,
+	LOAD_SCREEN_H_ITEM = 8,
+	LOAD_SCREEN_X_LEFT_CONTROL = 83,
+	LOAD_SCREEN_X_RIGHT_CONTROL = 213,
+	LOAD_SCREEN_W_CONTROL = 24,
+	LOAD_SCREEN_Y_CONTROLS = 179,
+};
+
+static void draw_load_screen(size_t playersIndex, size_t selectedIndex, bool restart)
+{
+	if (restart)
+	{
+		JE_loadPic(VGAScreen2, 2, false);
+		fill_rectangle_wh(VGAScreen2, 0, 192, 320, 8, 0);
+	}
+
+	memcpy(VGAScreen->pixels, VGAScreen2->pixels, (size_t)VGAScreen->pitch * VGAScreen->h);
+	draw_font_hv_shadow(VGAScreen, LOAD_SCREEN_X_CENTER, LOAD_SCREEN_Y_HEADER,
+	                    miscText[38 + playersIndex], large_font, centered, 15, -3, false, 2);
+
+	for (size_t i = 0; i < LOAD_SCREEN_MENU_ITEMS; ++i)
+	{
+		const int y = LOAD_SCREEN_Y_ITEMS + LOAD_SCREEN_DY_ITEMS * i;
+		const bool selected = i == selectedIndex;
+
+		if (i == LOAD_SCREEN_MENU_ITEMS - 1)
+		{
+			JE_textShade(VGAScreen, LOAD_SCREEN_X_ITEM, y, miscText[33], 13, selected ? 6 : 2, FULL_SHADE);
+			continue;
+		}
+
+		const JE_SaveFileType *const saveFile = &saveFiles[playersIndex * 11 + i];
+		const bool disabled = saveFile->level == 0;
+		char buffer[22];
+
+		if (disabled)
+		{
+			JE_textShade(VGAScreen, LOAD_SCREEN_X_ITEM, y, miscText[2], 13, selected ? 6 : 0, FULL_SHADE);
+			snprintf(buffer, sizeof buffer, "%s -----", miscTextB[2]);
+			JE_textShade(VGAScreen, LOAD_SCREEN_X_LAST_LEVEL, y, buffer, 5, selected ? 6 : 0, FULL_SHADE);
+		}
+		else
+		{
+			JE_textShade(VGAScreen, LOAD_SCREEN_X_ITEM, y, saveFile->name, 13, selected ? 6 : 2, FULL_SHADE);
+			snprintf(buffer, sizeof buffer, "%s %s", miscTextB[2], saveFile->levelName);
+			JE_textShade(VGAScreen, LOAD_SCREEN_X_LAST_LEVEL, y, buffer, 5, selected ? 6 : 2, FULL_SHADE);
+			snprintf(buffer, sizeof buffer, "%s %u", miscTextB[1], saveFile->episode);
+			JE_textShade(VGAScreen, LOAD_SCREEN_X_EPISODE, y, buffer, 5, selected ? 6 : 2, FULL_SHADE);
+		}
+	}
+
+	const bool leftControlVisible = playersIndex > 0;
+	const bool rightControlVisible = playersIndex < 1;
+	if (leftControlVisible)
+		blit_sprite2x2(VGAScreen, LOAD_SCREEN_X_LEFT_CONTROL, LOAD_SCREEN_Y_CONTROLS, shopSpriteSheet, 279);
+	if (rightControlVisible)
+		blit_sprite2x2(VGAScreen, LOAD_SCREEN_X_RIGHT_CONTROL, LOAD_SCREEN_Y_CONTROLS, shopSpriteSheet, 281);
+
+	helpBoxColor = 15;
+	JE_helpBox(VGAScreen, 103, 182, miscText[55], 25);
+
+	if (restart)
+	{
+		mouseCursor = MOUSE_POINTER_NORMAL;
+		fade_palette(colors, 10, 0, 255);
+	}
+}
+
+static bool wait_for_load_screen_input(void)
+{
+	service_SDL_events(true);
+	JE_mouseStart();
+	JE_showVGA();
+	JE_mouseReplace();
+
+	bool mouseMoved = false;
+	do
+	{
+		SDL_Delay(16);
+		const Uint16 oldMouseX = mouse_x;
+		const Uint16 oldMouseY = mouse_y;
+		push_joysticks_as_keyboard();
+		service_SDL_events(false);
+		mouseMoved = mouse_x != oldMouseX || mouse_y != oldMouseY;
+	} while (!(newkey || newmouse || mouseMoved));
+
+	return mouseMoved;
+}
+
+typedef struct
+{
+	bool leftAction;
+	bool rightAction;
+	bool action;
+	bool done;
+} LoadScreenInput;
+
+static LoadScreenInput read_load_screen_input(size_t playersIndex, size_t *selectedIndex, bool mouseMoved)
+{
+	LoadScreenInput input = { false, false, false, false };
+	const bool leftControlVisible = playersIndex > 0;
+	const bool rightControlVisible = playersIndex < 1;
+
+	if (mouseMoved || newmouse)
+	{
+		if (leftControlVisible &&
+		    mouse_y >= LOAD_SCREEN_Y_CONTROLS &&
+		    mouse_x >= LOAD_SCREEN_X_LEFT_CONTROL &&
+		    mouse_x < LOAD_SCREEN_X_LEFT_CONTROL + LOAD_SCREEN_W_CONTROL)
+		{
+			if (newmouse && lastmouse_but == SDL_BUTTON_LEFT)
+			{
+				JE_playSampleNum(S_CURSOR);
+				input.leftAction = true;
+			}
+		}
+		else if (rightControlVisible &&
+		         mouse_y >= LOAD_SCREEN_Y_CONTROLS &&
+		         mouse_x >= LOAD_SCREEN_X_RIGHT_CONTROL &&
+		         mouse_x < LOAD_SCREEN_X_RIGHT_CONTROL + LOAD_SCREEN_W_CONTROL)
+		{
+			if (newmouse && lastmouse_but == SDL_BUTTON_LEFT)
+			{
+				JE_playSampleNum(S_CURSOR);
+				input.rightAction = true;
+			}
+		}
+		else if (mouse_x >= LOAD_SCREEN_X_ITEM && mouse_x < LOAD_SCREEN_X_ITEM + LOAD_SCREEN_W_ITEM)
+		{
+			for (size_t i = 0; i < LOAD_SCREEN_MENU_ITEMS; ++i)
+			{
+				const int yMenuItem = LOAD_SCREEN_Y_ITEMS + LOAD_SCREEN_DY_ITEMS * i;
+				if (mouse_y >= yMenuItem && mouse_y < yMenuItem + LOAD_SCREEN_H_ITEM)
+				{
+					if (*selectedIndex != i)
+					{
+						JE_playSampleNum(S_CURSOR);
+						*selectedIndex = i;
+					}
+
+					if (newmouse && lastmouse_but == SDL_BUTTON_LEFT &&
+					    lastmouse_x >= LOAD_SCREEN_X_ITEM && lastmouse_x < LOAD_SCREEN_X_ITEM + LOAD_SCREEN_W_ITEM &&
+					    lastmouse_y >= yMenuItem && lastmouse_y < yMenuItem + LOAD_SCREEN_H_ITEM)
+						input.action = true;
+
+					break;
+				}
+			}
+		}
+	}
+
+	if (newmouse)
+	{
+		if (lastmouse_but == SDL_BUTTON_RIGHT)
+		{
+			JE_playSampleNum(S_SPRING);
+			input.done = true;
+		}
+	}
+	else if (newkey)
+	{
+		switch (lastkey_scan)
+		{
+		case SDL_SCANCODE_LEFT:
+			JE_playSampleNum(S_CURSOR);
+			input.leftAction = true;
+			break;
+		case SDL_SCANCODE_RIGHT:
+			JE_playSampleNum(S_CURSOR);
+			input.rightAction = true;
+			break;
+		case SDL_SCANCODE_UP:
+			JE_playSampleNum(S_CURSOR);
+			*selectedIndex = *selectedIndex == 0 ? LOAD_SCREEN_MENU_ITEMS - 1 : *selectedIndex - 1;
+			break;
+		case SDL_SCANCODE_DOWN:
+			JE_playSampleNum(S_CURSOR);
+			*selectedIndex = *selectedIndex == LOAD_SCREEN_MENU_ITEMS - 1 ? 0 : *selectedIndex + 1;
+			break;
+		case SDL_SCANCODE_SPACE:
+		case SDL_SCANCODE_RETURN:
+			input.action = true;
+			break;
+		case SDL_SCANCODE_ESCAPE:
+			JE_playSampleNum(S_SPRING);
+			input.done = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return input;
+}
+
+typedef enum
+{
+	LOAD_SCREEN_CONTINUE,
+	LOAD_SCREEN_EXIT,
+	LOAD_SCREEN_LOADED,
+} LoadScreenResult;
+
+static LoadScreenResult handle_load_screen_action(size_t *playersIndex, size_t selectedIndex,
+                                                  LoadScreenInput input)
+{
+	if (input.leftAction)
+	{
+		*playersIndex = *playersIndex == 0 ? 1 : 0;
+	}
+	else if (input.rightAction)
+	{
+		*playersIndex = *playersIndex == 1 ? 0 : 1;
+	}
+	else if (input.action)
+	{
+		if (selectedIndex == LOAD_SCREEN_MENU_ITEMS - 1)
+		{
+			JE_playSampleNum(S_SELECT);
+			return LOAD_SCREEN_EXIT;
+		}
+
+		const size_t saveFileIndex = *playersIndex * 11 + selectedIndex;
+		if (saveFiles[saveFileIndex].level == 0)
+		{
+			JE_playSampleNum(S_CLINK);
+		}
+		else
+		{
+			JE_playSampleNum(S_SELECT);
+			performSave = false;
+			JE_operation(saveFileIndex + 1);
+			fade_black(15);
+			return LOAD_SCREEN_LOADED;
+		}
+	}
+
+	if (input.done)
+		return LOAD_SCREEN_EXIT;
+
+	return LOAD_SCREEN_CONTINUE;
+}
+
 bool JE_loadScreen(void)
 {
 	if (shopSpriteSheet.data == NULL)
@@ -632,290 +884,22 @@ bool JE_loadScreen(void)
 	bool restart = true;
 
 	size_t playersIndex = 0;
-	const size_t menuItemsCount = 12;
 	size_t selectedIndex = 0;
-
-	const int xCenter = 320 / 2;
-	const int yMenuHeader = 5;
-	const int xMenuItem = 10;
-	const int xMenuItemName = xMenuItem;
-	const int xMenuItemLastLevel = 120;
-	const int xMenuItemEpisode = 250;
-	const int wMenuItem = 300;
-	const int yMenuItems = 30;
-	const int dyMenuItems = 13;
-	const int hMenuItem = 8;
-	const int xLeftControl = 83;
-	const int xRightControl = 213;
-	const int wControl = 24;
-	const int yControls = 179;
 
 	for (; ; )
 	{
+		draw_load_screen(playersIndex, selectedIndex, restart);
 		if (restart)
-		{
-			JE_loadPic(VGAScreen2, 2, false);
-			fill_rectangle_wh(VGAScreen2, 0, 192, 320, 8, 0);
-		}
-
-		// Restore background.
-		memcpy(VGAScreen->pixels, VGAScreen2->pixels, (size_t)VGAScreen->pitch * VGAScreen->h);
-
-		// Draw header.
-		draw_font_hv_shadow(VGAScreen, xCenter, yMenuHeader, miscText[38 + playersIndex], large_font, centered, 15, -3, false, 2);
-
-		// Draw menu items.
-
-		for (size_t i = 0; i < menuItemsCount; ++i)
-		{
-			const int y = yMenuItems + dyMenuItems * i;
-
-			const bool selected = i == selectedIndex;
-
-			if (i == menuItemsCount - 1)
-			{
-				JE_textShade(VGAScreen, xMenuItemName, y, miscText[33], 13, selected ? 6 : 2, FULL_SHADE);
-				continue;
-			}
-
-			const JE_SaveFileType *const saveFile = &saveFiles[playersIndex * 11 + i];
-
-			const bool disabled = saveFile->level == 0;
-
-			char buffer[22];
-
-			if (disabled)
-			{
-				JE_textShade(VGAScreen, xMenuItemName, y, miscText[2], 13, selected ? 6 : 0, FULL_SHADE);
-
-				snprintf(buffer, sizeof buffer, "%s -----", miscTextB[2]);
-				JE_textShade(VGAScreen, xMenuItemLastLevel, y, buffer, 5, selected ? 6 : 0, FULL_SHADE);
-			}
-			else
-			{
-				JE_textShade(VGAScreen, xMenuItemName, y, saveFile->name, 13, selected ? 6 : 2, FULL_SHADE);
-
-				snprintf(buffer, sizeof buffer, "%s %s", miscTextB[2], saveFile->levelName);
-				JE_textShade(VGAScreen, xMenuItemLastLevel, y, buffer, 5, selected ? 6 : 2, FULL_SHADE);
-
-				snprintf(buffer, sizeof buffer, "%s %u", miscTextB[1], saveFile->episode);
-				JE_textShade(VGAScreen, xMenuItemEpisode, y, buffer, 5, selected ? 6 : 2, FULL_SHADE);
-			}
-		}
-
-		// Draw paging controls.
-
-		const bool leftControlVisible = playersIndex > 0;
-		const bool rightControlVisible = playersIndex < 1;
-
-		if (leftControlVisible)
-			blit_sprite2x2(VGAScreen, xLeftControl, yControls, shopSpriteSheet, 279);
-
-		if (rightControlVisible)
-			blit_sprite2x2(VGAScreen, xRightControl, yControls, shopSpriteSheet, 281);
-
-		helpBoxColor = 15;
-		JE_helpBox(VGAScreen, 103, 182, miscText[55], 25);
-
-		if (restart)
-		{
-			mouseCursor = MOUSE_POINTER_NORMAL;
-
-			fade_palette(colors, 10, 0, 255);
-
 			restart = false;
-		}
 
-		service_SDL_events(true);
-
-		JE_mouseStart();
-		JE_showVGA();
-		JE_mouseReplace();
-
-		bool mouseMoved = false;
-		do
+		const bool mouseMoved = wait_for_load_screen_input();
+		LoadScreenInput input = read_load_screen_input(playersIndex, &selectedIndex, mouseMoved);
+		const LoadScreenResult result = handle_load_screen_action(&playersIndex, selectedIndex, input);
+		if (result != LOAD_SCREEN_CONTINUE)
 		{
-			SDL_Delay(16);
-
-			Uint16 oldMouseX = mouse_x;
-			Uint16 oldMouseY = mouse_y;
-
-			push_joysticks_as_keyboard();
-			service_SDL_events(false);
-
-			mouseMoved = mouse_x != oldMouseX || mouse_y != oldMouseY;
-		} while (!(newkey || newmouse || mouseMoved));
-
-		// Handle interaction.
-
-		bool leftAction = false;
-		bool rightAction = false;
-		bool action = false;
-		bool done = false;
-
-		if (mouseMoved || newmouse)
-		{
-			if (leftControlVisible &&
-			    mouse_y >= yControls &&
-			    mouse_x >= xLeftControl &&
-			    mouse_x < xLeftControl + wControl)
-			{
-				if (newmouse && lastmouse_but == SDL_BUTTON_LEFT)
-				{
-					JE_playSampleNum(S_CURSOR);
-
-					leftAction = true;
-				}
-			}
-			else if (rightControlVisible &&
-			         mouse_y >= yControls &&
-			         mouse_x >= xRightControl &&
-			         mouse_x < xRightControl + wControl)
-			{
-				if (newmouse && lastmouse_but == SDL_BUTTON_LEFT)
-				{
-					JE_playSampleNum(S_CURSOR);
-
-					rightAction = true;
-				}
-			}
-			else
-			{
-				// Find menu item that was hovered or clicked.
-				if (mouse_x >= xMenuItem && mouse_x < xMenuItem + wMenuItem)
-				{
-					for (size_t i = 0; i < menuItemsCount; ++i)
-					{
-						const int yMenuItem = yMenuItems + dyMenuItems * i;
-						if (mouse_y >= yMenuItem && mouse_y < yMenuItem + hMenuItem)
-						{
-							if (selectedIndex != i)
-							{
-								JE_playSampleNum(S_CURSOR);
-
-								selectedIndex = i;
-							}
-
-							if (newmouse && lastmouse_but == SDL_BUTTON_LEFT &&
-							    lastmouse_x >= xMenuItem && lastmouse_x < xMenuItem + wMenuItem &&
-							    lastmouse_y >= yMenuItem && lastmouse_y < yMenuItem + hMenuItem)
-							{
-								action = true;
-							}
-
-							break;
-						}
-					}
-				}
-			}
-		}
-
-		if (newmouse)
-		{
-			if (lastmouse_but == SDL_BUTTON_RIGHT)
-			{
-				JE_playSampleNum(S_SPRING);
-
-				done = true;
-			}
-		}
-		else if (newkey)
-		{
-			switch (lastkey_scan)
-			{
-			case SDL_SCANCODE_LEFT:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				leftAction = true;
-				break;
-			}
-			case SDL_SCANCODE_RIGHT:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				rightAction = true;
-				break;
-			}
-			case SDL_SCANCODE_UP:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				selectedIndex = selectedIndex == 0
-					? menuItemsCount - 1
-					: selectedIndex - 1;
-				break;
-			}
-			case SDL_SCANCODE_DOWN:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				selectedIndex = selectedIndex == menuItemsCount - 1
-					? 0
-					: selectedIndex + 1;
-				break;
-			}
-			case SDL_SCANCODE_SPACE:
-			case SDL_SCANCODE_RETURN:
-			{
-				action = true;
-				break;
-			}
-			case SDL_SCANCODE_ESCAPE:
-			{
-				JE_playSampleNum(S_SPRING);
-
-				done = true;
-				break;
-			}
-			default:
-				break;
-			}
-		}
-
-		if (leftAction)
-		{
-			playersIndex = playersIndex == 0 ? 1 : 0;
-		}
-		else if (rightAction)
-		{
-			playersIndex = playersIndex == 1 ? 0 : 1;
-		}
-		else if (action)
-		{
-			if (selectedIndex == menuItemsCount - 1)  // "Exit to Main Menu"
-			{
-				JE_playSampleNum(S_SELECT);
-
-				done = true;
-			}
-			else
-			{
-				const size_t saveFileIndex = playersIndex * 11 + selectedIndex;
-
-				if (saveFiles[saveFileIndex].level == 0)  // "EMPTY SLOT"
-				{
-					JE_playSampleNum(S_CLINK);
-				}
-				else
-				{
-					JE_playSampleNum(S_SELECT);
-
-					performSave = false;
-					JE_operation(saveFileIndex + 1);
-
-					fade_black(15);
-
-					return gameLoaded;
-				}
-			}
-		}
-
-		if (done)
-		{
-			fade_black(15);
-
-			return false;
+			if (result == LOAD_SCREEN_EXIT)
+				fade_black(15);
+			return result == LOAD_SCREEN_LOADED ? gameLoaded : false;
 		}
 	}
 }
@@ -3900,355 +3884,344 @@ static void update_player_movement(Player *this_player,
 }
 
 
+static void change_player_weapon_mode(Player *this_player)
+{
+	if (button[4-1])
+	{
+		portConfigChange = true;
+		if (portConfigDone)
+		{
+			shotMultiPos[SHOT_REAR] = 0;
+
+			if (superArcadeMode != SA_NONE && superArcadeMode <= SA_NORTSHIPZ)
+			{
+				shotMultiPos[SHOT_SPECIAL] = 0;
+				shotMultiPos[SHOT_SPECIAL2] = 0;
+				if (player[0].items.special == SASpecialWeapon[superArcadeMode-1])
+				{
+					player[0].items.special = SASpecialWeaponB[superArcadeMode-1];
+					this_player->weapon_mode = 2;
+				}
+				else
+				{
+					player[0].items.special = SASpecialWeapon[superArcadeMode-1];
+					this_player->weapon_mode = 1;
+				}
+			}
+			else if (++this_player->weapon_mode > JE_portConfigs())
+			{
+				this_player->weapon_mode = 1;
+			}
+
+			JE_drawPortConfigButtons();
+			portConfigDone = false;
+		}
+	}
+}
+
+static void fire_main_weapons(Player *this_player, JE_byte playerNum_, JE_word mouseX, JE_word mouseY)
+{
+	if (twoPlayerLinked && playerNum_ == 2)
+		return;
+
+	int min, max;
+	if (!twoPlayerMode)
+		min = 1, max = 2;
+	else
+		min = max = playerNum_;
+
+	for (temp = min - 1; temp < max; temp++)
+	{
+		const uint item = this_player->items.weapon[temp].id;
+		if (item == 0)
+			continue;
+
+		if (shotRepeat[temp] > 0)
+			--shotRepeat[temp];
+		else if (button[1-1])
+		{
+			const uint item_power = galagaMode ? 0 : this_player->items.weapon[temp].power - 1;
+			const uint item_mode = temp == REAR_WEAPON ? this_player->weapon_mode - 1 : 0;
+			b = player_shot_create(item, temp, this_player->x, this_player->y, mouseX, mouseY,
+			                       weaponPort[item].op[item_mode][item_power], playerNum_);
+		}
+	}
+}
+
+static void update_super_charge_weapon(Player *this_player, JE_byte playerNum_, JE_word shipGr_,
+                                       JE_word mouseX, JE_word mouseY)
+{
+	if (playerNum_ != 2)
+		return;
+
+	if (!twoPlayerLinked)
+		blit_sprite2(VGAScreen, this_player->x + (shipGr_ == 0) + 1, this_player->y - 13, spriteSheet10, 77 + chargeLevel + chargeGr * 19);
+
+	if (chargeGrWait > 0)
+		--chargeGrWait;
+	else
+	{
+		++chargeGr;
+		if (chargeGr == 4)
+			chargeGr = 0;
+		chargeGrWait = 3;
+	}
+
+	if (chargeLevel > 0)
+		fill_rectangle_xy(VGAScreenSeg, 269, 107 + (chargeLevel - 1) * 3, 275, 108 + (chargeLevel - 1) * 3, 193);
+
+	if (chargeWait > 0)
+		--chargeWait;
+	else
+	{
+		if (chargeLevel < chargeMax)
+			++chargeLevel;
+
+		chargeWait = 28 - this_player->items.weapon[REAR_WEAPON].power * 2;
+		if (difficultyLevel > DIFFICULTY_HARD)
+			chargeWait -= 5;
+	}
+
+	if (chargeLevel > 0)
+		fill_rectangle_xy(VGAScreenSeg, 269, 107 + (chargeLevel - 1) * 3, 275, 108 + (chargeLevel - 1) * 3, 204);
+
+	if (shotRepeat[SHOT_P2_CHARGE] > 0)
+		--shotRepeat[SHOT_P2_CHARGE];
+	else if (button[1-1] && (!twoPlayerLinked || chargeLevel > 0))
+	{
+		shotMultiPos[SHOT_P2_CHARGE] = 0;
+		b = player_shot_create(16, SHOT_P2_CHARGE, this_player->x, this_player->y, mouseX, mouseY,
+		                       chargeGunWeapons[player[1].items.weapon[REAR_WEAPON].id-1] + chargeLevel, playerNum_);
+
+		if (chargeLevel > 0)
+			fill_rectangle_xy(VGAScreenSeg, 269, 107 + (chargeLevel - 1) * 3, 275, 108 + (chargeLevel - 1) * 3, 193);
+
+		chargeLevel = 0;
+		chargeWait = 30 - this_player->items.weapon[REAR_WEAPON].power * 2;
+	}
+}
+
+static void fire_superbomb(Player *this_player, JE_byte playerNum_, JE_word mouseX, JE_word mouseY)
+{
+	temp = playerNum_;
+	if (temp == 0)
+		temp = 1;
+
+	if (player[temp-1].superbombs == 0)
+		return;
+
+	if (shotRepeat[SHOT_P1_SUPERBOMB + temp-1] > 0)
+		--shotRepeat[SHOT_P1_SUPERBOMB + temp-1];
+	else if (button[3-1] || button[2-1])
+	{
+		--player[temp-1].superbombs;
+		shotMultiPos[SHOT_P1_SUPERBOMB + temp-1] = 0;
+		b = player_shot_create(16, SHOT_P1_SUPERBOMB + temp-1, this_player->x, this_player->y,
+		                       mouseX, mouseY, 535, playerNum_);
+	}
+}
+
+static void update_sidekick_positions(Player *this_player)
+{
+	if (this_player->sidekick[LEFT_SIDEKICK].style == 4 && this_player->sidekick[RIGHT_SIDEKICK].style == 4)
+		optionSatelliteRotate += 0.2f;
+	else if (this_player->sidekick[LEFT_SIDEKICK].style == 4 || this_player->sidekick[RIGHT_SIDEKICK].style == 4)
+		optionSatelliteRotate += 0.15f;
+
+	switch (this_player->sidekick[LEFT_SIDEKICK].style)
+	{
+	case 1:
+	case 3:
+		this_player->sidekick[LEFT_SIDEKICK].x = this_player->old_x[COUNTOF(player->old_x) / 2 - 1];
+		this_player->sidekick[LEFT_SIDEKICK].y = this_player->old_y[COUNTOF(player->old_x) / 2 - 1];
+		break;
+	case 2:
+		this_player->sidekick[LEFT_SIDEKICK].x = this_player->x;
+		this_player->sidekick[LEFT_SIDEKICK].y = MAX(10, this_player->y - 20);
+		break;
+	case 4:
+		this_player->sidekick[LEFT_SIDEKICK].x = this_player->x + roundf(sinf(optionSatelliteRotate) * 20);
+		this_player->sidekick[LEFT_SIDEKICK].y = this_player->y + roundf(cosf(optionSatelliteRotate) * 20);
+		break;
+	}
+
+	switch (this_player->sidekick[RIGHT_SIDEKICK].style)
+	{
+	case 4:
+		this_player->sidekick[RIGHT_SIDEKICK].x = this_player->x - roundf(sinf(optionSatelliteRotate) * 20);
+		this_player->sidekick[RIGHT_SIDEKICK].y = this_player->y - roundf(cosf(optionSatelliteRotate) * 20);
+		break;
+	case 1:
+	case 3:
+		this_player->sidekick[RIGHT_SIDEKICK].x = this_player->old_x[0];
+		this_player->sidekick[RIGHT_SIDEKICK].y = this_player->old_y[0];
+		break;
+	case 2:
+		if (!optionAttachmentLinked)
+		{
+			this_player->sidekick[RIGHT_SIDEKICK].y += optionAttachmentMove / 2;
+			if (optionAttachmentMove >= -2)
+			{
+				if (optionAttachmentReturn)
+					temp = 2;
+				else
+					temp = 0;
+
+				if (this_player->sidekick[RIGHT_SIDEKICK].y > (this_player->y - 20) + 5)
+				{
+					temp = 2;
+					optionAttachmentMove -= 1 + optionAttachmentReturn;
+				}
+				else if (this_player->sidekick[RIGHT_SIDEKICK].y > this_player->y - 20)
+				{
+					temp = 3;
+					if (optionAttachmentMove > 0)
+						optionAttachmentMove--;
+					else
+						optionAttachmentMove++;
+				}
+				else if (this_player->sidekick[RIGHT_SIDEKICK].y > (this_player->y - 20) - 5)
+				{
+					temp = 2;
+					optionAttachmentMove++;
+				}
+				else if (optionAttachmentMove < 2 + optionAttachmentReturn * 4)
+					optionAttachmentMove += 1 + optionAttachmentReturn;
+
+				if (optionAttachmentReturn)
+					temp *= 2;
+				if (abs(this_player->sidekick[RIGHT_SIDEKICK].x - this_player->x) < temp)
+					temp = 1;
+
+				if (this_player->sidekick[RIGHT_SIDEKICK].x > this_player->x)
+					this_player->sidekick[RIGHT_SIDEKICK].x -= temp;
+				else if (this_player->sidekick[RIGHT_SIDEKICK].x < this_player->x)
+					this_player->sidekick[RIGHT_SIDEKICK].x += temp;
+
+				if (abs(this_player->sidekick[RIGHT_SIDEKICK].y - (this_player->y - 20)) +
+				    abs(this_player->sidekick[RIGHT_SIDEKICK].x - this_player->x) < 8)
+				{
+					optionAttachmentLinked = true;
+					soundQueue[2] = S_CLINK;
+				}
+
+				if (button[3-1])
+					optionAttachmentReturn = true;
+			}
+			else
+			{
+				optionAttachmentMove += 1 + optionAttachmentReturn;
+				JE_setupExplosion(this_player->sidekick[RIGHT_SIDEKICK].x + 1,
+				                  this_player->sidekick[RIGHT_SIDEKICK].y + 10, 0, 0, false, false);
+			}
+		}
+		else
+		{
+			this_player->sidekick[RIGHT_SIDEKICK].x = this_player->x;
+			this_player->sidekick[RIGHT_SIDEKICK].y = this_player->y - 20;
+			if (button[3-1])
+			{
+				optionAttachmentLinked = false;
+				optionAttachmentReturn = false;
+				optionAttachmentMove = -20;
+				soundQueue[3] = S_WEAPON_26;
+			}
+		}
+
+		if (this_player->sidekick[RIGHT_SIDEKICK].y < 10)
+			this_player->sidekick[RIGHT_SIDEKICK].y = 10;
+		break;
+	}
+}
+
+static void fire_sidekick_weapons(Player *this_player, JE_byte playerNum_,
+                                  JE_word mouseX, JE_word mouseY)
+{
+	if (playerNum_ != 2 && twoPlayerMode)
+		return;
+
+	for (uint i = 0; i < COUNTOF(player->items.sidekick); ++i)
+	{
+		const uint shot_i = i == 0 ? SHOT_LEFT_SIDEKICK : SHOT_RIGHT_SIDEKICK;
+		JE_OptionType *this_option = &options[this_player->items.sidekick[i]];
+		if (this_option->wport == 0)
+			continue;
+
+		if (shotRepeat[shot_i] > 0)
+		{
+			--shotRepeat[shot_i];
+			continue;
+		}
+
+		const int ammo_max = this_player->sidekick[i].ammo_max;
+		if (ammo_max > 0)
+		{
+			if (this_player->sidekick[i].ammo_refill_ticks > 0)
+				--this_player->sidekick[i].ammo_refill_ticks;
+			else
+			{
+				this_player->sidekick[i].ammo_refill_ticks = this_player->sidekick[i].ammo_refill_ticks_max;
+				if (this_player->sidekick[i].ammo < ammo_max)
+					++this_player->sidekick[i].ammo;
+				const int y = hud_sidekick_y[twoPlayerMode ? 1 : 0][i] + 13;
+				draw_segmented_gauge(VGAScreenSeg, 284, y, 112, 2, 2, MAX(1, ammo_max / 10), this_player->sidekick[i].ammo);
+			}
+
+			if (button[1 + i] && this_player->sidekick[i].ammo > 0)
+			{
+				b = player_shot_create(this_option->wport, shot_i, this_player->sidekick[i].x,
+				                       this_player->sidekick[i].y, mouseX, mouseY,
+				                       this_option->wpnum + this_player->sidekick[i].charge, playerNum_);
+				--this_player->sidekick[i].ammo;
+				if (this_player->sidekick[i].charge > 0)
+				{
+					shotMultiPos[shot_i] = 0;
+					this_player->sidekick[i].charge = 0;
+				}
+				this_player->sidekick[i].charge_ticks = 20;
+				this_player->sidekick[i].animation_enabled = true;
+				const int y = hud_sidekick_y[twoPlayerMode ? 1 : 0][i] + 13;
+				fill_rectangle_xy(VGAScreenSeg, 284, y, 312, y + 2, 0);
+				draw_segmented_gauge(VGAScreenSeg, 284, y, 112, 2, 2, MAX(1, ammo_max / 10), this_player->sidekick[i].ammo);
+			}
+		}
+		else if (button[0] || button[1 + i])
+		{
+			b = player_shot_create(this_option->wport, shot_i, this_player->sidekick[i].x,
+			                       this_player->sidekick[i].y, mouseX, mouseY,
+			                       this_option->wpnum + this_player->sidekick[i].charge, playerNum_);
+			if (this_player->sidekick[i].charge > 0)
+			{
+				shotMultiPos[shot_i] = 0;
+				this_player->sidekick[i].charge = 0;
+			}
+			this_player->sidekick[i].charge_ticks = 20;
+			this_player->sidekick[i].animation_enabled = true;
+		}
+	}
+}
+
 static void update_player_attacks(Player *this_player,
                                   JE_byte playerNum_,
                                   JE_word shipGr_,
                                   JE_word *mouseX_, JE_word *mouseY_)
 {
-	if (moveOk)
-	{
-		if (this_player->is_alive)
-		{
-			if (!endLevel)
-			{
-				this_player->delta_x_shot_move = this_player->x - this_player->last_x_shot_move;
-				this_player->delta_y_shot_move = this_player->y - this_player->last_y_shot_move;
+	if (!moveOk || !this_player->is_alive || endLevel)
+		return;
 
-				/* PLAYER SHOT Change */
-				if (button[4-1])
-				{
-					portConfigChange = true;
-					if (portConfigDone)
-					{
-						shotMultiPos[SHOT_REAR] = 0;
+	this_player->delta_x_shot_move = this_player->x - this_player->last_x_shot_move;
+	this_player->delta_y_shot_move = this_player->y - this_player->last_y_shot_move;
 
-						if (superArcadeMode != SA_NONE && superArcadeMode <= SA_NORTSHIPZ)
-						{
-							shotMultiPos[SHOT_SPECIAL] = 0;
-							shotMultiPos[SHOT_SPECIAL2] = 0;
-							if (player[0].items.special == SASpecialWeapon[superArcadeMode-1])
-							{
-								player[0].items.special = SASpecialWeaponB[superArcadeMode-1];
-								this_player->weapon_mode = 2;
-							}
-							else
-							{
-								player[0].items.special = SASpecialWeapon[superArcadeMode-1];
-								this_player->weapon_mode = 1;
-							}
-						}
-						else if (++this_player->weapon_mode > JE_portConfigs())
-							this_player->weapon_mode = 1;
+	change_player_weapon_mode(this_player);
 
-						JE_drawPortConfigButtons();
-						portConfigDone = false;
-					}
-				}
+	if (!galagaMode)
+		JE_doSpecialShot(playerNum_, &this_player->armor, &this_player->shield);
 
-				/* PLAYER SHOT Creation */
-
-				/*SpecialShot*/
-				if (!galagaMode)
-					JE_doSpecialShot(playerNum_, &this_player->armor, &this_player->shield);
-
-				/*Normal Main Weapons*/
-				if (!(twoPlayerLinked && playerNum_ == 2))
-				{
-					int min, max;
-
-					if (!twoPlayerMode)
-						min = 1, max = 2;
-					else
-						min = max = playerNum_;
-
-					for (temp = min - 1; temp < max; temp++)
-					{
-						const uint item = this_player->items.weapon[temp].id;
-
-						if (item > 0)
-						{
-							if (shotRepeat[temp] > 0)
-							{
-								--shotRepeat[temp];
-							}
-							else if (button[1-1])
-							{
-								const uint item_power = galagaMode ? 0 : this_player->items.weapon[temp].power - 1,
-								           item_mode = (temp == REAR_WEAPON) ? this_player->weapon_mode - 1 : 0;
-
-								b = player_shot_create(item, temp, this_player->x, this_player->y, *mouseX_, *mouseY_, weaponPort[item].op[item_mode][item_power], playerNum_);
-							}
-						}
-					}
-				}
-
-				/*Super Charge Weapons*/
-				if (playerNum_ == 2)
-				{
-
-					if (!twoPlayerLinked)
-						blit_sprite2(VGAScreen, this_player->x + (shipGr_ == 0) + 1, this_player->y - 13, spriteSheet10, 77 + chargeLevel + chargeGr * 19);
-
-					if (chargeGrWait > 0)
-					{
-						chargeGrWait--;
-					}
-					else
-					{
-						chargeGr++;
-						if (chargeGr == 4)
-							chargeGr = 0;
-						chargeGrWait = 3;
-					}
-
-					if (chargeLevel > 0)
-					{
-						fill_rectangle_xy(VGAScreenSeg, 269, 107 + (chargeLevel - 1) * 3, 275, 108 + (chargeLevel - 1) * 3, 193);
-					}
-
-					if (chargeWait > 0)
-					{
-						chargeWait--;
-					}
-					else
-					{
-						if (chargeLevel < chargeMax)
-							chargeLevel++;
-
-						chargeWait = 28 - this_player->items.weapon[REAR_WEAPON].power * 2;
-						if (difficultyLevel > DIFFICULTY_HARD)
-							chargeWait -= 5;
-					}
-
-					if (chargeLevel > 0)
-						fill_rectangle_xy(VGAScreenSeg, 269, 107 + (chargeLevel - 1) * 3, 275, 108 + (chargeLevel - 1) * 3, 204);
-
-					if (shotRepeat[SHOT_P2_CHARGE] > 0)
-					{
-						--shotRepeat[SHOT_P2_CHARGE];
-					}
-					else if (button[1-1] && (!twoPlayerLinked || chargeLevel > 0))
-					{
-						shotMultiPos[SHOT_P2_CHARGE] = 0;
-						b = player_shot_create(16, SHOT_P2_CHARGE, this_player->x, this_player->y, *mouseX_, *mouseY_, chargeGunWeapons[player[1].items.weapon[REAR_WEAPON].id-1] + chargeLevel, playerNum_);
-
-						if (chargeLevel > 0)
-							fill_rectangle_xy(VGAScreenSeg, 269, 107 + (chargeLevel - 1) * 3, 275, 108 + (chargeLevel - 1) * 3, 193);
-
-						chargeLevel = 0;
-						chargeWait = 30 - this_player->items.weapon[REAR_WEAPON].power * 2;
-					}
-				}
-
-				/*SUPER BOMB*/
-				temp = playerNum_;
-				if (temp == 0)
-					temp = 1;  /*Get whether player 1 or 2*/
-
-				if (player[temp-1].superbombs > 0)
-				{
-					if (shotRepeat[SHOT_P1_SUPERBOMB + temp-1] > 0)
-					{
-						--shotRepeat[SHOT_P1_SUPERBOMB + temp-1];
-					}
-					else if (button[3-1] || button[2-1])
-					{
-						--player[temp-1].superbombs;
-						shotMultiPos[SHOT_P1_SUPERBOMB + temp-1] = 0;
-						b = player_shot_create(16, SHOT_P1_SUPERBOMB + temp-1, this_player->x, this_player->y, *mouseX_, *mouseY_, 535, playerNum_);
-					}
-				}
-
-				// sidekicks
-
-				if (this_player->sidekick[LEFT_SIDEKICK].style == 4 && this_player->sidekick[RIGHT_SIDEKICK].style == 4)
-					optionSatelliteRotate += 0.2f;
-				else if (this_player->sidekick[LEFT_SIDEKICK].style == 4 || this_player->sidekick[RIGHT_SIDEKICK].style == 4)
-					optionSatelliteRotate += 0.15f;
-
-				switch (this_player->sidekick[LEFT_SIDEKICK].style)
-				{
-				case 1:  // trailing
-				case 3:
-					this_player->sidekick[LEFT_SIDEKICK].x = this_player->old_x[COUNTOF(player->old_x) / 2 - 1];
-					this_player->sidekick[LEFT_SIDEKICK].y = this_player->old_y[COUNTOF(player->old_x) / 2 - 1];
-					break;
-				case 2:  // front-mounted
-					this_player->sidekick[LEFT_SIDEKICK].x = this_player->x;
-					this_player->sidekick[LEFT_SIDEKICK].y = MAX(10, this_player->y - 20);
-					break;
-				case 4:  // orbiting
-					this_player->sidekick[LEFT_SIDEKICK].x = this_player->x + roundf(sinf(optionSatelliteRotate) * 20);
-					this_player->sidekick[LEFT_SIDEKICK].y = this_player->y + roundf(cosf(optionSatelliteRotate) * 20);
-					break;
-				}
-
-				switch (this_player->sidekick[RIGHT_SIDEKICK].style)
-				{
-				case 4:  // orbiting
-					this_player->sidekick[RIGHT_SIDEKICK].x = this_player->x - roundf(sinf(optionSatelliteRotate) * 20);
-					this_player->sidekick[RIGHT_SIDEKICK].y = this_player->y - roundf(cosf(optionSatelliteRotate) * 20);
-					break;
-				case 1:  // trailing
-				case 3:
-					this_player->sidekick[RIGHT_SIDEKICK].x = this_player->old_x[0];
-					this_player->sidekick[RIGHT_SIDEKICK].y = this_player->old_y[0];
-					break;
-				case 2:  // front-mounted
-					if (!optionAttachmentLinked)
-					{
-						this_player->sidekick[RIGHT_SIDEKICK].y += optionAttachmentMove / 2;
-						if (optionAttachmentMove >= -2)
-						{
-							if (optionAttachmentReturn)
-								temp = 2;
-							else
-								temp = 0;
-
-							if (this_player->sidekick[RIGHT_SIDEKICK].y > (this_player->y - 20) + 5)
-							{
-								temp = 2;
-								optionAttachmentMove -= 1 + optionAttachmentReturn;
-							}
-							else if (this_player->sidekick[RIGHT_SIDEKICK].y > (this_player->y - 20) - 0)
-							{
-								temp = 3;
-								if (optionAttachmentMove > 0)
-									optionAttachmentMove--;
-								else
-									optionAttachmentMove++;
-							}
-							else if (this_player->sidekick[RIGHT_SIDEKICK].y > (this_player->y - 20) - 5)
-							{
-								temp = 2;
-								optionAttachmentMove++;
-							}
-							else if (optionAttachmentMove < 2 + optionAttachmentReturn * 4)
-							{
-								optionAttachmentMove += 1 + optionAttachmentReturn;
-							}
-
-							if (optionAttachmentReturn)
-								temp = temp * 2;
-							if (abs(this_player->sidekick[RIGHT_SIDEKICK].x - this_player->x) < temp)
-								temp = 1;
-
-							if (this_player->sidekick[RIGHT_SIDEKICK].x > this_player->x)
-								this_player->sidekick[RIGHT_SIDEKICK].x -= temp;
-							else if (this_player->sidekick[RIGHT_SIDEKICK].x < this_player->x)
-								this_player->sidekick[RIGHT_SIDEKICK].x += temp;
-
-							if (abs(this_player->sidekick[RIGHT_SIDEKICK].y - (this_player->y - 20)) + abs(this_player->sidekick[RIGHT_SIDEKICK].x - this_player->x) < 8)
-							{
-								optionAttachmentLinked = true;
-								soundQueue[2] = S_CLINK;
-							}
-
-							if (button[3-1])
-								optionAttachmentReturn = true;
-						}
-						else  // sidekick needs to catch up to player
-						{
-							optionAttachmentMove += 1 + optionAttachmentReturn;
-							JE_setupExplosion(this_player->sidekick[RIGHT_SIDEKICK].x + 1, this_player->sidekick[RIGHT_SIDEKICK].y + 10, 0, 0, false, false);
-						}
-					}
-					else
-					{
-						this_player->sidekick[RIGHT_SIDEKICK].x = this_player->x;
-						this_player->sidekick[RIGHT_SIDEKICK].y = this_player->y - 20;
-						if (button[3-1])
-						{
-							optionAttachmentLinked = false;
-							optionAttachmentReturn = false;
-							optionAttachmentMove = -20;
-							soundQueue[3] = S_WEAPON_26;
-						}
-					}
-
-					if (this_player->sidekick[RIGHT_SIDEKICK].y < 10)
-						this_player->sidekick[RIGHT_SIDEKICK].y = 10;
-					break;
-				}
-
-				if (playerNum_ == 2 || !twoPlayerMode)  // if player has sidekicks
-				{
-					for (uint i = 0; i < COUNTOF(player->items.sidekick); ++i)
-					{
-						uint shot_i = (i == 0) ? SHOT_LEFT_SIDEKICK : SHOT_RIGHT_SIDEKICK;
-
-						JE_OptionType *this_option = &options[this_player->items.sidekick[i]];
-
-						// fire/refill sidekick
-						if (this_option->wport > 0)
-						{
-							if (shotRepeat[shot_i] > 0)
-							{
-								--shotRepeat[shot_i];
-							}
-							else
-							{
-								const int ammo_max = this_player->sidekick[i].ammo_max;
-
-								if (ammo_max > 0)  // sidekick has limited ammo
-								{
-									if (this_player->sidekick[i].ammo_refill_ticks > 0)
-									{
-										--this_player->sidekick[i].ammo_refill_ticks;
-									}
-									else  // refill one ammo
-									{
-										this_player->sidekick[i].ammo_refill_ticks = this_player->sidekick[i].ammo_refill_ticks_max;
-
-										if (this_player->sidekick[i].ammo < ammo_max)
-											++this_player->sidekick[i].ammo;
-
-										// draw sidekick refill ammo gauge
-										const int y = hud_sidekick_y[twoPlayerMode ? 1 : 0][i] + 13;
-										draw_segmented_gauge(VGAScreenSeg, 284, y, 112, 2, 2, MAX(1, ammo_max / 10), this_player->sidekick[i].ammo);
-									}
-
-									if (button[1 + i] && this_player->sidekick[i].ammo > 0)
-									{
-										b = player_shot_create(this_option->wport, shot_i, this_player->sidekick[i].x, this_player->sidekick[i].y, *mouseX_, *mouseY_, this_option->wpnum + this_player->sidekick[i].charge, playerNum_);
-
-										--this_player->sidekick[i].ammo;
-										if (this_player->sidekick[i].charge > 0)
-										{
-											shotMultiPos[shot_i] = 0;
-											this_player->sidekick[i].charge = 0;
-										}
-										this_player->sidekick[i].charge_ticks = 20;
-										this_player->sidekick[i].animation_enabled = true;
-
-										// draw sidekick discharge ammo gauge
-										const int y = hud_sidekick_y[twoPlayerMode ? 1 : 0][i] + 13;
-										fill_rectangle_xy(VGAScreenSeg, 284, y, 312, y + 2, 0);
-										draw_segmented_gauge(VGAScreenSeg, 284, y, 112, 2, 2, MAX(1, ammo_max / 10), this_player->sidekick[i].ammo);
-									}
-								}
-								else  // has infinite ammo
-								{
-									if (button[0] || button[1 + i])
-									{
-										b = player_shot_create(this_option->wport, shot_i, this_player->sidekick[i].x, this_player->sidekick[i].y, *mouseX_, *mouseY_, this_option->wpnum + this_player->sidekick[i].charge, playerNum_);
-
-										if (this_player->sidekick[i].charge > 0)
-										{
-											shotMultiPos[shot_i] = 0;
-											this_player->sidekick[i].charge = 0;
-										}
-										this_player->sidekick[i].charge_ticks = 20;
-										this_player->sidekick[i].animation_enabled = true;
-									}
-								}
-							}
-						}
-					}
-				}  // end of if player has sidekicks
-			}  // !endLevel
-		} // this_player->is_alive
-	}
+	fire_main_weapons(this_player, playerNum_, *mouseX_, *mouseY_);
+	update_super_charge_weapon(this_player, playerNum_, shipGr_, *mouseX_, *mouseY_);
+	fire_superbomb(this_player, playerNum_, *mouseX_, *mouseY_);
+	update_sidekick_positions(this_player);
+	fire_sidekick_weapons(this_player, playerNum_, *mouseX_, *mouseY_);
 }
 
 
