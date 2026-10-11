@@ -1,0 +1,10 @@
+id=5
+name=Advanced MircoFusion          
+itemgraphic=267
+power=30
+speed=0
+cost=15000
+bigshipgraphic=19
+bigshipgraphx=66
+bigshipgraphy=84
+probability=25

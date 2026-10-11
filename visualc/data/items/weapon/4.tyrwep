@@ -1,0 +1,15 @@
+id=4
+name=Laser                         
+opnum=1
+op0=188 189 190 191 192 193 194 195 196 197 198
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=900
+itemgraphic=47
+poweruse=20
+position=0
+bigshipgraphic=3
+bigshipgraphfrntx=61
+bigshipgraphfrnty=53
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=4

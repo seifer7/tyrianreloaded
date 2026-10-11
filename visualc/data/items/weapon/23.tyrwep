@@ -1,0 +1,15 @@
+id=23
+name=Banana Blast                  
+opnum=1
+op0=506 507 508 509 510 511 512 513 514 515 516
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=950
+itemgraphic=3
+poweruse=20
+position=0
+bigshipgraphic=2
+bigshipgraphfrntx=54
+bigshipgraphfrnty=36
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=1

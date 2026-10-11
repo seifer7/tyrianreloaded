@@ -1,0 +1,15 @@
+id=26
+name=HotDog Rear                   
+opnum=1
+op0=547 548 549 550 551 552 553 554 555 556 557
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1100
+itemgraphic=127
+poweruse=40
+position=1
+bigshipgraphic=13
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=39
+bigshipgraphreary=96
+probability=1

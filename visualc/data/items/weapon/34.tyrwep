@@ -1,0 +1,15 @@
+id=34
+name=Protron Wave                  
+opnum=1
+op0=647 648 649 650 651 652 653 654 655 656 657
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=750
+itemgraphic=0
+poweruse=40
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=1

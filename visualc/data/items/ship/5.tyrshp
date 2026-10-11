@@ -1,0 +1,12 @@
+id=5
+name=MicroCorp Stalker             
+shipgraphic=195
+itemgraphic=275
+ani=2
+spd=-2
+dmg=25
+cost=20000
+bigshipgraphic=33
+bigshipgraphx=31
+bigshipgraphy=35
+probability=32

@@ -1,0 +1,12 @@
+id=7
+name=Prototype Stalker-C           
+shipgraphic=195
+itemgraphic=275
+ani=2
+spd=0
+dmg=28
+cost=50000
+bigshipgraphic=33
+bigshipgraphx=31
+bigshipgraphy=35
+probability=7

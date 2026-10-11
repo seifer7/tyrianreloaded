@@ -1,0 +1,15 @@
+id=22
+name=Rear Mega Pulse               
+opnum=1
+op0=433 434 435 436 437 438 439 440 441 442 443
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=900
+itemgraphic=11
+poweruse=90
+position=1
+bigshipgraphic=8
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=16

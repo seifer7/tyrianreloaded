@@ -1,0 +1,15 @@
+id=16
+name=Miscellaneous Option Weapons  
+opnum=1
+op0=1 5 66 366 26 83 1 362 363 364 365
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=0
+itemgraphic=0
+poweruse=10
+position=0
+bigshipgraphic=-1
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=0

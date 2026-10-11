@@ -1,0 +1,12 @@
+id=1
+name=USP Talon   Light Fighter     
+shipgraphic=233
+itemgraphic=277
+ani=2
+spd=0
+dmg=10
+cost=6000
+bigshipgraphic=32
+bigshipgraphx=35
+bigshipgraphy=33
+probability=67

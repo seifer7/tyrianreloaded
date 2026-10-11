@@ -1,0 +1,16 @@
+id=32
+name=Shuruiken Field               
+opnum=1
+op0=625 626 627 628 629 630 631 632 633 634 635
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=850
+itemgraphic=0
+poweruse=40
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=1
+

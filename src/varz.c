@@ -38,6 +38,7 @@
 
 JE_integer tempDat, tempDat2, tempDat3;
 
+int ITEM_INDEX_STORE[ITEM_STORE_MAX];
 const JE_byte SANextShip[SA + 2] /* [0..SA + 1] */ = { 3, 9, 6, 2, 5, 1, 4, 3, 7 }; // 0 -> 3 -> 2 -> 6 -> 4 -> 5 -> 1 -> 9 -> 7
 const JE_word SASpecialWeapon[SA] /* [1..SA] */  = { 7, 8, 9, 10, 11, 12, 13 };
 const JE_word SASpecialWeaponB[SA] /* [1..SA] */ = {37, 6, 15, 40, 16, 14, 41 };
@@ -90,16 +91,6 @@ const JE_word PGR[21] /* [1..21] */ =
 };
 const JE_byte PAni[21] /* [1..21] */ = {1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1};
 
-const JE_word linkGunWeapons[38] /* [1..38] */ =
-{
-	0,0,0,0,0,0,0,0,444,445,446,447,0,448,449,0,0,0,0,0,450,451,0,506,0,564,
-	  445,446,447,448,449,445,446,447,448,449,450,451
-};
-const JE_word chargeGunWeapons[38] /* [1..38] */ =
-{
-	0,0,0,0,0,0,0,0,476,458,464,482,0,488,470,0,0,0,0,0,494,500,0,528,0,558,
-	  458,458,458,458,458,458,458,458,458,458,458,458
-};
 const JE_byte randomEnemyLaunchSounds[3] /* [1..3] */ = {13,6,26};
 
 /* YKS: Twiddle cheat sheet:
@@ -303,8 +294,10 @@ unsigned int last_superpixel;
 
 /*Temporary Numbers*/
 JE_byte temp, temp2, temp3;
-JE_word tempX, tempY;
-JE_word tempW;
+JE_word tempX, tempY, tempW;
+int tempI, tempI2;
+bool tempHasPower;
+enum ITEM_TYPE tempItemType;
 
 JE_boolean doNotSaveBackup;
 
@@ -959,7 +952,7 @@ void JE_setupExplosionLarge(JE_boolean enemyGround, JE_byte exploNum, JE_integer
 {
 	if (y >= 0)
 	{
-		if (enemyGround)
+		if (!enemyGround)
 		{
 			JE_setupExplosion(x - 6, y - 14, 0,  2, false, false);
 			JE_setupExplosion(x + 6, y - 14, 0,  4, false, false);

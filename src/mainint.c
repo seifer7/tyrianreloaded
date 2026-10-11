@@ -3876,7 +3876,7 @@ static void update_player_movement(Player *this_player,
 			else if (button[1-1])
 			{
 				shotMultiPos[SHOT_REAR] = 0;
-				b = player_shot_create(0, SHOT_REAR, this_player->x + 1 + roundf(sinf(linkGunDirec) * 20), this_player->y + roundf(cosf(linkGunDirec) * 20), *mouseX_, *mouseY_, linkGunWeapons[this_player->items.weapon[REAR_WEAPON].id-1], playerNum_);
+				b = player_shot_create(0, SHOT_REAR, this_player->x + 1 + roundf(sinf(linkGunDirec) * 20), this_player->y + roundf(cosf(linkGunDirec) * 20), *mouseX_, *mouseY_, weaponPort[this_player->items.weapon[REAR_WEAPON].id].linkgunweapon, playerNum_);
 				player_shot_set_direction(b, this_player->items.weapon[REAR_WEAPON].id, linkGunDirec);
 			}
 		}
@@ -3991,7 +3991,7 @@ static void update_super_charge_weapon(Player *this_player, JE_byte playerNum_, 
 	{
 		shotMultiPos[SHOT_P2_CHARGE] = 0;
 		b = player_shot_create(16, SHOT_P2_CHARGE, this_player->x, this_player->y, mouseX, mouseY,
-		                       chargeGunWeapons[player[1].items.weapon[REAR_WEAPON].id-1] + chargeLevel, playerNum_);
+		                       weaponPort[player[1].items.weapon[REAR_WEAPON].id].chargegunweapons[chargeLevel > 0 ? chargeLevel - 1 : 0], playerNum_);
 
 		if (chargeLevel > 0)
 			fill_rectangle_xy(VGAScreenSeg, 269, 107 + (chargeLevel - 1) * 3, 275, 108 + (chargeLevel - 1) * 3, 193);
@@ -4913,7 +4913,7 @@ static void collect_score_item(Player *this_player, JE_byte playerNum_, int z, i
 	{
 		this_player->cash += evalue;
 	}
-	JE_setupExplosion(enemy_screen_x, enemy[z].ey, 0, enemyDat[enemy[z].enemytype].explosiontype, true, false);
+	JE_setupExplosion(enemy_screen_x, enemy[z].ey, 0, enemy[z].explonum, true, false);
 }
 
 static void destroy_linked_enemies(int z, int linkNumber)
@@ -5004,7 +5004,7 @@ void JE_playerCollide(Player *this_player, JE_byte playerNum_)
 		else if (enemy[z].scoreitem)
 			collect_score_item(this_player, playerNum_, z, evalue, enemy_screen_x, tempStr);
 		else if (this_player->invulnerable_ticks == 0 && enemyAvail[z] == 0 &&
-		         (enemyDat[enemy[z].enemytype].explosiontype & 1) == 0)
+		         enemy[z].enemyground == false)
 			damage_enemy_on_collision(this_player, z);
 	}
 }

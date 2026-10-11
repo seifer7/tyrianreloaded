@@ -1,0 +1,15 @@
+id=42
+name=RetroBall                     
+opnum=1
+op0=767 768 769 770 771 772 773 774 775 776 777
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1000
+itemgraphic=7
+poweruse=50
+position=0
+bigshipgraphic=1
+bigshipgraphfrntx=52
+bigshipgraphfrnty=41
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=2

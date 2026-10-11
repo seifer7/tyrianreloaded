@@ -1,0 +1,16 @@
+id=40
+name=Widget Beam                   
+opnum=1
+op0=738 739 740 741 742 743 744 745 746 747 748
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=950
+itemgraphic=7
+poweruse=40
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=7
+

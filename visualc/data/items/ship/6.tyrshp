@@ -1,0 +1,12 @@
+id=6
+name=MicroCorp Stalker-B           
+shipgraphic=195
+itemgraphic=275
+ani=2
+spd=-2
+dmg=27
+cost=25000
+bigshipgraphic=33
+bigshipgraphx=31
+bigshipgraphy=35
+probability=16

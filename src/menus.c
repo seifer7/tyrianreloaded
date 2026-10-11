@@ -189,6 +189,7 @@ bool gameplaySelect(void)
 			}
 			case SDL_SCANCODE_SPACE:
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			{
 				action = true;
 				break;
@@ -384,6 +385,7 @@ bool episodeSelect(void)
 			}
 			case SDL_SCANCODE_SPACE:
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			{
 				action = true;
 				break;
@@ -615,6 +617,7 @@ bool difficultySelect(void)
 			}
 			case SDL_SCANCODE_SPACE:
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			{
 				action = true;
 				break;

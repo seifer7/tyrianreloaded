@@ -1,0 +1,15 @@
+id=41
+name=Sonic Impulse                 
+opnum=1
+op0=756 757 758 759 760 761 762 763 764 765 766
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1000
+itemgraphic=7
+poweruse=50
+position=0
+bigshipgraphic=2
+bigshipgraphfrntx=54
+bigshipgraphfrnty=36
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=2

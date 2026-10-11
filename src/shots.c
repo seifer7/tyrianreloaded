@@ -129,33 +129,27 @@ void player_shot_set_direction(JE_integer shot_id, uint weapon_id, JE_real direc
 	// Some weapons have sprites for each direction, use those.
 	int rounded_dir;
 
-	switch (weapon_id)
-	{
-	case 27:
-	case 32:
-	case 10:
+	if (strcmp(weaponPort[weapon_id].id, "27") == 0 ||
+		strcmp(weaponPort[weapon_id].id, "32") == 0 ||
+		strcmp(weaponPort[weapon_id].id, "10") == 0) {
 		rounded_dir = roundf(direction * (16 / (2 * M_PI)));  /*16 directions*/
 		shot->shotGr = linkMultiGr[rounded_dir];
-		break;
-	case 28:
-	case 33:
-	case 11:
+	} else if (strcmp(weaponPort[weapon_id].id, "28") == 0 ||
+		strcmp(weaponPort[weapon_id].id, "33") == 0 ||
+		strcmp(weaponPort[weapon_id].id, "11") == 0) {
 		rounded_dir = roundf(direction * (16 / (2 * M_PI)));  /*16 directions*/
 		shot->shotGr = linkSonicGr[rounded_dir];
-		break;
-	case 30:
-	case 35:
-	case 14:
+	} else if (strcmp(weaponPort[weapon_id].id, "30") == 0 ||
+		strcmp(weaponPort[weapon_id].id, "35") == 0 ||
+		strcmp(weaponPort[weapon_id].id, "14") == 0) {
 		if (direction > M_PI_2 && direction < M_PI + M_PI_2)
 		{
 			shot->shotYC = 1;
 		}
-		break;
-	case 38:
-	case 22:
+	} else if (strcmp(weaponPort[weapon_id].id, "28") == 0 ||
+		strcmp(weaponPort[weapon_id].id, "22") == 0) {
 		rounded_dir = roundf(direction * (16 / (2 * M_PI)));  /*16 directions*/
 		shot->shotGr = linkMult2Gr[rounded_dir];
-		break;
 	}
 }
 
@@ -163,7 +157,7 @@ bool player_shot_move_and_draw(
 		int shot_id, bool* out_is_special,
 		int* out_shotx, int* out_shoty,
 		JE_integer* out_shot_damage, JE_byte* out_blast_filter,
-		JE_byte* out_chain, JE_byte* out_playerNum,
+		JE_word* out_chain, JE_byte* out_playerNum,
 		JE_word* out_special_radiusw, JE_word* out_special_radiush)
 {
 	PlayerShotDataType* shot = &playerShotData[shot_id];
@@ -310,7 +304,7 @@ JE_integer player_shot_create(JE_word portNum, uint bay_i, JE_word PX, JE_word P
 	static const JE_byte soundChannel[11] /* [1..11] */ = {0, 2, 4, 4, 2, 2, 5, 5, 1, 4, 1};
 
 	// Bounds check
-	if (portNum > PORT_NUM || wpNum <= 0 || wpNum > WEAP_NUM)
+	if (portNum >= weaponPort->count || wpNum <= 0 || wpNum > weapons->count)
 		return MAX_PWEAPON;
 
 	const JE_WeaponType* weapon = &weapons[wpNum];
@@ -382,15 +376,13 @@ JE_integer player_shot_create(JE_word portNum, uint bay_i, JE_word PX, JE_word P
 
 		shot->shotTrail = weapon->trail;
 
-		if (weapon->attack[shotMultiPos[bay_i]-1] > 99 && weapon->attack[shotMultiPos[bay_i]-1] < 250)
-		{
-			shot->chainReaction = weapon->attack[shotMultiPos[bay_i]-1] - 100;
-			shot->shotDmg = 1;
+		if (weapon->chain[shotMultiPos[bay_i] - 1] > 0) {
+			shot->chainReaction = weapon->chain[shotMultiPos[bay_i] - 1];
 		}
-		else
-		{
-			shot->shotDmg = weapon->attack[shotMultiPos[bay_i]-1];
-		}
+		shot->shotDmg = weapon->attack[shotMultiPos[bay_i] - 1];
+
+		shot->iceticks = weapon->iceticks[shotMultiPos[bay_i] - 1];
+		shot->infinite = weapon->infinite[shotMultiPos[bay_i] - 1];
 
 		shot->shotBlastFilter = weapon->shipblastfilter;
 

@@ -1,0 +1,15 @@
+id=12
+name=Protron                       
+opnum=2
+op0=300 301 302 303 304 305 306 307 308 309 310
+op1=311 312 313 314 315 316 317 318 319 320 321
+cost=650
+itemgraphic=81
+poweruse=50
+position=1
+bigshipgraphic=11
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=43
+bigshipgraphreary=102
+probability=37

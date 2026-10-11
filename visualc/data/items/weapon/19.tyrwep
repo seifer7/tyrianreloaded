@@ -1,0 +1,15 @@
+id=19
+name=Mega Pulse                    
+opnum=1
+op0=400 401 402 403 404 405 406 407 408 409 410
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=900
+itemgraphic=207
+poweruse=60
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=61
+bigshipgraphfrnty=48
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=47

@@ -18,6 +18,7 @@
  */
 #ifndef OPENTYR_H
 #define OPENTYR_H
+#define DO_DECYRPT
 
 #include "SDL_types.h"
 
@@ -56,6 +57,8 @@ typedef float  JE_real;
 extern const char *opentyrian_str;
 extern const char *opentyrian_version;
 
+extern bool str_pop_int(char* str, int* val);
+extern bool str_pop_str(char* str, char* val);
 void setupMenu(void);
 
 #endif /* OPENTYR_H */

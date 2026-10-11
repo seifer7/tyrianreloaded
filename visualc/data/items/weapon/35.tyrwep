@@ -1,0 +1,15 @@
+id=35
+name=The Orange Juicer             
+opnum=1
+op0=659 660 661 662 663 664 665 666 667 668 669
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=900
+itemgraphic=0
+poweruse=40
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=1

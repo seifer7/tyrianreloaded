@@ -1,0 +1,12 @@
+id=2
+name=SuperCarrot                   
+shipgraphic=119
+itemgraphic=281
+ani=2
+spd=-2
+dmg=26
+cost=65000
+bigshipgraphic=32
+bigshipgraphx=35
+bigshipgraphy=33
+probability=5

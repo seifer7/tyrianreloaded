@@ -48,6 +48,7 @@ JE_boolean JE_gammaCheck(void);
 /* void JE_textMenuWait(JE_word *waitTime, JE_boolean doGamma); /!\ In setup.h */
 void JE_nextEpisode(void);
 void JE_helpSystem(JE_byte startTopic);
+void saveGameNamePopup(bool isSave);
 void JE_doInGameSetup(void);
 JE_boolean JE_inGameSetup(void);
 void JE_inGameHelp(void);
@@ -73,9 +74,7 @@ void JE_playCredits(void);
 void JE_endLevelAni(void);
 void JE_drawCube(SDL_Surface * screen, JE_word x, JE_word y, JE_byte filter, JE_byte brightness);
 void JE_handleChat(void);
-bool str_pop_int(char *str, int *val);
 bool JE_loadScreen(void);
-void JE_operation(JE_byte slot);
 void JE_inGameDisplays(void);
 void JE_mainKeyboardInput(void);
 void JE_pauseGame(void);

@@ -1,0 +1,12 @@
+id=11
+name=Silver Ship                   
+shipgraphic=81
+itemgraphic=277
+ani=2
+spd=0
+dmg=10
+cost=8000
+bigshipgraphic=32
+bigshipgraphx=35
+bigshipgraphy=33
+probability=1

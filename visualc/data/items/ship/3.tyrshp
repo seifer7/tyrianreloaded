@@ -1,0 +1,12 @@
+id=3
+name=Gencore Phoenix               
+shipgraphic=157
+itemgraphic=273
+ani=2
+spd=-1
+dmg=17
+cost=12000
+bigshipgraphic=28
+bigshipgraphx=31
+bigshipgraphy=36
+probability=46

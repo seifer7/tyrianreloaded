@@ -1,0 +1,16 @@
+id=28
+name=Guided Micro Bombs            
+opnum=1
+op0=576 577 578 579 580 581 582 583 584 585 586
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1100
+itemgraphic=53
+poweruse=60
+position=1
+bigshipgraphic=8
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=5
+

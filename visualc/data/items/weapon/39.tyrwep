@@ -1,0 +1,15 @@
+id=39
+name=Atomic RailGun                
+opnum=1
+op0=712 713 714 715 731 716 717 732 733 734 735
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1101
+itemgraphic=7
+poweruse=30
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=1

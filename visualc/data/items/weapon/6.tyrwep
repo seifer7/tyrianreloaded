@@ -1,0 +1,15 @@
+id=6
+name=Protron Z                     
+opnum=1
+op0=210 211 212 213 214 215 216 217 218 219 220
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=900
+itemgraphic=77
+poweruse=50
+position=0
+bigshipgraphic=5
+bigshipgraphfrntx=51
+bigshipgraphfrnty=35
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=1

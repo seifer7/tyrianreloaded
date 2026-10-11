@@ -179,4 +179,6 @@ static inline void fwrite_s32_die(const Sint32 *buffer, FILE *stream)
 	fwrite_die(buffer, sizeof(Sint32), 1, stream);
 }
 
+void write_pcx_header(FILE* fp, size_t width, size_t height);
+
 #endif // FILE_H

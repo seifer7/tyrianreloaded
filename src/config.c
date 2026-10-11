@@ -16,10 +16,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+#pragma warning(disable : 5105)
+
 #include "config.h"
 
 #include "episodes.h"
 #include "file.h"
+#include "tinydir.h"
 #include "joystick.h"
 #include "loudness.h"
 #include "mtrand.h"
@@ -242,7 +245,19 @@ JE_SaveGameTemp saveTemp;
 
 JE_word editorLevel;   /*Initial value 800*/
 
+int shopContentSetting;
+
 Config opentyrian_config;  // implicitly initialized
+
+char* xor (char* string, const char* key)
+{
+	char* s = string;
+	size_t length = strlen(key), i = 0;
+	while (*s) {
+		*s++ ^= key[i++ % length];
+	}
+	return string;
+}
 
 bool load_opentyrian_config(void)
 {
@@ -250,6 +265,7 @@ bool load_opentyrian_config(void)
 	fullscreen_display = -1;
 	set_scaler_by_name("Scale2x");
 	memcpy(keySettings, defaultKeySettings, sizeof(keySettings));
+	shopContentSetting = 0;
 	
 	Config *config = &opentyrian_config;
 	
@@ -295,6 +311,12 @@ bool load_opentyrian_config(void)
 		}
 	}
 
+	section = config_find_section(config, "gameplay", NULL);
+	if (section != NULL)
+	{
+		config_get_int_option(section, "shop_content", &shopContentSetting);
+	}
+
 	fclose(file);
 	
 	return true;
@@ -327,6 +349,12 @@ bool save_opentyrian_config(void)
 			keyName = NULL;
 		config_set_string_option(section, keySettingNames[i], keyName);
 	}
+
+	section = config_find_or_add_section(config, "gameplay", NULL);
+	if (section == NULL)
+		exit(EXIT_FAILURE);  // out of memory
+
+	config_set_int_option(section, "shop_content", shopContentSetting);
 
 #ifndef TARGET_WIN32
 	mkdir(get_user_directory(), 0700);
@@ -379,6 +407,307 @@ static void pitems_to_playeritems(PlayerItems *items, JE_PItemsType pItems, JE_b
 	items->shield                   = pItems[9];
 	items->special                  = pItems[10];
 	items->ship                     = pItems[11];
+}
+
+bool saveGameOperation(const char* name) {
+	bool success = true;
+	const char magicBytes[4] = { 0x54, 0x59, 0x52, 0x52 }; // TYRR
+	const JE_word saveFormatVersion = 1;
+	const JE_word compatSaveFormatVersion = 1; // This number will always match or be lower than saveFormatVersion. Basically, it lets OLDER game versions know if they can still read the file, although their client will likely miss out on some features.
+	char* key = "TYRIANRELOADED";
+
+	char filename[60];
+	snprintf(filename, sizeof(filename), "saves\\%s.tyrsav", name);
+	FILE* outF = dir_fopen(get_user_directory(), filename, "wb");
+	fwrite(magicBytes, sizeof(char), sizeof(magicBytes), outF);
+	fwrite_u16_die(&saveFormatVersion, outF);
+	fwrite_u16_die(&compatSaveFormatVersion, outF);
+	fwrite_s8_die(&difficultyLevel, 1, outF);
+	fwrite_u8_die(&episodeNum, 1, outF);
+	fwrite_u8_die(&saveLevel, 1, outF);
+	fwrite_s8_die(&initialDifficulty, 1, outF);
+	fwrite_u8_die(&initial_episode_num, 1, outF);
+	fwrite_u16_die(&lastCubeMax, outF);
+	temp = gameHasRepeated == true ? 1 : 0;
+	fwrite_u8_die(&temp, 1, outF);
+
+	char reserved[128] = "";
+	fwrite_die(&reserved, sizeof(char), sizeof(reserved), outF); // 128 BYTES RESERVED FOR FUTURE USE
+
+	fwrite_die(&lastLevelName, 11, 1, outF);
+
+	temp = 0;
+	if (superTyrian)
+		temp = SA_SUPERTYRIAN;
+	else if (superArcadeMode == SA_NONE && onePlayerAction)
+		temp = SA_ARCADE;
+	else
+		temp = superArcadeMode;
+	fwrite_u8_die(&temp, 1, outF);
+
+	temp = 1;
+	if (twoPlayerMode)
+		temp = 2;
+	fwrite_u8_die(&temp, 1, outF);
+
+	char s[1024] = { '\0' };
+	char separator[2] = "*";
+	for (int p = 0; p < (twoPlayerMode ? 2 : 1); p++) {
+		if(p>0) strcat(s, separator);
+		strcat(s, ships[player[p].items.ship].id);
+		strcat(s, separator);
+		strcat(s, weaponPort[player[p].items.weapon[FRONT_WEAPON].id].id);
+		strcat(s, separator);
+		snprintf(s + strlen(s), sizeof s - strlen(s), "%d", player[p].items.weapon[FRONT_WEAPON].power);
+		strcat(s, separator);
+		strcat(s, weaponPort[player[p].items.weapon[REAR_WEAPON].id].id);
+		strcat(s, separator);
+		snprintf(s + strlen(s), sizeof s - strlen(s), "%d", player[p].items.weapon[REAR_WEAPON].power);
+		strcat(s, separator);
+		strcat(s, powerSys[player[p].items.generator].id);
+		strcat(s, separator);
+		strcat(s, shields[player[p].items.shield].id);
+		strcat(s, separator);
+		strcat(s, options[player[p].items.sidekick[0]].id);
+		strcat(s, separator);
+		strcat(s, options[player[p].items.sidekick[1]].id);
+		strcat(s, separator);
+		strcat(s, special[player[p].items.special].id);
+		strcat(s, separator);
+		snprintf(s + strlen(s), sizeof s - strlen(s), "%lu", player[p].cash);
+		strcat(s, separator);
+
+		for (int i = 0; i < 12; i++)
+			strcat(s, separator); // Reserve 12 slots for future additions
+
+		strcat(s, ships[player[p].last_items.ship].id);
+		strcat(s, separator);
+		strcat(s, weaponPort[player[p].last_items.weapon[FRONT_WEAPON].id].id);
+		strcat(s, separator);
+		strcat(s, "");
+		strcat(s, separator);
+		strcat(s, weaponPort[player[p].last_items.weapon[REAR_WEAPON].id].id);
+		strcat(s, separator);
+		strcat(s, "");
+		strcat(s, separator);
+		strcat(s, powerSys[player[p].last_items.generator].id);
+		strcat(s, separator);
+		strcat(s, shields[player[p].last_items.shield].id);
+		strcat(s, separator);
+		strcat(s, options[player[p].last_items.sidekick[0]].id);
+		strcat(s, separator);
+		strcat(s, options[player[p].last_items.sidekick[1]].id);
+		strcat(s, separator);
+		strcat(s, special[player[p].last_items.special].id);
+
+		for (int i = 0; i < 12; i++)
+			strcat(s, separator); // Reserve 12 slots for future additions
+	}
+	strcat(s, "E");
+
+	char* cipherText = xor(s, key);
+	fwrite_die(cipherText, sizeof(char), strlen(cipherText), outF);
+	fclose(outF);
+	return success;
+}
+
+bool loadGameOperation(const char* name) {
+	char filename[60];
+	snprintf(filename, sizeof(filename), "saves\\%s.tyrsav", name);
+	FILE* file = dir_fopen(get_user_directory(), filename, "rb");
+	if (file == NULL) return false;
+
+	superTyrian = false;
+	onePlayerAction = false;
+	superArcadeMode = SA_NONE;
+	twoPlayerMode = false;
+	extraGame = false;
+	galagaMode = false;
+	bool success = true;
+
+	char magicBytes[5] = { 0x54, 0x59, 0x52, 0x52, '\0'}; // TYRR
+	char magicBytesFound[5] = { '\0' };
+	JE_word saveFormatVersion;
+	JE_word compatSaveFormatVersion;
+	JE_byte tempEpisode = 1;
+
+	fread(magicBytesFound, sizeof(magicBytesFound)-1, 1, file);
+	fread_u16_die(&saveFormatVersion, 1, file);
+	fread_u16_die(&compatSaveFormatVersion, 1, file);
+
+	if (strcmp(magicBytes, magicBytesFound) != 0) {
+		return false;
+	}
+
+	if (saveFormatVersion == 1 || compatSaveFormatVersion == 1) {
+		char* key = "TYRIANRELOADED";
+
+		fread_s8_die(&difficultyLevel, 1, file);
+		fread_u8_die(&tempEpisode, 1, file);
+		fread_u8_die(&mainLevel, 1, file);
+		fread_s8_die(&initialDifficulty, 1, file);
+		fread_u8_die(&initial_episode_num, 1, file);
+		fread_u16_die(&cubeMax, 1, file);
+		lastCubeMax = cubeMax;
+		fread_u8_die(&temp, 1, file);
+		gameHasRepeated = temp == 1 ? true : false;
+
+		char reserved[128] = "";
+		fread_die(&reserved, sizeof(char), sizeof(reserved), file); // 128 BYTES RESERVED FOR FUTURE USE
+
+		fread_die(&levelName, 11, 1, file);
+		levelName[10] = '\0';
+
+		fread_u8_die(&temp, 1, file);
+
+		if (temp == SA_SUPERTYRIAN)
+			superTyrian = true;
+		else if (temp == SA_ARCADE)
+			onePlayerAction = true;
+		else
+			superArcadeMode = temp;
+
+		fread_u8_die(&temp, 1, file);
+		if (temp == 2)
+			twoPlayerMode = true;
+
+		// Item stuffs!
+		long int charStart = ftell(file);
+		fseek(file, 0, SEEK_END);
+		long int charEnd = ftell(file);
+		long int len = (charEnd - charStart);
+		fseek(file, charStart, SEEK_SET);
+
+		char* buffer;
+		buffer = (char*)malloc(len * sizeof(char));
+		fread_die(buffer, sizeof(char), len, file);
+		buffer = xor(buffer, key);
+		if (buffer[len-1] != 'E') {
+			success = false;
+		}
+
+		if (success) {
+			char value[11] = { '\0' };
+			int p = 0;
+			int v = 0;
+			int i = 0;
+			int pos = 0;
+			for (; ; ) {
+				char c = buffer[pos];
+				if (c != '*' && c != '\0') {
+					value[v++] = c;
+				}
+				else {
+					// Do stuff to update player
+					switch (i) {
+					case 0:
+						tempItemType = ItemType_Ship;
+						player[p].items.ship = item_idx(&tempItemType, value);
+						break;
+					case 1:
+						tempItemType = ItemType_WeaponFront;
+						player[p].items.weapon[FRONT_WEAPON].id = item_idx(&tempItemType, value);
+						break;
+					case 2:
+						player[p].items.weapon[FRONT_WEAPON].power = atoi(value);
+						break;
+					case 3:
+						tempItemType = ItemType_WeaponRear;
+						player[p].items.weapon[REAR_WEAPON].id = item_idx(&tempItemType, value);
+						break;
+					case 4:
+						player[p].items.weapon[REAR_WEAPON].power = atoi(value);
+						break;
+					case 5:
+						tempItemType = ItemType_Generator;
+						player[p].items.generator = item_idx(&tempItemType, value);
+						break;
+					case 6:
+						tempItemType = ItemType_Shield;
+						player[p].items.shield = item_idx(&tempItemType, value);
+						break;
+					case 7:
+						tempItemType = ItemType_SidekickLeft;
+						player[p].items.sidekick[0] = item_idx(&tempItemType, value);
+						break;
+					case 8:
+						tempItemType = ItemType_SidekickRight;
+						player[p].items.sidekick[1] = item_idx(&tempItemType, value);
+						break;
+					case 9:
+						tempItemType = ItemType_Special;
+						player[p].items.special = item_idx(&tempItemType, value);
+						break;
+					case 10:
+						player[p].cash = atoi(value);
+						break;
+					case 23:
+						tempItemType = ItemType_Ship;
+						player[p].last_items.ship = item_idx(&tempItemType, value);
+						break;
+					case 24:
+						tempItemType = ItemType_WeaponFront;
+						player[p].last_items.weapon[FRONT_WEAPON].id = item_idx(&tempItemType, value);
+						// Next slot not used
+						break;
+					case 26:
+						tempItemType = ItemType_WeaponRear;
+						player[p].last_items.weapon[REAR_WEAPON].id = item_idx(&tempItemType, value);
+						// Next slot not used
+						break;
+					case 28:
+						tempItemType = ItemType_Generator;
+						player[p].last_items.generator = item_idx(&tempItemType, value);
+						break;
+					case 29:
+						tempItemType = ItemType_Shield;
+						player[p].last_items.shield = item_idx(&tempItemType, value);
+						break;
+					case 30:
+						tempItemType = ItemType_SidekickLeft;
+						player[p].last_items.sidekick[0] = item_idx(&tempItemType, value);
+						break;
+					case 31:
+						tempItemType = ItemType_SidekickRight;
+						player[p].last_items.sidekick[1] = item_idx(&tempItemType, value);
+						break;
+					case 32:
+						tempItemType = ItemType_Special;
+						player[p].last_items.special = item_idx(&tempItemType, value);
+						break;
+					default:
+						// Slot not used in this save version
+						break;
+					}
+					// then...
+
+					v = 0;
+					memset(value, '\0', sizeof(value));
+					if (i == 44) // We're starting player 2 items
+						i = 0, p++;
+					else i++;
+				}
+				if (c == '\0') break;
+				pos++;
+			}
+		}
+		free(buffer);
+	}
+
+	if (strcmp(levelName, "Completed") == 0)
+	{
+		if (tempEpisode == EPISODE_AVAILABLE)
+			tempEpisode = 1;
+		else if (tempEpisode < EPISODE_AVAILABLE)
+			tempEpisode++;
+	}
+	JE_initEpisode(tempEpisode);
+	saveLevel = mainLevel;
+	memcpy(&lastLevelName, &levelName, sizeof(levelName));
+
+	gameJustLoaded = true, gameLoaded = true;
+
+	return success;
 }
 
 void JE_saveGame(JE_byte slot, const char *name)
@@ -435,6 +764,77 @@ void JE_saveGame(JE_byte slot, const char *name)
 	}
 	
 	JE_saveConfiguration();
+}
+
+bool read_savegame_metadata(TCHAR *filename, SavedGame* saved_game) {
+	char magicBytes[5] = { 0x54, 0x59, 0x52, 0x52, '\0' }; // TYRR
+	char magicBytesFound[5] = { '\0' };
+	JE_word saveFormatVersion;
+	JE_word compatSaveFormatVersion;
+
+	memcpy(saved_game->name, filename, min(sizeof(saved_game->name) - 1,strlen(filename) - 7));
+
+	char filepath[60];
+	snprintf(filepath, sizeof(filepath), "saves\\%s", filename);
+	FILE* file = dir_fopen(get_user_directory(), filepath, "rb");
+	if (file == NULL) return false;
+
+	fread(magicBytesFound, sizeof(magicBytesFound) - 1, 1, file);
+	fread_u16_die(&saveFormatVersion, 1, file);
+	fread_u16_die(&compatSaveFormatVersion, 1, file);
+
+	if (strcmp(magicBytes, magicBytesFound) != 0) {
+		return false;
+	}
+
+	if (saveFormatVersion == 1 || compatSaveFormatVersion == 1) {
+		fseek(file, sizeof(JE_shortint), SEEK_CUR);
+		fread_u8_die(&saved_game->episode, 1, file);
+		fseek(file, sizeof(JE_byte), SEEK_CUR);
+		fseek(file, sizeof(JE_shortint), SEEK_CUR);
+		fseek(file, sizeof(JE_byte), SEEK_CUR);
+		fseek(file, sizeof(JE_word), SEEK_CUR);
+		fseek(file, sizeof(JE_byte), SEEK_CUR);
+		fseek(file, sizeof(char) * 128, SEEK_CUR);
+		fread_die(&saved_game->levelName, 11, 1, file);
+		saved_game->levelName[10] = '\0';
+		fread_u8_die(&saved_game->gameMode, 1, file);
+		fread_u8_die(&temp, 1, file);
+		saved_game->twoPlayerMode = temp == 2;
+	}
+
+	return true;
+}
+
+SavedGame* build_save_game_list(JE_byte players) {
+	int saveNum = 0;
+	tinydir_dir dir;
+	tinydir_open_sorted(&dir, TINYDIR_STRING("./saves"));
+	SavedGame* output_saved_games = calloc(dir.n_files, sizeof(SavedGame));
+
+	for (size_t i = 0; i < dir.n_files; i++)
+	{
+		tinydir_file file;
+		if (tinydir_readfile_n(&dir, &file, i) == -1) continue; // Failed to get access to file
+		if (file.is_dir) continue;
+		if (_tinydir_strcmp("tyrsav", file.extension) != 0) continue;
+
+		bool success = read_savegame_metadata(file.name, &output_saved_games[saveNum]);
+		if (!success) continue;
+		if (
+			(players == 1 && output_saved_games[saveNum].twoPlayerMode == true) ||
+			(players == 2 && output_saved_games[saveNum].twoPlayerMode == false)
+			) {
+			memset(&output_saved_games[saveNum], 0, sizeof(SavedGame));
+			continue;
+		}
+
+		saveNum++;
+	}
+
+	output_saved_games->count = saveNum;
+
+	return output_saved_games;
 }
 
 void JE_loadGame(JE_byte slot)

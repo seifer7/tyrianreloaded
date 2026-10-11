@@ -1,0 +1,15 @@
+id=5
+name=Zica Laser                    
+opnum=1
+op0=199 200 201 202 203 204 205 206 207 208 209
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1100
+itemgraphic=49
+poweruse=90
+position=0
+bigshipgraphic=4
+bigshipgraphfrntx=66
+bigshipgraphfrnty=41
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=7

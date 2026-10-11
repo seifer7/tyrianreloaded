@@ -42,6 +42,38 @@ enum
 	SA_ARCADE = 255
 };
 
+enum {
+	ITEM_GENERATOR_ADVANCEDMR12,
+	ITEM_SHIELD_ADVANCEDINTEGRITYFIELD,
+	ITEM_SHIELD_GENCOREHIGHENERGY,
+	ITEM_SHIP_NORTSHIP,
+	ITEM_SHIP_SILVERSHIP,
+	ITEM_SHIP_STALKER,
+	ITEM_SHIP_STALKER21126,
+	ITEM_SHIP_SUPERCARROT,
+	ITEM_SHIP_USPTALON,
+	ITEM_SHOT_147,
+	ITEM_SHOT_148,
+	ITEM_SIDEKICK_COMPANIONSHIPQUICKSILVER,
+	ITEM_SPECIAL_ASTRALZONE,
+	ITEM_WEAPONFRONT_ATOMICRAILGUN,
+	ITEM_WEAPONFRONT_BANANABLAST,
+	ITEM_WEAPONFRONT_HOTDOG,
+	ITEM_WEAPONFRONT_NORTSHIPSUPERPULSE,
+	ITEM_WEAPONFRONT_PULSECANNON,
+	ITEM_WEAPONFRONT_MISCELLANEOUS,
+	ITEM_WEAPONREAR_BANANABLAST,
+	ITEM_WEAPONREAR_HOTDOG,
+	ITEM_WEAPONREAR_NORTSHIPSPREADER,
+	ITEM_WEAPONREAR_VULCANCANNON,
+	ITEM_ENEMY_ARMORSHIP,
+	ITEM_ENEMY_FRONTPOWERUP,
+	ITEM_ENEMY_REARPOWERUP,
+	ITEM_STORE_MAX,
+};
+
+extern int ITEM_INDEX_STORE[ITEM_STORE_MAX];
+
 #define ENEMY_SHOT_MAX  60 /* 60*/
 
 #define CURRENT_KEY_SPEED 1  /*Keyboard/Joystick movement rate*/
@@ -86,6 +118,7 @@ struct JE_SingleEnemyType
 	JE_byte     freq[3]; /* [1..3] */
 	JE_byte     launchwait;
 	JE_word     launchtype;
+	JE_word     launchtypepos;
 	JE_byte     launchfreq;
 	JE_byte     xaccel;
 	JE_byte     yaccel;
@@ -214,8 +247,6 @@ extern const JE_byte specialArcadeWeapon[PORT_NUM];
 extern const JE_byte optionSelect[16][3][2];
 extern const JE_word PGR[21];
 extern const JE_byte PAni[21];
-extern const JE_word linkGunWeapons[38];
-extern const JE_word chargeGunWeapons[38];
 extern const JE_byte randomEnemyLaunchSounds[3];
 extern const JE_byte keyboardCombos[26][8];
 extern const JE_byte shipCombosB[21];
@@ -309,8 +340,10 @@ extern rep_explosion_type rep_explosions[MAX_REPEATING_EXPLOSIONS];
 extern superpixel_type superpixels[MAX_SUPERPIXELS];
 extern unsigned int last_superpixel;
 extern JE_byte temp, temp2, temp3;
-extern JE_word tempX, tempY;
-extern JE_word tempW;
+extern JE_word tempX, tempY,tempW;
+extern int tempI, tempI2;
+extern bool tempHasPower;
+extern enum ITEM_TYPE tempItemType;
 extern JE_boolean doNotSaveBackup;
 extern JE_word x, y;
 extern JE_integer b;

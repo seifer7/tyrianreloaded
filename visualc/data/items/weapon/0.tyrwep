@@ -1,0 +1,15 @@
+id=0
+name=None                          
+opnum=1
+op0=0 0 0 0 0 0 0 0 0 0 0
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=0
+itemgraphic=0
+poweruse=0
+position=1
+bigshipgraphic=-1
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=0

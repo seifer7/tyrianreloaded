@@ -1,0 +1,15 @@
+id=27
+name=Hyper Pulse                   
+opnum=1
+op0=565 566 567 568 569 570 571 572 573 574 575
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1050
+itemgraphic=7
+poweruse=50
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=61
+bigshipgraphfrnty=48
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=9

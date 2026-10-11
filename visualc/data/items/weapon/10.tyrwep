@@ -1,0 +1,16 @@
+id=10
+name=Multi-Cannon                  
+opnum=2
+op0=254 255 256 257 258 259 260 261 262 263 264
+op1=265 266 267 268 269 270 271 272 273 274 275
+cost=750
+itemgraphic=87
+poweruse=40
+position=1
+bigshipgraphic=9
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=27
+bigshipgraphreary=92
+probability=54
+

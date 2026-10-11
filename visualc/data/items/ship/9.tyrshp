@@ -1,0 +1,12 @@
+id=9
+name=USP Fang    Light Fighter     
+shipgraphic=233
+itemgraphic=277
+ani=2
+spd=0
+dmg=14
+cost=8000
+bigshipgraphic=32
+bigshipgraphx=35
+bigshipgraphy=33
+probability=40

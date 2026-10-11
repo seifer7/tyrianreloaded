@@ -216,6 +216,7 @@ bool xmas_prompt(void)
 			}
 			case SDL_SCANCODE_SPACE:
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			{
 				action = true;
 				break;

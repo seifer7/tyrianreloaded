@@ -1,0 +1,12 @@
+id=12
+name=Nort Ship                     
+shipgraphic=1
+itemgraphic=277
+ani=2
+spd=0
+dmg=30
+cost=65000
+bigshipgraphic=33
+bigshipgraphx=31
+bigshipgraphy=35
+probability=1

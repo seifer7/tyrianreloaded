@@ -1,0 +1,15 @@
+id=37
+name=NortShip Spreader             
+opnum=2
+op0=684 685 686 687 688 689 690 691 692 693 694
+op1=695 696 697 698 699 700 701 702 703 704 705
+cost=1100
+itemgraphic=7
+poweruse=40
+position=1
+bigshipgraphic=0
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=1

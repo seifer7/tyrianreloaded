@@ -1,0 +1,15 @@
+id=1
+name=Pulse-Cannon                  
+opnum=1
+op0=155 156 157 158 159 160 161 162 163 164 165
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=500
+itemgraphic=7
+poweruse=30
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=61
+bigshipgraphfrnty=48
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=30

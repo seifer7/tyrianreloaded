@@ -25,9 +25,9 @@ typedef struct {
 	JE_boolean shotComplicated;
 	JE_integer shotDevX, shotDirX, shotDevY, shotDirY, shotCirSizeX, shotCirSizeY;
 	JE_byte shotTrail;
-	JE_word shotGr, shotAni, shotAniMax;
+	JE_word shotGr, shotAni, shotAniMax, chainReaction;
 	Uint8 shotDmg;
-	JE_byte shotBlastFilter, chainReaction, playerNumber, aimAtEnemy, aimDelay, aimDelayMax;
+	JE_byte shotBlastFilter, playerNumber, aimAtEnemy, aimDelay, aimDelayMax, iceticks, infinite;
 } PlayerShotDataType;
 
 #define MAX_PWEAPON     81 /* 81*/
@@ -47,7 +47,7 @@ bool player_shot_move_and_draw(
 	int shot_id, bool *out_is_special,
 	int *out_shotx, int *out_shoty,
 	JE_integer *out_shot_damage, JE_byte *out_blast_filter,
-	JE_byte *out_chain, JE_byte *out_playerNum,
+	JE_word *out_chain, JE_byte *out_playerNum,
 	JE_word *out_special_radiusw, JE_word *out_special_radiush);
 
 /** Creates a player shot. */

@@ -29,7 +29,7 @@
     <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>v142</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -204,6 +204,7 @@
     <ClInclude Include="..\src\sndmast.h" />
     <ClInclude Include="..\src\sprite.h" />
     <ClInclude Include="..\src\starlib.h" />
+    <ClInclude Include="..\src\tinydir.h" />
     <ClInclude Include="..\src\tyrian2.h" />
     <ClInclude Include="..\src\varz.h" />
     <ClInclude Include="..\src\vga256d.h" />

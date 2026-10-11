@@ -1,0 +1,16 @@
+id=30
+name=Scatter Wave                  
+opnum=1
+op0=598 599 600 601 602 603 604 605 606 607 608
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=900
+itemgraphic=237
+poweruse=40
+position=1
+bigshipgraphic=11
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=43
+bigshipgraphreary=102
+probability=14
+

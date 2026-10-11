@@ -1,0 +1,15 @@
+id=31
+name=Guided Bombs                  
+opnum=1
+op0=609 610 611 612 613 614 615 616 617 618 619
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=800
+itemgraphic=237
+poweruse=40
+position=0
+bigshipgraphic=1
+bigshipgraphfrntx=52
+bigshipgraphfrnty=41
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=1

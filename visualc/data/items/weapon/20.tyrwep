@@ -1,0 +1,15 @@
+id=20
+name=Heavy Missile Launcher        
+opnum=1
+op0=411 412 413 414 415 416 417 418 419 420 421
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1000
+itemgraphic=11
+poweruse=90
+position=0
+bigshipgraphic=14
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=33

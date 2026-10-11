@@ -1,0 +1,15 @@
+id=14
+name=Wild Ball                     
+opnum=2
+op0=333 334 335 336 337 338 339 340 341 342 343
+op1=344 345 346 347 348 349 350 351 352 353 354
+cost=800
+itemgraphic=79
+poweruse=60
+position=1
+bigshipgraphic=5
+bigshipgraphfrntx=61
+bigshipgraphfrnty=53
+bigshipgraphrearx=51
+bigshipgraphreary=97
+probability=11

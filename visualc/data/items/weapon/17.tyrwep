@@ -1,0 +1,15 @@
+id=17
+name=Missile Launcher              
+opnum=1
+op0=367 368 369 370 371 372 373 374 375 376 377
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=850
+itemgraphic=9
+poweruse=50
+position=0
+bigshipgraphic=14
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=30

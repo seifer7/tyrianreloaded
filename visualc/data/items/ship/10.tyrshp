@@ -1,0 +1,12 @@
+id=10
+name=U-Ship                        
+shipgraphic=271
+itemgraphic=277
+ani=2
+spd=0
+dmg=8
+cost=8000
+bigshipgraphic=28
+bigshipgraphx=31
+bigshipgraphy=36
+probability=1

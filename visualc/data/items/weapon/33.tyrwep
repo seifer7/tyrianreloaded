@@ -1,0 +1,16 @@
+id=33
+name=Poison Bomb                   
+opnum=1
+op0=636 637 638 639 640 641 642 643 644 645 646
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=800
+itemgraphic=0
+poweruse=40
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=59
+bigshipgraphfrnty=38
+bigshipgraphrearx=41
+bigshipgraphreary=92
+probability=1
+

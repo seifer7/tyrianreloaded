@@ -1,0 +1,15 @@
+id=24
+name=Banana Blast Rear             
+opnum=1
+op0=517 518 519 520 521 522 523 524 525 526 527
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1100
+itemgraphic=3
+poweruse=20
+position=1
+bigshipgraphic=15
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=41
+bigshipgraphreary=76
+probability=1

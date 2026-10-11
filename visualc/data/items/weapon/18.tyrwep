@@ -1,0 +1,15 @@
+id=18
+name=Fireball                      
+opnum=2
+op0=378 379 380 381 382 383 384 385 386 387 388
+op1=389 390 391 392 393 394 395 396 397 398 399
+cost=1000
+itemgraphic=119
+poweruse=50
+position=1
+bigshipgraphic=15
+bigshipgraphfrntx=0
+bigshipgraphfrnty=0
+bigshipgraphrearx=41
+bigshipgraphreary=76
+probability=19

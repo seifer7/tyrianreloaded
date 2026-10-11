@@ -1,0 +1,15 @@
+id=25
+name=HotDog Front                  
+opnum=1
+op0=536 537 538 539 540 541 542 543 544 545 546
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1100
+itemgraphic=127
+poweruse=40
+position=0
+bigshipgraphic=0
+bigshipgraphfrntx=61
+bigshipgraphfrnty=48
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=1

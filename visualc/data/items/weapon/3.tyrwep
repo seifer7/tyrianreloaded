@@ -1,0 +1,15 @@
+id=3
+name=Mega Cannon                   
+opnum=1
+op0=177 178 179 180 181 182 183 184 185 186 187
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1000
+itemgraphic=55
+poweruse=120
+position=0
+bigshipgraphic=2
+bigshipgraphfrntx=54
+bigshipgraphfrnty=36
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=28

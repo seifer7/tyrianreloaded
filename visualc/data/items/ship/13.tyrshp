@@ -1,0 +1,12 @@
+id=13
+name=The Stalker 21.126            
+shipgraphic=195
+itemgraphic=275
+ani=2
+spd=0
+dmg=30
+cost=65535
+bigshipgraphic=33
+bigshipgraphx=31
+bigshipgraphy=35
+probability=2

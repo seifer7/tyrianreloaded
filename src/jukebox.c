@@ -163,6 +163,7 @@ void jukebox(void)  // FKA Setup.jukeboxGo
 				stopped = false;
 				break;
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			case SDL_SCANCODE_RIGHT:
 			case SDL_SCANCODE_DOWN:
 				play_song((song_playing + 1) % MUSIC_NUM);

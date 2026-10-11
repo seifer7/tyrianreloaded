@@ -16,7 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+#pragma warning(disable : 5105)
+
 #include "file.h"
+#include "tinydir.h"
 
 #include "opentyr.h"
 #include "varz.h"
@@ -149,4 +152,25 @@ void fwrite_die(const void *buffer, size_t size, size_t count, FILE *stream)
 		SDL_Quit();
 		exit(EXIT_FAILURE);
 	}
+}
+
+void write_pcx_header(FILE* fp, size_t width, size_t height) {
+	fwrite((Uint16[1]) { 10 }, 1, 1, fp); // The fixed header field valued at a hexadecimal 0x0A (= 10 in decimal).
+	fwrite((Uint16[1]) { 5 }, 1, 1, fp); // The version number referring to the Paintbrush software release,
+	fwrite((Uint16[1]) { 1 }, 1, 1, fp); // The method used for encoding the image data.
+	fwrite((Uint16[1]) { 8 }, 1, 1, fp); // The number of bits constituting one plane. Most often 1, 2, 4 or 8.
+	fwrite((Uint16[1]) { 0 }, 2, 1, fp); // The minimum x co-ordinate of the image position.
+	fwrite((Uint16[1]) { 0 }, 2, 1, fp); // The minimum y co-ordinate of the image position.
+	fwrite((Uint16[1]) { width-1 }, 2, 1, fp); // The maximum x co-ordinate of the image position.
+	fwrite((Uint16[1]) { height-1 }, 2, 1, fp); // The maximum y co-ordinate of the image position.
+	fwrite((Uint16[1]) { 320 }, 2, 1, fp); // The horizontal image resolution in DPI.
+	fwrite((Uint16[1]) { 200 }, 2, 1, fp); // The vertical image resolution in DPI.
+	for (int i = 0; i < 48; i++) fwrite((Uint16[1]) { 0 }, 1, 1, fp); // The EGA palette for 16-color images.
+	fwrite((Uint16[1]) { 0 }, 1, 1, fp); // The first reserved field, usually set to zero.
+	fwrite((Uint16[1]) { 1 }, 1, 1, fp); // The number of color planes constituting the pixel data. Mostly chosen to be 1, 3, or 4.
+	fwrite((Uint16[1]) { width }, 2, 1, fp); // The number of bytes of one color plane representing a single scan line.
+	fwrite((Uint16[1]) { 1 }, 2, 1, fp); // The mode in which to construe the palette: 1 The palette contains monochrome or color information. 2 The palette contains grayscale information
+	fwrite((Uint16[1]) { 0 }, 2, 1, fp); // The horizontal resolution of the source system's screen.
+	fwrite((Uint16[1]) { 0 }, 2, 1, fp); // The vertical resolution of the source system's screen.
+	for (int i = 0; i < 54; i++) fwrite((Uint16[1]) { 0 }, 1, 1, fp); // The second reserved field, intended for future extensions, and usually set to zero bytes.
 }

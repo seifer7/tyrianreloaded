@@ -1,0 +1,15 @@
+id=7
+name=Vulcan Cannon                 
+opnum=1
+op0=221 222 223 224 225 226 227 228 229 230 231
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=600
+itemgraphic=91
+poweruse=20
+position=0
+bigshipgraphic=6
+bigshipgraphfrntx=53
+bigshipgraphfrnty=39
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=23

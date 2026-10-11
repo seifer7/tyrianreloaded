@@ -1,0 +1,12 @@
+id=8
+name=Stalker                       
+shipgraphic=195
+itemgraphic=275
+ani=2
+spd=0
+dmg=15
+cost=10000
+bigshipgraphic=33
+bigshipgraphx=31
+bigshipgraphy=35
+probability=1

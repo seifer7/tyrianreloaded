@@ -101,6 +101,15 @@ typedef struct
 	JE_byte       highScoreDiff;
 } JE_SaveFileType;
 
+typedef struct {
+	char name[15];
+	char levelName[11];
+	JE_byte gameMode;
+	JE_boolean twoPlayerMode;
+	JE_byte episode;
+	int count;
+} SavedGame;
+
 typedef JE_SaveFileType JE_SaveFilesType[SAVE_FILES_NUM]; /* [1..savefilesnum] */
 typedef JE_byte JE_SaveGameTemp[SAVE_FILES_SIZE + 4 + 100]; /* [1..sizeof(savefilestype) + 4 + 100] */
 
@@ -163,8 +172,10 @@ extern JE_byte processorType;
 extern JE_SaveFilesType saveFiles;
 extern JE_SaveGameTemp saveTemp;
 extern JE_word editorLevel;
+extern int shopContentSetting;
 
 extern Config opentyrian_config;
+char*xor (char* string, const char* key);
 
 void JE_initProcessorType(void);
 void JE_setNewGameSpeed(void);
@@ -172,6 +183,9 @@ const char *get_user_directory(void);
 void JE_loadConfiguration(void);
 void JE_saveConfiguration(void);
 
+SavedGame* build_save_game_list(JE_byte players);
+extern bool saveGameOperation(const char* name);
+extern bool loadGameOperation(const char* name);
 void JE_saveGame(JE_byte slot, const char *name);
 void JE_loadGame(JE_byte slot);
 

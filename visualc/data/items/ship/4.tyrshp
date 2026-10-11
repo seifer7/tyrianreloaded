@@ -1,0 +1,12 @@
+id=4
+name=Gencore Maelstrom             
+shipgraphic=157
+itemgraphic=273
+ani=2
+spd=0
+dmg=20
+cost=15000
+bigshipgraphic=28
+bigshipgraphx=31
+bigshipgraphy=36
+probability=47

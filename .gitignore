@@ -34,3 +34,6 @@ tyrian.sav
 
 # Doxygen output
 /doc/doxygen/
+
+# Dependencies
+/dep/

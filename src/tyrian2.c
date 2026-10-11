@@ -543,8 +543,8 @@ static void launch_enemy_from_parent(int enemy_index, int enemyOffset)
 	if (enemy[enemy_index].launchtype == 0)
 		return;
 
-	tempW = enemy[enemy_index].launchtype;
-	b = JE_newEnemy(enemyOffset == 50 ? 75 : enemyOffset - 25, tempW, 0);
+	tempI = (int)enemy[enemy_index].launchtype;
+	b = JE_newEnemy(enemyOffset == 50 ? 75 : enemyOffset - 25, tempI, 0);
 	if (b <= 0)
 		return;
 
@@ -554,18 +554,18 @@ static void launch_enemy_from_parent(int enemy_index, int enemyOffset)
 	if (launched->size == 0)
 		launched->ey -= 7;
 
-	if (launched->launchtype > 0 && launched->launchfreq == 0)
+	if (launched->launchtypepos > 0 && launched->launchfreq == 0)
 	{
-		if (launched->launchtype > 90)
+		if (launched->launchtypepos > 90)
 		{
-			launched->ex += mt_rand() % ((launched->launchtype - 90) * 4) -
-			               (launched->launchtype - 90) * 2;
+			launched->ex += mt_rand() % ((launched->launchtypepos - 90) * 4) -
+			               (launched->launchtypepos - 90) * 2;
 		}
 		else
 		{
 			JE_integer x_velocity, y_velocity;
 			calculate_enemy_aim_velocity(player[0].x, player[0].y, tempX, tempY,
-			                             launched->launchtype, &x_velocity, &y_velocity);
+			                             launched->launchtypepos, &x_velocity, &y_velocity);
 			launched->exc = x_velocity;
 			launched->eyc = y_velocity;
 		}
@@ -1035,7 +1035,7 @@ static void draw_level_backgrounds(int *lastEnemyOnScreen)
 		tempW = levelEnemy[mt_rand() % levelEnemyMax];
 		if (tempW == 2)
 			soundQueue[3] = S_WEAPON_7;
-		b = JE_newEnemy(0, tempW, 0);
+		b = JE_newEnemyOld(0, tempW, 0);
 	}
 
 	if (processorType > 1 && smoothies[3-1])
@@ -1170,11 +1170,13 @@ static void draw_armor_warning(void)
 		}
 		else
 		{
-			tempW = 560;
-			b = JE_newEnemy(50, tempW, 0);
+			b = JE_newEnemy(50, ITEM_INDEX_STORE[ITEM_ENEMY_ARMORSHIP], 0);
 			if (b > 0)
 			{
-				enemy[b-1].enemydie = 560 + (mt_rand() % 3) + 1;
+				tempI = 560 + (mt_rand() % 3) + 1;
+				tempItemType = ItemType_Enemy;
+				get_item_index_from_int(&tempItemType, &tempI, &tempI2);
+				enemy[b-1].enemydie = tempI2;
 				enemy[b-1].eyc -= backMove3;
 				enemy[b-1].armorleft = 4;
 			}
@@ -1466,23 +1468,9 @@ static void process_player_shot(int z)
 					return;
 				}
 
-				infiniteShot = false;
-
-				if (damage == 99)
-				{
-					damage = 0;
-					doIced = 40;
-					enemy[b].iced = 40;
-				}
-				else
-				{
-					doIced = 0;
-					if (damage >= 250)
-					{
-						damage = damage - 250;
-						infiniteShot = true;
-					}
-				}
+				infiniteShot = playerShotData[z].infinite == 1;
+				doIced = playerShotData[z].iceticks;
+				enemy[b].iced = doIced;
 
 				int armorleft = enemy[b].armorleft;
 
@@ -1518,11 +1506,7 @@ static void process_player_shot(int z)
 					destroy_player_shot_linked_enemies(b, playerNum, temp);
 				}
 
-				if (infiniteShot)
-				{
-					damage += 250;
-				}
-				else if (z != MAX_PWEAPON - 1)
+				if (!infiniteShot && z != MAX_PWEAPON - 1)
 				{
 					if (damage <= armorleft)
 					{
@@ -3946,7 +3930,15 @@ static Sprite2_array *find_enemy_sprite_sheet(JE_byte shapeTableI)
 	return NULL;
 }
 
-Sint16 JE_newEnemy(int enemyOffset, Uint16 eDatI, Sint16 uniqueShapeTableI)
+Sint16 JE_newEnemyOld(int enemyOffset, Uint16 eDatI, Sint16 uniqueShapeTableI)
+{
+	tempItemType = ItemType_Enemy;
+	tempI = (int)eDatI;
+	get_item_index_from_int(&tempItemType, &tempI, &tempI2);
+	return JE_newEnemy(enemyOffset, tempI2, uniqueShapeTableI);
+}
+
+Sint16 JE_newEnemy(int enemyOffset, int eDatI, Sint16 uniqueShapeTableI)
 {
 	for (int i = enemyOffset; i < enemyOffset + 25; ++i)
 	{
@@ -3966,8 +3958,8 @@ uint JE_makeEnemy(struct JE_SingleEnemyType *enemy, Uint16 eDatI, Sint16 uniqueS
 
 	JE_byte shapeTableI;
 
-	if (superArcadeMode != SA_NONE && eDatI == 534)
-		eDatI = 533;
+	if (superArcadeMode != SA_NONE && eDatI == ITEM_INDEX_STORE[ITEM_ENEMY_REARPOWERUP])
+		eDatI = ITEM_INDEX_STORE[ITEM_ENEMY_FRONTPOWERUP];
 
 	if (uniqueShapeTableI > 0)
 	{
@@ -3995,13 +3987,14 @@ uint JE_makeEnemy(struct JE_SingleEnemyType *enemy, Uint16 eDatI, Sint16 uniqueS
 		enemy->eshotmultipos[i] = 0;
 	}
 
-	enemy->enemyground = (enemyDat[eDatI].explosiontype & 1) == 0;
-	enemy->explonum = enemyDat[eDatI].explosiontype >> 1;
+	enemy->enemyground = enemyDat[eDatI].enemyground;
+	enemy->explonum = enemyDat[eDatI].explosiontype;
 
 	enemy->launchfreq = enemyDat[eDatI].elaunchfreq;
 	enemy->launchwait = enemyDat[eDatI].elaunchfreq;
-	enemy->launchtype = enemyDat[eDatI].elaunchtype % 1000;
-	enemy->launchspecial = enemyDat[eDatI].elaunchtype / 1000;
+	enemy->launchtype = enemyDat[eDatI].elaunchtype;
+	enemy->launchtypepos = enemyDat[eDatI].elaunchtypepos;
+	enemy->launchspecial = enemyDat[eDatI].elaunchspecial;
 
 	enemy->xaccel = enemyDat[eDatI].xaccel;
 	enemy->yaccel = enemyDat[eDatI].yaccel;
@@ -4015,6 +4008,7 @@ uint JE_makeEnemy(struct JE_SingleEnemyType *enemy, Uint16 eDatI, Sint16 uniqueS
 	for (uint i = 0; i < 3; ++i)
 	{
 		enemy->tur[i] = enemyDat[eDatI].tur[i];
+		enemy->eshotwait[i] = enemyDat[eDatI].eshotwait[i];
 	}
 
 	enemy->ani = enemyDat[eDatI].ani;
@@ -4084,15 +4078,6 @@ uint JE_makeEnemy(struct JE_SingleEnemyType *enemy, Uint16 eDatI, Sint16 uniqueS
 
 	enemy->enemytype = eDatI;
 
-	for (uint i = 0; i < 3; ++i)
-	{
-		if (enemy->tur[i] == 252)
-			enemy->eshotwait[i] = 1;
-		else if (enemy->tur[i] > 0)
-			enemy->eshotwait[i] = 20;
-		else
-			enemy->eshotwait[i] = 255;
-	}
 	for (uint i = 0; i < 20; ++i)
 		enemy->egr[i] = enemyDat[eDatI].egraphic[i];
 	enemy->size = enemyDat[eDatI].esize;
@@ -4136,9 +4121,11 @@ void JE_createNewEventEnemy(JE_byte enemyTypeOfs, JE_word enemyOffset, Sint16 un
 	if (b == 0)
 		return;
 
-	tempW = eventRec[eventLoc-1].eventdat + enemyTypeOfs;
+	tempI = (int)eventRec[eventLoc-1].eventdat + enemyTypeOfs;
+	tempItemType = ItemType_Enemy;
+	get_item_index_from_int(&tempItemType, &tempI, &tempI2);
 
-	enemyAvail[b-1] = JE_makeEnemy(&enemy[b-1], tempW, uniqueShapeTableI);
+	enemyAvail[b-1] = JE_makeEnemy(&enemy[b-1], tempI2, uniqueShapeTableI);
 
 	if (eventRec[eventLoc-1].eventdat2 != -99)
 	{
@@ -4251,10 +4238,14 @@ static void apply_event_random_special_drop(void)
 
 static void set_event_enemy_death(void)
 {
+	tempItemType = ItemType_Enemy;
+	tempI = (int)eventRec[eventLoc - 1].eventdat;
+	get_item_index_from_int(&tempItemType, &tempI, &tempI2);
+
 	for (temp = 0; temp < 100; temp++)
 	{
 		if (enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
-			enemy[temp].enemydie = eventRec[eventLoc-1].eventdat;
+			enemy[temp].enemydie = (JE_word)tempI2;
 	}
 }
 

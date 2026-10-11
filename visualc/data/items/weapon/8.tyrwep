@@ -1,0 +1,15 @@
+id=8
+name=Lightning Cannon              
+opnum=1
+op0=232 233 234 235 236 237 238 239 240 241 242
+op1=0 0 0 0 0 0 0 0 0 0 0
+cost=1000
+itemgraphic=117
+poweruse=70
+position=0
+bigshipgraphic=7
+bigshipgraphfrntx=66
+bigshipgraphfrnty=53
+bigshipgraphrearx=0
+bigshipgraphreary=0
+probability=14
