@@ -619,28 +619,8 @@ draw_enemy_end:
 	player[0].x += 25;
 }
 
-void JE_main(void)
+static bool prepare_next_level(void)
 {
-	char buffer[256];
-
-	int lastEnemyOnScreen;
-
-	/* NOTE: BEGIN MAIN PROGRAM HERE AFTER LOADING A GAME OR STARTING A NEW ONE */
-
-	/* ----------- GAME ROUTINES ------------------------------------- */
-	/* We need to jump to the beginning to make space for the routines */
-	/* --------------------------------------------------------------- */
-	goto start_level_first;
-
-	/*------------------------------GAME LOOP-----------------------------------*/
-
-	/* Startlevel is called after a previous level is over.  If the first level
-	   is started for a gaming session, startlevelfirst is called instead and
-	   this code is skipped.  The code here finishes the level and prepares for
-	   the loadmap function. */
-
-start_level:
-
 	mouseSetRelative(false);
 
 	if (galagaMode)
@@ -709,7 +689,591 @@ start_level:
 	}
 	doNotSaveBackup = false;
 
-	if (play_demo)
+	return !play_demo;
+}
+
+static void draw_level_hud(uint old_weapon_bar[2])
+{
+	if (!endLevel)
+	{
+		VGAScreen = VGAScreenSeg; /* side-effect of game_screen */
+
+		/*-----------------------Message Bar------------------------*/
+		if (textErase > 0 && --textErase == 0)
+			blit_sprite(VGAScreenSeg, 16, 189, OPTION_SHAPES, 36);  // in-game message area
+
+		/*------------------------Shield Gen-------------------------*/
+		if (galagaMode)
+		{
+			for (uint i = 0; i < COUNTOF(player); ++i)
+				player[i].shield = 0;
+
+			// spawned dragonwing died :(
+			if (*player[1].lives == 0 || player[1].armor == 0)
+				twoPlayerMode = false;
+
+			if (player[0].cash >= (unsigned)galagaLife)
+			{
+				soundQueue[6] = S_EXPLOSION_11;
+				soundQueue[7] = S_SOUL_OF_ZINGLON;
+
+				if (*player[0].lives < 11)
+					++(*player[0].lives);
+				else
+					player[0].cash += 1000;
+
+				if (galagaLife == 10000)
+					galagaLife = 20000;
+				else
+					galagaLife += 25000;
+			}
+		}
+		else // not galagaMode
+		{
+			if (twoPlayerMode)
+			{
+				if (--shieldWait == 0)
+				{
+					shieldWait = 15;
+
+					for (uint i = 0; i < COUNTOF(player); ++i)
+					{
+						if (player[i].shield < player[i].shield_max && player[i].is_alive)
+							++player[i].shield;
+					}
+
+					JE_drawShield();
+				}
+			}
+			else if (player[0].is_alive && player[0].shield < player[0].shield_max && power > shieldT)
+			{
+				if (--shieldWait == 0)
+				{
+					shieldWait = 15;
+
+					power -= shieldT;
+
+					++player[0].shield;
+					if (player[1].shield < player[0].shield_max)
+						++player[1].shield;
+
+					JE_drawShield();
+				}
+			}
+		}
+
+		/*---------------------Weapon Display-------------------------*/
+		for (uint i = 0; i < 2; ++i)
+		{
+			uint item_power = player[twoPlayerMode ? i : 0].items.weapon[i].power;
+
+			if (old_weapon_bar[i] != item_power)
+			{
+				old_weapon_bar[i] = item_power;
+
+				int x = twoPlayerMode ? 286 : 289,
+				    y = (i == 0) ? (twoPlayerMode ? 6 : 17) : (twoPlayerMode ? 100 : 38);
+
+				fill_rectangle_xy(VGAScreenSeg, x, y, x + 1 + 10 * 2, y + 2, 0);
+
+				for (uint j = 1; j <= item_power; ++j)
+				{
+					JE_rectangle(VGAScreen, x, y, x + 1, y + 2, 115 + j); /* SEGa000 */
+					x += 2;
+				}
+			}
+		}
+
+		/*------------------------Power Bar-------------------------*/
+		if (twoPlayerMode || onePlayerAction)
+		{
+			power = 900;
+		}
+		else
+		{
+			power += powerAdd;
+			if (power > 900)
+				power = 900;
+
+			temp = power / 10;
+
+			if (temp != lastPower)
+			{
+				if (temp > lastPower)
+					fill_rectangle_xy(VGAScreenSeg, 269, 113 - 11 - temp, 276, 114 - 11 - lastPower, 113 + temp / 7);
+				else
+					fill_rectangle_xy(VGAScreenSeg, 269, 113 - 11 - lastPower, 276, 114 - 11 - temp, 0);
+
+				lastPower = temp;
+			}
+		}
+
+		oldMapX3Ofs = mapX3Ofs;
+
+		enemyOnScreen = 0;
+	}
+}
+
+static bool handle_level_input(void)
+{
+	/*GAME OVER*/
+	if (!constantPlay && !constantDie)
+	{
+		if (allPlayersGone)
+		{
+			if (player[0].exploding_ticks > 0 || player[1].exploding_ticks > 0)
+			{
+				if (galagaMode)
+					player[1].exploding_ticks = 0;
+
+				musicFade = true;
+			}
+			else
+			{
+				if (play_demo || normalBonusLevelCurrent || bonusLevelCurrent)
+					reallyEndLevel = true;
+				else
+					JE_dString(VGAScreen, 120, 60, miscText[21], FONT_SHAPES); // game over
+
+				if (firstGameOver)
+				{
+					if (!play_demo)
+					{
+						play_song(SONG_GAMEOVER);
+						set_volume(tyrMusicVolume, fxVolume);
+					}
+					firstGameOver = false;
+				}
+
+				if (!play_demo)
+				{
+					push_joysticks_as_keyboard();
+					service_SDL_events(true);
+					if ((newkey || button[0] || button[1] || button[2]) || newmouse)
+					{
+						reallyEndLevel = true;
+					}
+				}
+
+				if (isNetworkGame)
+					reallyEndLevel = true;
+			}
+		}
+	}
+
+	if (play_demo) // input kills demo
+	{
+		push_joysticks_as_keyboard();
+		service_SDL_events(false);
+
+		if (newkey || newmouse)
+		{
+			reallyEndLevel = true;
+
+			stopped_demo = true;
+		}
+	}
+	else // input handling for pausing, menu, cheats
+	{
+		service_SDL_events(false);
+
+		if (newkey)
+		{
+			skipStarShowVGA = false;
+			JE_mainKeyboardInput();
+			newkey = false;
+			if (skipStarShowVGA)
+				return true;
+		}
+
+		if (pause_pressed || !windowHasFocus)
+		{
+			pause_pressed = false;
+
+			if (isNetworkGame)
+				pauseRequest = true;
+			else
+				JE_pauseGame();
+		}
+
+		if (ingamemenu_pressed)
+		{
+			ingamemenu_pressed = false;
+
+			if (isNetworkGame)
+			{
+				inGameMenuRequest = true;
+			}
+			else
+			{
+				yourInGameMenuRequest = true;
+				JE_doInGameSetup();
+				skipStarShowVGA = true;
+			}
+		}
+	}
+
+	return false;
+}
+
+static void draw_level_backgrounds(int *lastEnemyOnScreen)
+{
+	/* --- BACKGROUNDS --- */
+	/* --- BACKGROUND 1 --- */
+
+	if (forceEvents && !backMove)
+		curLoc++;
+
+	if (map1YDelayMax > 1 && backMove < 2)
+		backMove = (map1YDelay == 1) ? 1 : 0;
+
+	/*Draw background*/
+	if (astralDuration == 0)
+		draw_background_1(VGAScreen);
+	else
+		JE_clr256(VGAScreen);
+
+	/*Set Movement of background 1*/
+	if (--map1YDelay == 0)
+	{
+		map1YDelay = map1YDelayMax;
+
+		curLoc += backMove;
+
+		backPos += backMove;
+
+		if (backPos > 27)
+		{
+			backPos -= 28;
+			mapY--;
+			mapYPos -= 14;  /*Map Width*/
+		}
+	}
+
+	if (starActive || astralDuration > 0)
+		update_and_draw_starfield(VGAScreen, starfield_speed);
+
+	if (processorType > 1 && smoothies[5-1])
+	{
+		iced_blur_filter(game_screen, VGAScreen);
+		VGAScreen = game_screen;
+	}
+
+	/*-----------------------BACKGROUNDS------------------------*/
+	/*-----------------------BACKGROUND 2------------------------*/
+	if (background2over == 3)
+	{
+		draw_background_2(VGAScreen);
+		background2 = true;
+	}
+
+	if (background2over == 0)
+	{
+		if (!(smoothies[2-1] && processorType < 4) && !(smoothies[1-1] && processorType == 3))
+		{
+			if (wild && !background2notTransparent)
+				draw_background_2_blend(VGAScreen);
+			else
+				draw_background_2(VGAScreen);
+		}
+	}
+
+	if (smoothies[0] && processorType > 2 && smoothie_data[0] == 0)
+	{
+		lava_filter(game_screen, VGAScreen);
+		VGAScreen = game_screen;
+	}
+	if (smoothies[2-1] && processorType > 2)
+	{
+		water_filter(game_screen, VGAScreen);
+		VGAScreen = game_screen;
+	}
+
+	/*-----------------------Ground Enemy------------------------*/
+	*lastEnemyOnScreen = enemyOnScreen;
+
+	tempMapXOfs = mapXOfs;
+	tempBackMove = backMove;
+	JE_drawEnemy(50);
+	JE_drawEnemy(100);
+
+	if (enemyOnScreen == 0 || enemyOnScreen == *lastEnemyOnScreen)
+	{
+		if (stopBackgroundNum == 1)
+			stopBackgroundNum = 9;
+	}
+
+	if (smoothies[0] && processorType > 2 && smoothie_data[0] > 0)
+	{
+		lava_filter(game_screen, VGAScreen);
+		VGAScreen = game_screen;
+	}
+
+	if (superWild)
+	{
+		neat += 3;
+		JE_darkenBackground(neat);
+	}
+
+	/*-----------------------BACKGROUNDS------------------------*/
+	/*-----------------------BACKGROUND 2------------------------*/
+	if (!(smoothies[2-1] && processorType < 4) &&
+	    !(smoothies[1-1] && processorType == 3))
+	{
+		if (background2over == 1)
+		{
+			if (wild && !background2notTransparent)
+				draw_background_2_blend(VGAScreen);
+			else
+				draw_background_2(VGAScreen);
+		}
+	}
+
+	if (superWild)
+	{
+		neat++;
+		JE_darkenBackground(neat);
+	}
+
+	if (background3over == 2)
+		draw_background_3(VGAScreen);
+
+	/* New Enemy */
+	if (enemiesActive && mt_rand() % 100 > levelEnemyFrequency)
+	{
+		tempW = levelEnemy[mt_rand() % levelEnemyMax];
+		if (tempW == 2)
+			soundQueue[3] = S_WEAPON_7;
+		b = JE_newEnemy(0, tempW, 0);
+	}
+
+	if (processorType > 1 && smoothies[3-1])
+	{
+		iced_blur_filter(game_screen, VGAScreen);
+		VGAScreen = game_screen;
+	}
+	if (processorType > 1 && smoothies[4-1])
+	{
+		blur_filter(game_screen, VGAScreen);
+		VGAScreen = game_screen;
+	}
+
+	/* Draw Sky Enemy */
+	if (!skyEnemyOverAll)
+	{
+		*lastEnemyOnScreen = enemyOnScreen;
+
+		tempMapXOfs = mapX2Ofs;
+		tempBackMove = 0;
+		JE_drawEnemy(25);
+
+		if (enemyOnScreen == *lastEnemyOnScreen)
+		{
+			if (stopBackgroundNum == 2)
+				stopBackgroundNum = 9;
+		}
+	}
+
+	if (background3over == 0)
+		draw_background_3(VGAScreen);
+
+	/* Draw Top Enemy */
+	if (!topEnemyOver)
+	{
+		tempMapXOfs = (background3x1 == 0) ? oldMapX3Ofs : mapXOfs;
+		tempBackMove = backMove3;
+		JE_drawEnemy(75);
+	}
+}
+
+static void update_level_explosions(void)
+{
+	/*-------------------------- Sequenced Explosions -------------------------*/
+	enemyStillExploding = false;
+	for (int i = 0; i < MAX_REPEATING_EXPLOSIONS; i++)
+	{
+		if (rep_explosions[i].ttl != 0)
+		{
+			enemyStillExploding = true;
+
+			if (rep_explosions[i].delay > 0)
+			{
+				rep_explosions[i].delay--;
+				continue;
+			}
+
+			rep_explosions[i].y += backMove2 + 1;
+			tempX = rep_explosions[i].x + (mt_rand() % 24) - 12;
+			tempY = rep_explosions[i].y + (mt_rand() % 27) - 24;
+
+			if (rep_explosions[i].big)
+			{
+				JE_setupExplosionLarge(false, 2, tempX, tempY);
+
+				if (rep_explosions[i].ttl == 1 || mt_rand() % 5 == 1)
+					soundQueue[7] = S_EXPLOSION_11;
+				else
+					soundQueue[6] = S_EXPLOSION_9;
+
+				rep_explosions[i].delay = 4 + (mt_rand() % 3);
+			}
+			else
+			{
+				JE_setupExplosion(tempX, tempY, 0, 1, false, false);
+
+				soundQueue[5] = S_EXPLOSION_4;
+
+				rep_explosions[i].delay = 3;
+			}
+
+			rep_explosions[i].ttl--;
+		}
+	}
+
+	/*---------------------------- Draw Explosions ----------------------------*/
+	for (int j = 0; j < MAX_EXPLOSIONS; j++)
+	{
+		if (explosions[j].ttl != 0)
+		{
+			if (explosions[j].fixed_position != true)
+			{
+				explosions[j].sprite++;
+				explosions[j].y += explodeMove;
+			}
+			else if (explosions[j].follow_player == true)
+			{
+				explosions[j].x += explosionFollowAmountX;
+				explosions[j].y += explosionFollowAmountY;
+			}
+			explosions[j].y += explosions[j].delta_y;
+			explosions[j].x += explosions[j].delta_x;
+
+			if (explosions[j].y > 200 - 14)
+			{
+				explosions[j].ttl = 0;
+			}
+			else
+			{
+				if (explosionTransparent)
+					blit_sprite2_blend(VGAScreen, explosions[j].x, explosions[j].y, explosionSpriteSheet, explosions[j].sprite + 1);
+				else
+					blit_sprite2(VGAScreen, explosions[j].x, explosions[j].y, explosionSpriteSheet, explosions[j].sprite + 1);
+
+				explosions[j].ttl--;
+			}
+		}
+	}
+}
+
+static void draw_armor_warning(void)
+{
+	/*-------------------------Warning---------------------------*/
+	if ((player[0].is_alive && player[0].armor < 6) ||
+	    (twoPlayerMode && !galagaMode && player[1].is_alive && player[1].armor < 6))
+	{
+		int armor_amount = (player[0].is_alive && player[0].armor < 6) ? player[0].armor : player[1].armor;
+
+		if (armorShipDelay > 0)
+		{
+			armorShipDelay--;
+		}
+		else
+		{
+			tempW = 560;
+			b = JE_newEnemy(50, tempW, 0);
+			if (b > 0)
+			{
+				enemy[b-1].enemydie = 560 + (mt_rand() % 3) + 1;
+				enemy[b-1].eyc -= backMove3;
+				enemy[b-1].armorleft = 4;
+			}
+			armorShipDelay = 500;
+		}
+
+		if ((player[0].is_alive && player[0].armor < 6 && (!isNetworkGame || thisPlayerNum == 1)) ||
+		    (twoPlayerMode && player[1].is_alive && player[1].armor < 6 && (!isNetworkGame || thisPlayerNum == 2)))
+		{
+			tempW = armor_amount * 4 + 8;
+			if (warningSoundDelay > tempW)
+				warningSoundDelay = tempW;
+
+			if (warningSoundDelay > 1)
+			{
+				warningSoundDelay--;
+			}
+			else
+			{
+				soundQueue[7] = S_WARNING;
+				warningSoundDelay = tempW;
+			}
+
+			warningCol += warningColChange;
+			if (warningCol > 113 + (14 - (armor_amount * 2)))
+			{
+				warningColChange = -warningColChange;
+				warningCol = 113 + (14 - (armor_amount * 2));
+			}
+			else if (warningCol < 113)
+			{
+				warningColChange = -warningColChange;
+			}
+			fill_rectangle_xy(VGAScreen, 24, 181, 138, 183, warningCol);
+			fill_rectangle_xy(VGAScreen, 175, 181, 287, 183, warningCol);
+			fill_rectangle_xy(VGAScreen, 24, 0, 287, 3, warningCol);
+
+			JE_outText(VGAScreen, 140, 178, "WARNING", 7, (warningCol % 16) / 2);
+		}
+	}
+}
+
+static void play_level_sounds(void)
+{
+	if (firstGameOver)
+	{
+		temp = 0;
+		for (temp2 = 0; temp2 < COUNTOF(soundQueue); temp2++)
+		{
+			if (soundQueue[temp2] != S_NONE)
+			{
+				temp = soundQueue[temp2];
+				if (temp2 == 3)
+					temp3 = fxPlayVol;
+				else if (temp == 15)
+					temp3 = fxPlayVol / 4;
+				else   /*Lightning*/
+					temp3 = fxPlayVol / 2;
+
+				multiSamplePlay(soundSamples[temp-1], soundSampleCount[temp-1], temp2, temp3);
+
+				soundQueue[temp2] = S_NONE;
+			}
+		}
+	}
+}
+
+void JE_main(void)
+{
+	char buffer[256];
+
+	int lastEnemyOnScreen;
+
+	/* NOTE: BEGIN MAIN PROGRAM HERE AFTER LOADING A GAME OR STARTING A NEW ONE */
+
+	/* ----------- GAME ROUTINES ------------------------------------- */
+	/* We need to jump to the beginning to make space for the routines */
+	/* --------------------------------------------------------------- */
+	goto start_level_first;
+
+	/*------------------------------GAME LOOP-----------------------------------*/
+
+	/* Startlevel is called after a previous level is over.  If the first level
+	   is started for a gaming session, startlevelfirst is called instead and
+	   this code is skipped.  The code here finishes the level and prepares for
+	   the loadmap function. */
+
+start_level:
+
+	if (!prepare_next_level())
 		return;
 
 start_level_first:
@@ -756,11 +1320,11 @@ start_level_first:
 			player[i].old_x[j] = player[i].x - (19 - j);
 			player[i].old_y[j] = player[i].y - 18;
 		}
-		
+
 		player[i].last_x_shot_move = player[i].x;
 		player[i].last_y_shot_move = player[i].y;
 	}
-	
+
 	JE_loadPic(VGAScreen, twoPlayerMode ? 6 : 3, false);
 
 	JE_drawOptions();
@@ -1129,124 +1693,7 @@ level_loop:
 		play_song(levelSong - 1);
 	}
 
-	if (!endLevel) // draw HUD
-	{
-		VGAScreen = VGAScreenSeg; /* side-effect of game_screen */
-
-		/*-----------------------Message Bar------------------------*/
-		if (textErase > 0 && --textErase == 0)
-			blit_sprite(VGAScreenSeg, 16, 189, OPTION_SHAPES, 36);  // in-game message area
-
-		/*------------------------Shield Gen-------------------------*/
-		if (galagaMode)
-		{
-			for (uint i = 0; i < COUNTOF(player); ++i)
-				player[i].shield = 0;
-
-			// spawned dragonwing died :(
-			if (*player[1].lives == 0 || player[1].armor == 0)
-				twoPlayerMode = false;
-
-			if (player[0].cash >= (unsigned)galagaLife)
-			{
-				soundQueue[6] = S_EXPLOSION_11;
-				soundQueue[7] = S_SOUL_OF_ZINGLON;
-
-				if (*player[0].lives < 11)
-					++(*player[0].lives);
-				else
-					player[0].cash += 1000;
-
-				if (galagaLife == 10000)
-					galagaLife = 20000;
-				else
-					galagaLife += 25000;
-			}
-		}
-		else // not galagaMode
-		{
-			if (twoPlayerMode)
-			{
-				if (--shieldWait == 0)
-				{
-					shieldWait = 15;
-
-					for (uint i = 0; i < COUNTOF(player); ++i)
-					{
-						if (player[i].shield < player[i].shield_max && player[i].is_alive)
-							++player[i].shield;
-					}
-
-					JE_drawShield();
-				}
-			}
-			else if (player[0].is_alive && player[0].shield < player[0].shield_max && power > shieldT)
-			{
-				if (--shieldWait == 0)
-				{
-					shieldWait = 15;
-
-					power -= shieldT;
-
-					++player[0].shield;
-					if (player[1].shield < player[0].shield_max)
-						++player[1].shield;
-
-					JE_drawShield();
-				}
-			}
-		}
-
-		/*---------------------Weapon Display-------------------------*/
-		for (uint i = 0; i < 2; ++i)
-		{
-			uint item_power = player[twoPlayerMode ? i : 0].items.weapon[i].power;
-
-			if (old_weapon_bar[i] != item_power)
-			{
-				old_weapon_bar[i] = item_power;
-
-				int x = twoPlayerMode ? 286 : 289,
-				    y = (i == 0) ? (twoPlayerMode ? 6 : 17) : (twoPlayerMode ? 100 : 38);
-
-				fill_rectangle_xy(VGAScreenSeg, x, y, x + 1 + 10 * 2, y + 2, 0);
-
-				for (uint j = 1; j <= item_power; ++j)
-				{
-					JE_rectangle(VGAScreen, x, y, x + 1, y + 2, 115 + j); /* SEGa000 */
-					x += 2;
-				}
-			}
-		}
-
-		/*------------------------Power Bar-------------------------*/
-		if (twoPlayerMode || onePlayerAction)
-		{
-			power = 900;
-		}
-		else
-		{
-			power += powerAdd;
-			if (power > 900)
-				power = 900;
-
-			temp = power / 10;
-
-			if (temp != lastPower)
-			{
-				if (temp > lastPower)
-					fill_rectangle_xy(VGAScreenSeg, 269, 113 - 11 - temp, 276, 114 - 11 - lastPower, 113 + temp / 7);
-				else
-					fill_rectangle_xy(VGAScreenSeg, 269, 113 - 11 - lastPower, 276, 114 - 11 - temp, 0);
-				
-				lastPower = temp;
-			}
-		}
-
-		oldMapX3Ofs = mapX3Ofs;
-
-		enemyOnScreen = 0;
-	}
+	draw_level_hud(old_weapon_bar);
 
 	/* use game_screen for all the generic drawing functions */
 	VGAScreen = game_screen;
@@ -1263,172 +1710,7 @@ level_loop:
 	if (anySmoothies)
 		VGAScreen = VGAScreen2;  // this makes things complicated, but we do it anyway :(
 
-	/* --- BACKGROUNDS --- */
-	/* --- BACKGROUND 1 --- */
-
-	if (forceEvents && !backMove)
-		curLoc++;
-
-	if (map1YDelayMax > 1 && backMove < 2)
-		backMove = (map1YDelay == 1) ? 1 : 0;
-
-	/*Draw background*/
-	if (astralDuration == 0)
-		draw_background_1(VGAScreen);
-	else
-		JE_clr256(VGAScreen);
-
-	/*Set Movement of background 1*/
-	if (--map1YDelay == 0)
-	{
-		map1YDelay = map1YDelayMax;
-
-		curLoc += backMove;
-
-		backPos += backMove;
-
-		if (backPos > 27)
-		{
-			backPos -= 28;
-			mapY--;
-			mapYPos -= 14;  /*Map Width*/
-		}
-	}
-
-	if (starActive || astralDuration > 0)
-		update_and_draw_starfield(VGAScreen, starfield_speed);
-
-	if (processorType > 1 && smoothies[5-1])
-	{
-		iced_blur_filter(game_screen, VGAScreen);
-		VGAScreen = game_screen;
-	}
-
-	/*-----------------------BACKGROUNDS------------------------*/
-	/*-----------------------BACKGROUND 2------------------------*/
-	if (background2over == 3)
-	{
-		draw_background_2(VGAScreen);
-		background2 = true;
-	}
-
-	if (background2over == 0)
-	{
-		if (!(smoothies[2-1] && processorType < 4) && !(smoothies[1-1] && processorType == 3))
-		{
-			if (wild && !background2notTransparent)
-				draw_background_2_blend(VGAScreen);
-			else
-				draw_background_2(VGAScreen);
-		}
-	}
-
-	if (smoothies[0] && processorType > 2 && smoothie_data[0] == 0)
-	{
-		lava_filter(game_screen, VGAScreen);
-		VGAScreen = game_screen;
-	}
-	if (smoothies[2-1] && processorType > 2)
-	{
-		water_filter(game_screen, VGAScreen);
-		VGAScreen = game_screen;
-	}
-
-	/*-----------------------Ground Enemy------------------------*/
-	lastEnemyOnScreen = enemyOnScreen;
-
-	tempMapXOfs = mapXOfs;
-	tempBackMove = backMove;
-	JE_drawEnemy(50);
-	JE_drawEnemy(100);
-
-	if (enemyOnScreen == 0 || enemyOnScreen == lastEnemyOnScreen)
-	{
-		if (stopBackgroundNum == 1)
-			stopBackgroundNum = 9;
-	}
-
-	if (smoothies[0] && processorType > 2 && smoothie_data[0] > 0)
-	{
-		lava_filter(game_screen, VGAScreen);
-		VGAScreen = game_screen;
-	}
-
-	if (superWild)
-	{
-		neat += 3;
-		JE_darkenBackground(neat);
-	}
-
-	/*-----------------------BACKGROUNDS------------------------*/
-	/*-----------------------BACKGROUND 2------------------------*/
-	if (!(smoothies[2-1] && processorType < 4) &&
-	    !(smoothies[1-1] && processorType == 3))
-	{
-		if (background2over == 1)
-		{
-			if (wild && !background2notTransparent)
-				draw_background_2_blend(VGAScreen);
-			else
-				draw_background_2(VGAScreen);
-		}
-	}
-
-	if (superWild)
-	{
-		neat++;
-		JE_darkenBackground(neat);
-	}
-
-	if (background3over == 2)
-		draw_background_3(VGAScreen);
-
-	/* New Enemy */
-	if (enemiesActive && mt_rand() % 100 > levelEnemyFrequency)
-	{
-		tempW = levelEnemy[mt_rand() % levelEnemyMax];
-		if (tempW == 2)
-			soundQueue[3] = S_WEAPON_7;
-		b = JE_newEnemy(0, tempW, 0);
-	}
-
-	if (processorType > 1 && smoothies[3-1])
-	{
-		iced_blur_filter(game_screen, VGAScreen);
-		VGAScreen = game_screen;
-	}
-	if (processorType > 1 && smoothies[4-1])
-	{
-		blur_filter(game_screen, VGAScreen);
-		VGAScreen = game_screen;
-	}
-
-	/* Draw Sky Enemy */
-	if (!skyEnemyOverAll)
-	{
-		lastEnemyOnScreen = enemyOnScreen;
-
-		tempMapXOfs = mapX2Ofs;
-		tempBackMove = 0;
-		JE_drawEnemy(25);
-
-		if (enemyOnScreen == lastEnemyOnScreen)
-		{
-			if (stopBackgroundNum == 2)
-				stopBackgroundNum = 9;
-		}
-	}
-
-	if (background3over == 0)
-		draw_background_3(VGAScreen);
-
-	/* Draw Top Enemy */
-	if (!topEnemyOver)
-	{
-		tempMapXOfs = (background3x1 == 0) ? oldMapX3Ofs : mapXOfs;
-		tempBackMove = backMove3;
-		JE_drawEnemy(75);
-	}
+	draw_level_backgrounds(&lastEnemyOnScreen);
 
 	/* Player Shot Images */
 	for (int z = 0; z < MAX_PWEAPON; z++)
@@ -1888,81 +2170,7 @@ draw_player_shot_loop_end:
 		}
 	}
 
-	/*-------------------------- Sequenced Explosions -------------------------*/
-	enemyStillExploding = false;
-	for (int i = 0; i < MAX_REPEATING_EXPLOSIONS; i++)
-	{
-		if (rep_explosions[i].ttl != 0)
-		{
-			enemyStillExploding = true;
-
-			if (rep_explosions[i].delay > 0)
-			{
-				rep_explosions[i].delay--;
-				continue;
-			}
-
-			rep_explosions[i].y += backMove2 + 1;
-			tempX = rep_explosions[i].x + (mt_rand() % 24) - 12;
-			tempY = rep_explosions[i].y + (mt_rand() % 27) - 24;
-
-			if (rep_explosions[i].big)
-			{
-				JE_setupExplosionLarge(false, 2, tempX, tempY);
-
-				if (rep_explosions[i].ttl == 1 || mt_rand() % 5 == 1)
-					soundQueue[7] = S_EXPLOSION_11;
-				else
-					soundQueue[6] = S_EXPLOSION_9;
-
-				rep_explosions[i].delay = 4 + (mt_rand() % 3);
-			}
-			else
-			{
-				JE_setupExplosion(tempX, tempY, 0, 1, false, false);
-
-				soundQueue[5] = S_EXPLOSION_4;
-
-				rep_explosions[i].delay = 3;
-			}
-
-			rep_explosions[i].ttl--;
-		}
-	}
-
-	/*---------------------------- Draw Explosions ----------------------------*/
-	for (int j = 0; j < MAX_EXPLOSIONS; j++)
-	{
-		if (explosions[j].ttl != 0)
-		{
-			if (explosions[j].fixed_position != true)
-			{
-				explosions[j].sprite++;
-				explosions[j].y += explodeMove;
-			}
-			else if (explosions[j].follow_player == true)
-			{
-				explosions[j].x += explosionFollowAmountX;
-				explosions[j].y += explosionFollowAmountY;
-			}
-			explosions[j].y += explosions[j].delta_y;
-			explosions[j].x += explosions[j].delta_x;
-
-			if (explosions[j].y > 200 - 14)
-			{
-				explosions[j].ttl = 0;
-			}
-			else
-			{
-				if (explosionTransparent)
-					blit_sprite2_blend(VGAScreen, explosions[j].x, explosions[j].y, explosionSpriteSheet, explosions[j].sprite + 1);
-				else
-					blit_sprite2(VGAScreen, explosions[j].x, explosions[j].y, explosionSpriteSheet, explosions[j].sprite + 1);
-
-				explosions[j].ttl--;
-			}
-		}
-	}
+	update_level_explosions();
 
 	if (!portConfigChange)
 		portConfigDone = true;
@@ -1981,65 +2189,7 @@ draw_player_shot_loop_end:
 		}
 	}
 
-	/*-------------------------Warning---------------------------*/
-	if ((player[0].is_alive && player[0].armor < 6) ||
-	    (twoPlayerMode && !galagaMode && player[1].is_alive && player[1].armor < 6))
-	{
-		int armor_amount = (player[0].is_alive && player[0].armor < 6) ? player[0].armor : player[1].armor;
-
-		if (armorShipDelay > 0)
-		{
-			armorShipDelay--;
-		}
-		else
-		{
-			tempW = 560;
-			b = JE_newEnemy(50, tempW, 0);
-			if (b > 0)
-			{
-				enemy[b-1].enemydie = 560 + (mt_rand() % 3) + 1;
-				enemy[b-1].eyc -= backMove3;
-				enemy[b-1].armorleft = 4;
-			}
-			armorShipDelay = 500;
-		}
-
-		if ((player[0].is_alive && player[0].armor < 6 && (!isNetworkGame || thisPlayerNum == 1)) ||
-		    (twoPlayerMode && player[1].is_alive && player[1].armor < 6 && (!isNetworkGame || thisPlayerNum == 2)))
-		{
-
-			tempW = armor_amount * 4 + 8;
-			if (warningSoundDelay > tempW)
-				warningSoundDelay = tempW;
-
-			if (warningSoundDelay > 1)
-			{
-				warningSoundDelay--;
-			}
-			else
-			{
-				soundQueue[7] = S_WARNING;
-				warningSoundDelay = tempW;
-			}
-
-			warningCol += warningColChange;
-			if (warningCol > 113 + (14 - (armor_amount * 2)))
-			{
-				warningColChange = -warningColChange;
-				warningCol = 113 + (14 - (armor_amount * 2));
-			}
-			else if (warningCol < 113)
-			{
-				warningColChange = -warningColChange;
-			}
-			fill_rectangle_xy(VGAScreen, 24, 181, 138, 183, warningCol);
-			fill_rectangle_xy(VGAScreen, 175, 181, 287, 183, warningCol);
-			fill_rectangle_xy(VGAScreen, 24, 0, 287, 3, warningCol);
-
-			JE_outText(VGAScreen, 140, 178, "WARNING", 7, (warningCol % 16) / 2);
-
-		}
-	}
+	draw_armor_warning();
 
 	/*------- Random Explosions --------*/
 	if (randomExplosions && mt_rand() % 10 == 1)
@@ -2048,27 +2198,7 @@ draw_player_shot_loop_end:
 	/*=================================*/
 	/*=======The Sound Routine=========*/
 	/*=================================*/
-	if (firstGameOver)
-	{
-		temp = 0;
-		for (temp2 = 0; temp2 < COUNTOF(soundQueue); temp2++)
-		{
-			if (soundQueue[temp2] != S_NONE)
-			{
-				temp = soundQueue[temp2];
-				if (temp2 == 3)
-					temp3 = fxPlayVol;
-				else if (temp == 15)
-					temp3 = fxPlayVol / 4;
-				else   /*Lightning*/
-					temp3 = fxPlayVol / 2;
-
-				multiSamplePlay(soundSamples[temp-1], soundSampleCount[temp-1], temp2, temp3);
-
-				soundQueue[temp2] = S_NONE;
-			}
-		}
-	}
+	play_level_sounds();
 
 	if (returnActive && enemyOnScreen == 0)
 	{
@@ -2145,102 +2275,8 @@ draw_player_shot_loop_end:
 		JE_dString (VGAScreen, 100, 2, buffer, SMALL_FONT_SHAPES);
 	}
 
-	/*GAME OVER*/
-	if (!constantPlay && !constantDie)
-	{
-		if (allPlayersGone)
-		{
-			if (player[0].exploding_ticks > 0 || player[1].exploding_ticks > 0)
-			{
-				if (galagaMode)
-					player[1].exploding_ticks = 0;
-
-				musicFade = true;
-			}
-			else
-			{
-				if (play_demo || normalBonusLevelCurrent || bonusLevelCurrent)
-					reallyEndLevel = true;
-				else
-					JE_dString(VGAScreen, 120, 60, miscText[21], FONT_SHAPES); // game over
-
-				if (firstGameOver)
-				{
-					if (!play_demo)
-					{
-						play_song(SONG_GAMEOVER);
-						set_volume(tyrMusicVolume, fxVolume);
-					}
-					firstGameOver = false;
-				}
-
-				if (!play_demo)
-				{
-					push_joysticks_as_keyboard();
-					service_SDL_events(true);
-					if ((newkey || button[0] || button[1] || button[2]) || newmouse)
-					{
-						reallyEndLevel = true;
-					}
-				}
-
-				if (isNetworkGame)
-					reallyEndLevel = true;
-			}
-		}
-	}
-
-	if (play_demo) // input kills demo
-	{
-		push_joysticks_as_keyboard();
-		service_SDL_events(false);
-
-		if (newkey || newmouse)
-		{
-			reallyEndLevel = true;
-
-			stopped_demo = true;
-		}
-	}
-	else // input handling for pausing, menu, cheats
-	{
-		service_SDL_events(false);
-
-		if (newkey)
-		{
-			skipStarShowVGA = false;
-			JE_mainKeyboardInput();
-			newkey = false;
-			if (skipStarShowVGA)
-				goto level_loop;
-		}
-
-		if (pause_pressed || !windowHasFocus)
-		{
-			pause_pressed = false;
-
-			if (isNetworkGame)
-				pauseRequest = true;
-			else
-				JE_pauseGame();
-		}
-
-		if (ingamemenu_pressed)
-		{
-			ingamemenu_pressed = false;
-
-			if (isNetworkGame)
-			{
-				inGameMenuRequest = true;
-			}
-			else
-			{
-				yourInGameMenuRequest = true;
-				JE_doInGameSetup();
-				skipStarShowVGA = true;
-			}
-		}
-	}
+	if (handle_level_input())
+		goto level_loop;
 
 	/*Network Update*/
 #ifdef WITH_NETWORK
