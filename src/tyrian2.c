@@ -1251,6 +1251,610 @@ static void play_level_sounds(void)
 	}
 }
 
+static void process_player_shot(int z)
+{
+	bool is_special = false;
+	int tempShotX = 0, tempShotY = 0;
+	JE_byte chain;
+	JE_byte playerNum;
+	JE_word tempX2, tempY2;
+	JE_integer damage;
+
+	if (!player_shot_move_and_draw(z, &is_special, &tempShotX, &tempShotY, &damage, &temp2, &chain, &playerNum, &tempX2, &tempY2))
+	{
+		return;
+	}
+
+	for (b = 0; b < 100; b++)
+	{
+		if (enemyAvail[b] == 0)
+		{
+			bool collided;
+
+			if (z == MAX_PWEAPON - 1)
+			{
+				temp = 25 - abs(zinglonDuration - 25);
+				collided = abs(enemy[b].ex + enemy[b].mapoffset - (player[0].x + 7)) < temp;
+				temp2 = 9;
+				chain = 0;
+				damage = 10;
+			}
+			else if (is_special)
+			{
+				collided = ((enemy[b].enemycycle == 0) &&
+				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX - tempX2) < (25 + tempX2)) &&
+				            (abs(enemy[b].ey - tempShotY - 12 - tempY2)                 < (29 + tempY2))) ||
+				           ((enemy[b].enemycycle > 0) &&
+				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX - tempX2) < (13 + tempX2)) &&
+				            (abs(enemy[b].ey - tempShotY - 6 - tempY2)                  < (15 + tempY2)));
+			}
+			else
+			{
+				collided = ((enemy[b].enemycycle == 0) &&
+				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX) < 25) && (abs(enemy[b].ey - tempShotY - 12) < 29)) ||
+				           ((enemy[b].enemycycle > 0) &&
+				            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX) < 13) && (abs(enemy[b].ey - tempShotY - 6) < 15));
+			}
+
+			if (collided)
+			{
+				if (chain > 0)
+				{
+					shotMultiPos[SHOT_MISC] = 0;
+					b = player_shot_create(0, SHOT_MISC, tempShotX, tempShotY, mouseX, mouseY, chain, playerNum);
+					shotAvail[z] = 0;
+					return;
+				}
+
+				infiniteShot = false;
+
+				if (damage == 99)
+				{
+					damage = 0;
+					doIced = 40;
+					enemy[b].iced = 40;
+				}
+				else
+				{
+					doIced = 0;
+					if (damage >= 250)
+					{
+						damage = damage - 250;
+						infiniteShot = true;
+					}
+				}
+
+				int armorleft = enemy[b].armorleft;
+
+				temp = enemy[b].linknum;
+				if (temp == 0)
+					temp = 255;
+
+				if (enemy[b].armorleft < 255)
+				{
+					for (unsigned int i = 0; i < COUNTOF(boss_bar); i++)
+						if (temp == boss_bar[i].link_num)
+							boss_bar[i].color = 6;
+
+					if (enemy[b].enemyground)
+						enemy[b].filter = temp2;
+
+					for (unsigned int e = 0; e < COUNTOF(enemy); e++)
+					{
+						if (enemy[e].linknum == temp &&
+						    enemyAvail[e] != 1 &&
+						    enemy[e].enemyground != 0)
+						{
+							if (doIced)
+								enemy[e].iced = doIced;
+							enemy[e].filter = temp2;
+						}
+					}
+				}
+
+				if (armorleft > damage)
+				{
+					if (z != MAX_PWEAPON - 1)
+					{
+						if (enemy[b].armorleft != 255)
+						{
+							enemy[b].armorleft -= damage;
+							JE_setupExplosion(tempShotX, tempShotY, 0, 0, false, false);
+						}
+						else
+						{
+							JE_doSP(tempShotX + 6, tempShotY + 6, damage / 2 + 3, damage / 4 + 2, temp2);
+						}
+					}
+
+					soundQueue[5] = S_ENEMY_HIT;
+
+					if ((armorleft - damage <= enemy[b].edlevel) &&
+					    ((!enemy[b].edamaged) ^ (enemy[b].edani < 0)))
+					{
+
+						for (temp3 = 0; temp3 < 100; temp3++)
+						{
+							if (enemyAvail[temp3] != 1)
+							{
+								int linknum = enemy[temp3].linknum;
+								if (
+								     (temp3 == b) ||
+								     (
+								       (temp != 255) &&
+								       (
+								         ((enemy[temp3].edlevel > 0) && (linknum == temp)) ||
+								         (
+								           (enemyContinualDamage && (temp - 100 == linknum)) ||
+								           ((linknum > 40) && (linknum / 20 == temp / 20) && (linknum <= temp))
+								         )
+								       )
+								     )
+								   )
+								{
+									enemy[temp3].enemycycle = 1;
+
+									enemy[temp3].edamaged = !enemy[temp3].edamaged;
+
+									if (enemy[temp3].edani != 0)
+									{
+										enemy[temp3].ani = abs(enemy[temp3].edani);
+										enemy[temp3].aniactive = 1;
+										enemy[temp3].animax = 0;
+										enemy[temp3].animin = enemy[temp3].edgr;
+										enemy[temp3].enemycycle = enemy[temp3].animin - 1;
+
+									}
+									else if (enemy[temp3].edgr > 0)
+									{
+										enemy[temp3].egr[1-1] = enemy[temp3].edgr;
+										enemy[temp3].ani = 1;
+										enemy[temp3].aniactive = 0;
+										enemy[temp3].animax = 0;
+										enemy[temp3].animin = 1;
+									}
+									else
+									{
+										enemyAvail[temp3] = 1;
+										enemyKilled++;
+									}
+
+									enemy[temp3].aniwhenfire = 0;
+
+									if (enemy[temp3].armorleft > (unsigned char)enemy[temp3].edlevel)
+										enemy[temp3].armorleft = enemy[temp3].edlevel;
+
+									tempX = enemy[temp3].ex + enemy[temp3].mapoffset;
+									tempY = enemy[temp3].ey;
+
+									if (enemyDat[enemy[temp3].enemytype].esize != 1)
+										JE_setupExplosion(tempX, tempY - 6, 0, 1, false, false);
+									else
+										JE_setupExplosionLarge(enemy[temp3].enemyground, enemy[temp3].explonum / 2, tempX, tempY);
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+
+					if ((temp == 254) && (superEnemy254Jump > 0))
+						JE_eventJump(superEnemy254Jump);
+
+					for (temp2 = 0; temp2 < 100; temp2++)
+					{
+						if (enemyAvail[temp2] != 1)
+						{
+							temp3 = enemy[temp2].linknum;
+							if ((temp2 == b) || (temp == 254) ||
+							    ((temp != 255) && ((temp == temp3) || (temp - 100 == temp3) ||
+							                       ((temp3 > 40) && (temp3 / 20 == temp / 20) && (temp3 <= temp)))))
+							{
+
+								int enemy_screen_x = enemy[temp2].ex + enemy[temp2].mapoffset;
+
+								if (enemy[temp2].special)
+								{
+									assert((unsigned int) enemy[temp2].flagnum-1 < COUNTOF(globalFlags));
+									globalFlags[enemy[temp2].flagnum-1] = enemy[temp2].setto;
+								}
+
+								if ((enemy[temp2].enemydie > 0) &&
+								    !((superArcadeMode != SA_NONE) &&
+								      (enemyDat[enemy[temp2].enemydie].value == 30000)))
+								{
+									int temp_b = b;
+									tempW = enemy[temp2].enemydie;
+									int enemy_offset = temp2 - (temp2 % 25);
+									if (enemyDat[tempW].value > 30000)
+									{
+										enemy_offset = 0;
+									}
+									b = JE_newEnemy(enemy_offset, tempW, 0);
+									if (b != 0)
+									{
+										if ((superArcadeMode != SA_NONE) && (enemy[b-1].evalue > 30000))
+										{
+											superArcadePowerUp++;
+											if (superArcadePowerUp > 5)
+												superArcadePowerUp = 1;
+											enemy[b-1].egr[1-1] = 5 + superArcadePowerUp * 2;
+											enemy[b-1].evalue = 30000 + superArcadePowerUp;
+										}
+
+										if (enemy[b-1].evalue != 0)
+											enemy[b-1].scoreitem = true;
+										else
+											enemy[b-1].scoreitem = false;
+
+										enemy[b-1].ex = enemy[temp2].ex;
+										enemy[b-1].ey = enemy[temp2].ey;
+									}
+									b = temp_b;
+								}
+
+								if ((enemy[temp2].evalue > 0) && (enemy[temp2].evalue < 10000))
+								{
+									if (enemy[temp2].evalue == 1)
+									{
+										cubeMax++;
+									}
+									else
+									{
+										// in galaga mode player 2 is sidekick, so give cash to player 1
+										player[galagaMode ? 0 : playerNum - 1].cash += enemy[temp2].evalue;
+									}
+								}
+
+								if ((enemy[temp2].edlevel == -1) && (temp == temp3))
+								{
+									enemy[temp2].edlevel = 0;
+									enemyAvail[temp2] = 2;
+									enemy[temp2].egr[1-1] = enemy[temp2].edgr;
+									enemy[temp2].ani = 1;
+									enemy[temp2].aniactive = 0;
+									enemy[temp2].animax = 0;
+									enemy[temp2].animin = 1;
+									enemy[temp2].edamaged = true;
+									enemy[temp2].enemycycle = 1;
+								}
+								else
+								{
+									enemyAvail[temp2] = 1;
+									enemyKilled++;
+								}
+
+								if (enemyDat[enemy[temp2].enemytype].esize == 1)
+								{
+									JE_setupExplosionLarge(enemy[temp2].enemyground, enemy[temp2].explonum, enemy_screen_x, enemy[temp2].ey);
+									soundQueue[6] = S_EXPLOSION_9;
+								}
+								else
+								{
+									JE_setupExplosion(enemy_screen_x, enemy[temp2].ey, 0, 1, false, false);
+									soundQueue[6] = S_EXPLOSION_8;
+								}
+							}
+						}
+					}
+				}
+
+				if (infiniteShot)
+				{
+					damage += 250;
+				}
+				else if (z != MAX_PWEAPON - 1)
+				{
+					if (damage <= armorleft)
+					{
+						shotAvail[z] = 0;
+						return;
+					}
+					else
+					{
+						playerShotData[z].shotDmg -= armorleft;
+					}
+				}
+			}
+		}
+	}
+}
+
+static void draw_enemy_shots(void)
+{
+	if (!endLevel)
+	{    /*MAIN DRAWING IS STOPPED STARTING HERE*/
+
+		/* Draw Enemy Shots */
+		for (int z = 0; z < ENEMY_SHOT_MAX; z++)
+		{
+			if (enemyShotAvail[z] == 0)
+			{
+				enemyShot[z].sxm += enemyShot[z].sxc;
+				enemyShot[z].sx += enemyShot[z].sxm;
+
+				if (enemyShot[z].tx != 0)
+				{
+					if (enemyShot[z].sx > player[0].x)
+					{
+						if (enemyShot[z].sxm > -enemyShot[z].tx)
+							enemyShot[z].sxm--;
+					}
+					else
+					{
+						if (enemyShot[z].sxm < enemyShot[z].tx)
+							enemyShot[z].sxm++;
+					}
+				}
+
+				enemyShot[z].sym += enemyShot[z].syc;
+				enemyShot[z].sy += enemyShot[z].sym;
+
+				if (enemyShot[z].ty != 0)
+				{
+					if (enemyShot[z].sy > player[0].y)
+					{
+						if (enemyShot[z].sym > -enemyShot[z].ty)
+							enemyShot[z].sym--;
+					}
+					else
+					{
+						if (enemyShot[z].sym < enemyShot[z].ty)
+							enemyShot[z].sym++;
+					}
+				}
+
+				if (enemyShot[z].duration-- == 0 || enemyShot[z].sy > 190 || enemyShot[z].sy <= -14 || enemyShot[z].sx > 275 || enemyShot[z].sx <= 0)
+				{
+					enemyShotAvail[z] = true;
+				}
+				else  // check if shot collided with player
+				{
+					for (uint i = 0; i < (twoPlayerMode ? 2 : 1); ++i)
+					{
+						if (player[i].is_alive &&
+						    enemyShot[z].sx > player[i].x - (signed)player[i].shot_hit_area_x &&
+						    enemyShot[z].sx < player[i].x + (signed)player[i].shot_hit_area_x &&
+						    enemyShot[z].sy > player[i].y - (signed)player[i].shot_hit_area_y &&
+						    enemyShot[z].sy < player[i].y + (signed)player[i].shot_hit_area_y)
+						{
+							tempX = enemyShot[z].sx;
+							tempY = enemyShot[z].sy;
+							temp = enemyShot[z].sdmg;
+
+							enemyShotAvail[z] = true;
+
+							JE_setupExplosion(tempX, tempY, 0, 0, false, false);
+
+							if (player[i].invulnerable_ticks == 0)
+							{
+								if ((temp = JE_playerDamage(temp, &player[i])) > 0)
+								{
+									player[i].x_velocity += (enemyShot[z].sxm * temp) / 2;
+									player[i].y_velocity += (enemyShot[z].sym * temp) / 2;
+								}
+							}
+
+							break;
+						}
+					}
+
+					if (enemyShotAvail[z] == false)
+					{
+						if (enemyShot[z].animax != 0)
+						{
+							if (++enemyShot[z].animate >= enemyShot[z].animax)
+								enemyShot[z].animate = 0;
+						}
+
+						if (enemyShot[z].sgr >= 500)
+							blit_sprite2(VGAScreen, enemyShot[z].sx, enemyShot[z].sy, spriteSheet12, enemyShot[z].sgr + enemyShot[z].animate - 500);
+						else
+							blit_sprite2(VGAScreen, enemyShot[z].sx, enemyShot[z].sy, spriteSheet8, enemyShot[z].sgr + enemyShot[z].animate);
+					}
+				}
+
+			}
+		}
+	}
+}
+
+static void draw_level_debug_and_timer(char buffer[256])
+{
+	/*-------      DEbug      ---------*/
+	debugTime = SDL_GetTicks();
+	tempW = lastmouse_but;
+	tempX = mouse_x;
+	tempY = mouse_y;
+
+	if (debug)
+	{
+		for (size_t i = 0; i < 9; i++)
+		{
+			tempStr[i] = '0' + smoothies[i];
+		}
+		tempStr[9] = '\0';
+		sprintf(buffer, "SM = %s", tempStr);
+		JE_outText(VGAScreen, 30, 70, buffer, 4, 0);
+
+		sprintf(buffer, "Memory left = %d", -1);
+		JE_outText(VGAScreen, 30, 80, buffer, 4, 0);
+		sprintf(buffer, "Enemies onscreen = %d", enemyOnScreen);
+		JE_outText(VGAScreen, 30, 90, buffer, 6, 0);
+
+		debugHist = debugHist + abs((JE_longint)debugTime - (JE_longint)lastDebugTime);
+		debugHistCount++;
+		sprintf(tempStr, "%2.3f", 1000.0f / roundf(debugHist / debugHistCount));
+		sprintf(buffer, "X:%d Y:%-5d  %s FPS  %d %d %d %d", (mapX - 1) * 12 + player[0].x, curLoc, tempStr, player[0].x_velocity, player[0].y_velocity, player[0].x, player[0].y);
+		JE_outText(VGAScreen, 45, 175, buffer, 15, 3);
+		lastDebugTime = debugTime;
+	}
+
+	if (displayTime > 0)
+	{
+		displayTime--;
+		JE_outTextAndDarken(VGAScreen, 90, 10, miscText[59], 15, (JE_byte)flash - 8, FONT_SHAPES);
+		flash += flashChange;
+		if (flash > 4 || flash == 0)
+			flashChange = -flashChange;
+	}
+
+	/*Pentium Speed Mode?*/
+	if (pentiumMode)
+	{
+		frameCountMax = (frameCountMax == 2) ? 3 : 2;
+	}
+
+	/*--------  Level Timer    ---------*/
+	if (levelTimer && levelTimerCountdown > 0)
+	{
+		levelTimerCountdown--;
+		if (levelTimerCountdown == 0)
+			JE_eventJump(levelTimerJumpTo);
+
+		if (levelTimerCountdown > 200)
+		{
+			if (levelTimerCountdown % 100 == 0)
+				soundQueue[7] = S_WARNING;
+
+			if (levelTimerCountdown % 10 == 0)
+				soundQueue[6] = S_CLICK;
+		}
+		else if (levelTimerCountdown % 20 == 0)
+		{
+			soundQueue[7] = S_WARNING;
+		}
+
+		JE_textShade (VGAScreen, 140, 6, miscText[66], 7, (levelTimerCountdown % 20) / 3, FULL_SHADE);
+		sprintf(buffer, "%.1f", levelTimerCountdown / 100.0f);
+		JE_dString (VGAScreen, 100, 2, buffer, SMALL_FONT_SHAPES);
+	}
+
+}
+
+#ifdef WITH_NETWORK
+static void update_level_network_state(JE_word *shipGr)
+{
+	if (isNetworkGame)
+	{
+		if (!reallyEndLevel)
+		{
+			Uint16 requests = (pauseRequest == true) |
+			                  (inGameMenuRequest == true) << 1 |
+			                  (skipLevelRequest == true) << 2 |
+			                  (nortShipRequest == true) << 3;
+			SDLNet_Write16(requests,        &packet_state_out[0]->data[14]);
+
+			SDLNet_Write16(difficultyLevel, &packet_state_out[0]->data[16]);
+			SDLNet_Write16(player[0].x,     &packet_state_out[0]->data[18]);
+			SDLNet_Write16(player[1].x,     &packet_state_out[0]->data[20]);
+			SDLNet_Write16(player[0].y,     &packet_state_out[0]->data[22]);
+			SDLNet_Write16(player[1].y,     &packet_state_out[0]->data[24]);
+			SDLNet_Write16(curLoc,          &packet_state_out[0]->data[26]);
+
+			network_state_send();
+
+			if (network_state_update())
+			{
+				assert(SDLNet_Read16(&packet_state_in[0]->data[26]) == SDLNet_Read16(&packet_state_out[network_delay]->data[26]));
+
+				requests = SDLNet_Read16(&packet_state_in[0]->data[14]) ^ SDLNet_Read16(&packet_state_out[network_delay]->data[14]);
+				if (requests & 1)
+				{
+					JE_pauseGame();
+				}
+				if (requests & 2)
+				{
+					yourInGameMenuRequest = SDLNet_Read16(&packet_state_out[network_delay]->data[14]) & 2;
+					JE_doInGameSetup();
+					yourInGameMenuRequest = false;
+					if (haltGame)
+						reallyEndLevel = true;
+				}
+				if (requests & 4)
+				{
+					levelTimer = true;
+					levelTimerCountdown = 0;
+					endLevel = true;
+					levelEnd = 40;
+				}
+				if (requests & 8) // nortship
+				{
+					player[0].items.ship = 12;                     // Nort Ship
+					player[0].items.special = 13;                  // Astral Zone
+					player[0].items.weapon[FRONT_WEAPON].id = 36;  // NortShip Super Pulse
+					player[0].items.weapon[REAR_WEAPON].id = 37;   // NortShip Spreader
+					*shipGr = 1;
+				}
+
+				for (int i = 0; i < 2; i++)
+				{
+					if (SDLNet_Read16(&packet_state_in[0]->data[18 + i * 2]) != SDLNet_Read16(&packet_state_out[network_delay]->data[18 + i * 2]) || SDLNet_Read16(&packet_state_in[0]->data[20 + i * 2]) != SDLNet_Read16(&packet_state_out[network_delay]->data[20 + i * 2]))
+					{
+						char temp[64];
+						sprintf(temp, "Player %d is unsynchronized!", i + 1);
+
+						JE_textShade(game_screen, 40, 110 + i * 10, temp, 9, 2, FULL_SHADE);
+					}
+				}
+			}
+		}
+
+		JE_clearSpecialRequests();
+	}
+}
+#endif
+
+static void update_level_end_state(void)
+{
+	if (stopBackgroundNum == 9 && backMove == 0 && !enemyStillExploding)
+	{
+		backMove = 1;
+		backMove2 = 2;
+		backMove3 = 3;
+		explodeMove = 2;
+		stopBackgroundNum = 0;
+		stopBackgrounds = false;
+		if (waitToEndLevel)
+		{
+			endLevel = true;
+			levelEnd = 40;
+		}
+		if (allPlayersGone)
+		{
+			reallyEndLevel = true;
+		}
+	}
+
+	if (!endLevel && enemyOnScreen == 0)
+	{
+		if (readyToEndLevel && !enemyStillExploding)
+		{
+			if (levelTimerCountdown > 0)
+			{
+				levelTimer = false;
+			}
+			readyToEndLevel = false;
+			endLevel = true;
+			levelEnd = 40;
+			if (allPlayersGone)
+			{
+				reallyEndLevel = true;
+			}
+		}
+		if (stopBackgrounds)
+		{
+			stopBackgrounds = false;
+			backMove = 1;
+			backMove2 = 2;
+			backMove3 = 3;
+			explodeMove = 2;
+		}
+	}
+
+}
+
 void JE_main(void)
 {
 	char buffer[256];
@@ -1716,317 +2320,7 @@ level_loop:
 	for (int z = 0; z < MAX_PWEAPON; z++)
 	{
 		if (shotAvail[z] != 0)
-		{
-			bool is_special = false;
-			int tempShotX = 0, tempShotY = 0;
-			JE_byte chain;
-			JE_byte playerNum;
-			JE_word tempX2, tempY2;
-			JE_integer damage;
-			
-			if (!player_shot_move_and_draw(z, &is_special, &tempShotX, &tempShotY, &damage, &temp2, &chain, &playerNum, &tempX2, &tempY2))
-			{
-				goto draw_player_shot_loop_end;
-			}
-
-			for (b = 0; b < 100; b++)
-			{
-				if (enemyAvail[b] == 0)
-				{
-					bool collided;
-
-					if (z == MAX_PWEAPON - 1)
-					{
-						temp = 25 - abs(zinglonDuration - 25);
-						collided = abs(enemy[b].ex + enemy[b].mapoffset - (player[0].x + 7)) < temp;
-						temp2 = 9;
-						chain = 0;
-						damage = 10;
-					}
-					else if (is_special)
-					{
-						collided = ((enemy[b].enemycycle == 0) &&
-						            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX - tempX2) < (25 + tempX2)) &&
-						            (abs(enemy[b].ey - tempShotY - 12 - tempY2)                 < (29 + tempY2))) ||
-						           ((enemy[b].enemycycle > 0) &&
-						            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX - tempX2) < (13 + tempX2)) &&
-						            (abs(enemy[b].ey - tempShotY - 6 - tempY2)                  < (15 + tempY2)));
-					}
-					else
-					{
-						collided = ((enemy[b].enemycycle == 0) &&
-						            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX) < 25) && (abs(enemy[b].ey - tempShotY - 12) < 29)) ||
-						           ((enemy[b].enemycycle > 0) &&
-						            (abs(enemy[b].ex + enemy[b].mapoffset - tempShotX) < 13) && (abs(enemy[b].ey - tempShotY - 6) < 15));
-					}
-
-					if (collided)
-					{
-						if (chain > 0)
-						{
-							shotMultiPos[SHOT_MISC] = 0;
-							b = player_shot_create(0, SHOT_MISC, tempShotX, tempShotY, mouseX, mouseY, chain, playerNum);
-							shotAvail[z] = 0;
-							goto draw_player_shot_loop_end;
-						}
-
-						infiniteShot = false;
-
-						if (damage == 99)
-						{
-							damage = 0;
-							doIced = 40;
-							enemy[b].iced = 40;
-						}
-						else
-						{
-							doIced = 0;
-							if (damage >= 250)
-							{
-								damage = damage - 250;
-								infiniteShot = true;
-							}
-						}
-
-						int armorleft = enemy[b].armorleft;
-
-						temp = enemy[b].linknum;
-						if (temp == 0)
-							temp = 255;
-
-						if (enemy[b].armorleft < 255)
-						{
-							for (unsigned int i = 0; i < COUNTOF(boss_bar); i++)
-								if (temp == boss_bar[i].link_num)
-									boss_bar[i].color = 6;
-
-							if (enemy[b].enemyground)
-								enemy[b].filter = temp2;
-
-							for (unsigned int e = 0; e < COUNTOF(enemy); e++)
-							{
-								if (enemy[e].linknum == temp &&
-								    enemyAvail[e] != 1 &&
-								    enemy[e].enemyground != 0)
-								{
-									if (doIced)
-										enemy[e].iced = doIced;
-									enemy[e].filter = temp2;
-								}
-							}
-						}
-
-						if (armorleft > damage)
-						{
-							if (z != MAX_PWEAPON - 1)
-							{
-								if (enemy[b].armorleft != 255)
-								{
-									enemy[b].armorleft -= damage;
-									JE_setupExplosion(tempShotX, tempShotY, 0, 0, false, false);
-								}
-								else
-								{
-									JE_doSP(tempShotX + 6, tempShotY + 6, damage / 2 + 3, damage / 4 + 2, temp2);
-								}
-							}
-
-							soundQueue[5] = S_ENEMY_HIT;
-
-							if ((armorleft - damage <= enemy[b].edlevel) &&
-							    ((!enemy[b].edamaged) ^ (enemy[b].edani < 0)))
-							{
-
-								for (temp3 = 0; temp3 < 100; temp3++)
-								{
-									if (enemyAvail[temp3] != 1)
-									{
-										int linknum = enemy[temp3].linknum;
-										if (
-										     (temp3 == b) ||
-										     (
-										       (temp != 255) &&
-										       (
-										         ((enemy[temp3].edlevel > 0) && (linknum == temp)) ||
-										         (
-										           (enemyContinualDamage && (temp - 100 == linknum)) ||
-										           ((linknum > 40) && (linknum / 20 == temp / 20) && (linknum <= temp))
-										         )
-										       )
-										     )
-										   )
-										{
-											enemy[temp3].enemycycle = 1;
-
-											enemy[temp3].edamaged = !enemy[temp3].edamaged;
-
-											if (enemy[temp3].edani != 0)
-											{
-												enemy[temp3].ani = abs(enemy[temp3].edani);
-												enemy[temp3].aniactive = 1;
-												enemy[temp3].animax = 0;
-												enemy[temp3].animin = enemy[temp3].edgr;
-												enemy[temp3].enemycycle = enemy[temp3].animin - 1;
-
-											}
-											else if (enemy[temp3].edgr > 0)
-											{
-												enemy[temp3].egr[1-1] = enemy[temp3].edgr;
-												enemy[temp3].ani = 1;
-												enemy[temp3].aniactive = 0;
-												enemy[temp3].animax = 0;
-												enemy[temp3].animin = 1;
-											}
-											else
-											{
-												enemyAvail[temp3] = 1;
-												enemyKilled++;
-											}
-
-											enemy[temp3].aniwhenfire = 0;
-
-											if (enemy[temp3].armorleft > (unsigned char)enemy[temp3].edlevel)
-												enemy[temp3].armorleft = enemy[temp3].edlevel;
-
-											tempX = enemy[temp3].ex + enemy[temp3].mapoffset;
-											tempY = enemy[temp3].ey;
-
-											if (enemyDat[enemy[temp3].enemytype].esize != 1)
-												JE_setupExplosion(tempX, tempY - 6, 0, 1, false, false);
-											else
-												JE_setupExplosionLarge(enemy[temp3].enemyground, enemy[temp3].explonum / 2, tempX, tempY);
-										}
-									}
-								}
-							}
-						}
-						else
-						{
-
-							if ((temp == 254) && (superEnemy254Jump > 0))
-								JE_eventJump(superEnemy254Jump);
-
-							for (temp2 = 0; temp2 < 100; temp2++)
-							{
-								if (enemyAvail[temp2] != 1)
-								{
-									temp3 = enemy[temp2].linknum;
-									if ((temp2 == b) || (temp == 254) ||
-									    ((temp != 255) && ((temp == temp3) || (temp - 100 == temp3) ||
-									                       ((temp3 > 40) && (temp3 / 20 == temp / 20) && (temp3 <= temp)))))
-									{
-
-										int enemy_screen_x = enemy[temp2].ex + enemy[temp2].mapoffset;
-
-										if (enemy[temp2].special)
-										{
-											assert((unsigned int) enemy[temp2].flagnum-1 < COUNTOF(globalFlags));
-											globalFlags[enemy[temp2].flagnum-1] = enemy[temp2].setto;
-										}
-
-										if ((enemy[temp2].enemydie > 0) &&
-										    !((superArcadeMode != SA_NONE) &&
-										      (enemyDat[enemy[temp2].enemydie].value == 30000)))
-										{
-											int temp_b = b;
-											tempW = enemy[temp2].enemydie;
-											int enemy_offset = temp2 - (temp2 % 25);
-											if (enemyDat[tempW].value > 30000)
-											{
-												enemy_offset = 0;
-											}
-											b = JE_newEnemy(enemy_offset, tempW, 0);
-											if (b != 0)
-											{
-												if ((superArcadeMode != SA_NONE) && (enemy[b-1].evalue > 30000))
-												{
-													superArcadePowerUp++;
-													if (superArcadePowerUp > 5)
-														superArcadePowerUp = 1;
-													enemy[b-1].egr[1-1] = 5 + superArcadePowerUp * 2;
-													enemy[b-1].evalue = 30000 + superArcadePowerUp;
-												}
-
-												if (enemy[b-1].evalue != 0)
-													enemy[b-1].scoreitem = true;
-												else
-													enemy[b-1].scoreitem = false;
-
-												enemy[b-1].ex = enemy[temp2].ex;
-												enemy[b-1].ey = enemy[temp2].ey;
-											}
-											b = temp_b;
-										}
-
-										if ((enemy[temp2].evalue > 0) && (enemy[temp2].evalue < 10000))
-										{
-											if (enemy[temp2].evalue == 1)
-											{
-												cubeMax++;
-											}
-											else
-											{
-												// in galaga mode player 2 is sidekick, so give cash to player 1
-												player[galagaMode ? 0 : playerNum - 1].cash += enemy[temp2].evalue;
-											}
-										}
-
-										if ((enemy[temp2].edlevel == -1) && (temp == temp3))
-										{
-											enemy[temp2].edlevel = 0;
-											enemyAvail[temp2] = 2;
-											enemy[temp2].egr[1-1] = enemy[temp2].edgr;
-											enemy[temp2].ani = 1;
-											enemy[temp2].aniactive = 0;
-											enemy[temp2].animax = 0;
-											enemy[temp2].animin = 1;
-											enemy[temp2].edamaged = true;
-											enemy[temp2].enemycycle = 1;
-										}
-										else
-										{
-											enemyAvail[temp2] = 1;
-											enemyKilled++;
-										}
-
-										if (enemyDat[enemy[temp2].enemytype].esize == 1)
-										{
-											JE_setupExplosionLarge(enemy[temp2].enemyground, enemy[temp2].explonum, enemy_screen_x, enemy[temp2].ey);
-											soundQueue[6] = S_EXPLOSION_9;
-										}
-										else
-										{
-											JE_setupExplosion(enemy_screen_x, enemy[temp2].ey, 0, 1, false, false);
-											soundQueue[6] = S_EXPLOSION_8;
-										}
-									}
-								}
-							}
-						}
-
-						if (infiniteShot)
-						{
-							damage += 250;
-						}
-						else if (z != MAX_PWEAPON - 1)
-						{
-							if (damage <= armorleft)
-							{
-								shotAvail[z] = 0;
-								goto draw_player_shot_loop_end;
-							}
-							else
-							{
-								playerShotData[z].shotDmg -= armorleft;
-							}
-						}
-					}
-				}
-			}
-
-draw_player_shot_loop_end:
-			;
-		}
+			process_player_shot(z);
 	}
 
 	/* Player movement indicators for shots that track your ship */
@@ -2035,113 +2329,19 @@ draw_player_shot_loop_end:
 		player[i].last_x_shot_move = player[i].x;
 		player[i].last_y_shot_move = player[i].y;
 	}
-	
+
 	/*=================================*/
 	/*=======Collisions Detection======*/
 	/*=================================*/
-	
+
 	for (uint i = 0; i < (twoPlayerMode ? 2 : 1); ++i)
 		if (player[i].is_alive && !endLevel)
 			JE_playerCollide(&player[i], i + 1);
-	
+
 	if (firstGameOver)
 		JE_mainGamePlayerFunctions();      /*--------PLAYER DRAW+MOVEMENT---------*/
 
-	if (!endLevel)
-	{    /*MAIN DRAWING IS STOPPED STARTING HERE*/
-
-		/* Draw Enemy Shots */
-		for (int z = 0; z < ENEMY_SHOT_MAX; z++)
-		{
-			if (enemyShotAvail[z] == 0)
-			{
-				enemyShot[z].sxm += enemyShot[z].sxc;
-				enemyShot[z].sx += enemyShot[z].sxm;
-
-				if (enemyShot[z].tx != 0)
-				{
-					if (enemyShot[z].sx > player[0].x)
-					{
-						if (enemyShot[z].sxm > -enemyShot[z].tx)
-							enemyShot[z].sxm--;
-					}
-					else
-					{
-						if (enemyShot[z].sxm < enemyShot[z].tx)
-							enemyShot[z].sxm++;
-					}
-				}
-
-				enemyShot[z].sym += enemyShot[z].syc;
-				enemyShot[z].sy += enemyShot[z].sym;
-
-				if (enemyShot[z].ty != 0)
-				{
-					if (enemyShot[z].sy > player[0].y)
-					{
-						if (enemyShot[z].sym > -enemyShot[z].ty)
-							enemyShot[z].sym--;
-					}
-					else
-					{
-						if (enemyShot[z].sym < enemyShot[z].ty)
-							enemyShot[z].sym++;
-					}
-				}
-
-				if (enemyShot[z].duration-- == 0 || enemyShot[z].sy > 190 || enemyShot[z].sy <= -14 || enemyShot[z].sx > 275 || enemyShot[z].sx <= 0)
-				{
-					enemyShotAvail[z] = true;
-				}
-				else  // check if shot collided with player
-				{
-					for (uint i = 0; i < (twoPlayerMode ? 2 : 1); ++i)
-					{
-						if (player[i].is_alive &&
-						    enemyShot[z].sx > player[i].x - (signed)player[i].shot_hit_area_x &&
-						    enemyShot[z].sx < player[i].x + (signed)player[i].shot_hit_area_x &&
-						    enemyShot[z].sy > player[i].y - (signed)player[i].shot_hit_area_y &&
-						    enemyShot[z].sy < player[i].y + (signed)player[i].shot_hit_area_y)
-						{
-							tempX = enemyShot[z].sx;
-							tempY = enemyShot[z].sy;
-							temp = enemyShot[z].sdmg;
-
-							enemyShotAvail[z] = true;
-
-							JE_setupExplosion(tempX, tempY, 0, 0, false, false);
-
-							if (player[i].invulnerable_ticks == 0)
-							{
-								if ((temp = JE_playerDamage(temp, &player[i])) > 0)
-								{
-									player[i].x_velocity += (enemyShot[z].sxm * temp) / 2;
-									player[i].y_velocity += (enemyShot[z].sym * temp) / 2;
-								}
-							}
-
-							break;
-						}
-					}
-
-					if (enemyShotAvail[z] == false)
-					{
-						if (enemyShot[z].animax != 0)
-						{
-							if (++enemyShot[z].animate >= enemyShot[z].animax)
-								enemyShot[z].animate = 0;
-						}
-
-						if (enemyShot[z].sgr >= 500)
-							blit_sprite2(VGAScreen, enemyShot[z].sx, enemyShot[z].sy, spriteSheet12, enemyShot[z].sgr + enemyShot[z].animate - 500);
-						else
-							blit_sprite2(VGAScreen, enemyShot[z].sx, enemyShot[z].sy, spriteSheet8, enemyShot[z].sgr + enemyShot[z].animate);
-					}
-				}
-
-			}
-		}
-	}
+	draw_enemy_shots();
 
 	if (background3over == 1)
 		draw_background_3(VGAScreen);
@@ -2206,149 +2406,13 @@ draw_player_shot_loop_end:
 		returnActive = false;
 	}
 
-	/*-------      DEbug      ---------*/
-	debugTime = SDL_GetTicks();
-	tempW = lastmouse_but;
-	tempX = mouse_x;
-	tempY = mouse_y;
-
-	if (debug)
-	{
-		for (size_t i = 0; i < 9; i++)
-		{
-			tempStr[i] = '0' + smoothies[i];
-		}
-		tempStr[9] = '\0';
-		sprintf(buffer, "SM = %s", tempStr);
-		JE_outText(VGAScreen, 30, 70, buffer, 4, 0);
-
-		sprintf(buffer, "Memory left = %d", -1);
-		JE_outText(VGAScreen, 30, 80, buffer, 4, 0);
-		sprintf(buffer, "Enemies onscreen = %d", enemyOnScreen);
-		JE_outText(VGAScreen, 30, 90, buffer, 6, 0);
-
-		debugHist = debugHist + abs((JE_longint)debugTime - (JE_longint)lastDebugTime);
-		debugHistCount++;
-		sprintf(tempStr, "%2.3f", 1000.0f / roundf(debugHist / debugHistCount));
-		sprintf(buffer, "X:%d Y:%-5d  %s FPS  %d %d %d %d", (mapX - 1) * 12 + player[0].x, curLoc, tempStr, player[0].x_velocity, player[0].y_velocity, player[0].x, player[0].y);
-		JE_outText(VGAScreen, 45, 175, buffer, 15, 3);
-		lastDebugTime = debugTime;
-	}
-
-	if (displayTime > 0)
-	{
-		displayTime--;
-		JE_outTextAndDarken(VGAScreen, 90, 10, miscText[59], 15, (JE_byte)flash - 8, FONT_SHAPES);
-		flash += flashChange;
-		if (flash > 4 || flash == 0)
-			flashChange = -flashChange;
-	}
-
-	/*Pentium Speed Mode?*/
-	if (pentiumMode)
-	{
-		frameCountMax = (frameCountMax == 2) ? 3 : 2;
-	}
-
-	/*--------  Level Timer    ---------*/
-	if (levelTimer && levelTimerCountdown > 0)
-	{
-		levelTimerCountdown--;
-		if (levelTimerCountdown == 0)
-			JE_eventJump(levelTimerJumpTo);
-
-		if (levelTimerCountdown > 200)
-		{
-			if (levelTimerCountdown % 100 == 0)
-				soundQueue[7] = S_WARNING;
-
-			if (levelTimerCountdown % 10 == 0)
-				soundQueue[6] = S_CLICK;
-		}
-		else if (levelTimerCountdown % 20 == 0)
-		{
-			soundQueue[7] = S_WARNING;
-		}
-
-		JE_textShade (VGAScreen, 140, 6, miscText[66], 7, (levelTimerCountdown % 20) / 3, FULL_SHADE);
-		sprintf(buffer, "%.1f", levelTimerCountdown / 100.0f);
-		JE_dString (VGAScreen, 100, 2, buffer, SMALL_FONT_SHAPES);
-	}
-
+	draw_level_debug_and_timer(buffer);
 	if (handle_level_input())
 		goto level_loop;
 
-	/*Network Update*/
 #ifdef WITH_NETWORK
-	if (isNetworkGame)
-	{
-		if (!reallyEndLevel)
-		{
-			Uint16 requests = (pauseRequest == true) |
-			                  (inGameMenuRequest == true) << 1 |
-			                  (skipLevelRequest == true) << 2 |
-			                  (nortShipRequest == true) << 3;
-			SDLNet_Write16(requests,        &packet_state_out[0]->data[14]);
-
-			SDLNet_Write16(difficultyLevel, &packet_state_out[0]->data[16]);
-			SDLNet_Write16(player[0].x,     &packet_state_out[0]->data[18]);
-			SDLNet_Write16(player[1].x,     &packet_state_out[0]->data[20]);
-			SDLNet_Write16(player[0].y,     &packet_state_out[0]->data[22]);
-			SDLNet_Write16(player[1].y,     &packet_state_out[0]->data[24]);
-			SDLNet_Write16(curLoc,          &packet_state_out[0]->data[26]);
-
-			network_state_send();
-
-			if (network_state_update())
-			{
-				assert(SDLNet_Read16(&packet_state_in[0]->data[26]) == SDLNet_Read16(&packet_state_out[network_delay]->data[26]));
-
-				requests = SDLNet_Read16(&packet_state_in[0]->data[14]) ^ SDLNet_Read16(&packet_state_out[network_delay]->data[14]);
-				if (requests & 1)
-				{
-					JE_pauseGame();
-				}
-				if (requests & 2)
-				{
-					yourInGameMenuRequest = SDLNet_Read16(&packet_state_out[network_delay]->data[14]) & 2;
-					JE_doInGameSetup();
-					yourInGameMenuRequest = false;
-					if (haltGame)
-						reallyEndLevel = true;
-				}
-				if (requests & 4)
-				{
-					levelTimer = true;
-					levelTimerCountdown = 0;
-					endLevel = true;
-					levelEnd = 40;
-				}
-				if (requests & 8) // nortship
-				{
-					player[0].items.ship = 12;                     // Nort Ship
-					player[0].items.special = 13;                  // Astral Zone
-					player[0].items.weapon[FRONT_WEAPON].id = 36;  // NortShip Super Pulse
-					player[0].items.weapon[REAR_WEAPON].id = 37;   // NortShip Spreader
-					shipGr = 1;
-				}
-
-				for (int i = 0; i < 2; i++)
-				{
-					if (SDLNet_Read16(&packet_state_in[0]->data[18 + i * 2]) != SDLNet_Read16(&packet_state_out[network_delay]->data[18 + i * 2]) || SDLNet_Read16(&packet_state_in[0]->data[20 + i * 2]) != SDLNet_Read16(&packet_state_out[network_delay]->data[20 + i * 2]))
-					{
-						char temp[64];
-						sprintf(temp, "Player %d is unsynchronized!", i + 1);
-
-						JE_textShade(game_screen, 40, 110 + i * 10, temp, 9, 2, FULL_SHADE);
-					}
-				}
-			}
-		}
-
-		JE_clearSpecialRequests();
-	}
+	update_level_network_state(&shipGr);
 #endif
-
 	/** Test **/
 	JE_drawSP();
 
@@ -2368,50 +2432,7 @@ draw_player_shot_loop_end:
 
 	/*Start backgrounds if no enemies on screen
 	  End level if number of enemies left to kill equals 0.*/
-	if (stopBackgroundNum == 9 && backMove == 0 && !enemyStillExploding)
-	{
-		backMove = 1;
-		backMove2 = 2;
-		backMove3 = 3;
-		explodeMove = 2;
-		stopBackgroundNum = 0;
-		stopBackgrounds = false;
-		if (waitToEndLevel)
-		{
-			endLevel = true;
-			levelEnd = 40;
-		}
-		if (allPlayersGone)
-		{
-			reallyEndLevel = true;
-		}
-	}
-
-	if (!endLevel && enemyOnScreen == 0)
-	{
-		if (readyToEndLevel && !enemyStillExploding)
-		{
-			if (levelTimerCountdown > 0)
-			{
-				levelTimer = false;
-			}
-			readyToEndLevel = false;
-			endLevel = true;
-			levelEnd = 40;
-			if (allPlayersGone)
-			{
-				reallyEndLevel = true;
-			}
-		}
-		if (stopBackgrounds)
-		{
-			stopBackgrounds = false;
-			backMove = 1;
-			backMove2 = 2;
-			backMove3 = 3;
-			explodeMove = 2;
-		}
-	}
+	update_level_end_state();
 
 	/*Other Network Functions*/
 	JE_handleChat();
