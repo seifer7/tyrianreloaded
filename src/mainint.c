@@ -1475,405 +1475,334 @@ void JE_doInGameSetup(void)
 	mouseSetRelative(true);
 }
 
+enum InGameSetupMenuItem
+{
+	MENU_ITEM_MUSIC_VOLUME = 0,
+	MENU_ITEM_EFFECTS_VOLUME,
+	MENU_ITEM_DETAIL_LEVEL,
+	MENU_ITEM_GAME_SPEED,
+	MENU_ITEM_RETURN_TO_GAME,
+	MENU_ITEM_QUIT,
+};
+
+enum
+{
+	INGAME_SETUP_Y = 20,
+	INGAME_SETUP_ROW_HEIGHT = 20,
+	INGAME_SETUP_X = 10,
+	INGAME_SETUP_NAME_WIDTH = 110,
+	INGAME_SETUP_VALUE_WIDTH = 90,
+	INGAME_SETUP_ITEM_HEIGHT = 13,
+};
+
+typedef struct
+{
+	bool activate;
+	bool decrease;
+	bool increase;
+	bool close;
+	bool volumeChanged;
+	int volumeItem;
+	int volumeValue;
+} InGameSetupAction;
+
+static void draw_ingame_setup_menu(size_t selectedIndex, bool *restart)
+{
+	static const size_t helpIndexes[] = { 14, 14, 27, 28, 25, 26 };
+	const int xMenuItemValue = INGAME_SETUP_X + INGAME_SETUP_NAME_WIDTH;
+
+	if (*restart)
+	{
+		JE_barShade(VGAScreen, 3, 13, 217, 137);
+		JE_barShade(VGAScreen, 5, 15, 215, 135);
+		JE_barShade(VGAScreen, 3, 143, 257, 157);
+		JE_barShade(VGAScreen, 5, 145, 255, 155);
+
+		memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
+		mouseCursor = MOUSE_POINTER_NORMAL;
+		*restart = false;
+	}
+
+	memcpy(VGAScreen->pixels, VGAScreen2->pixels, (size_t)VGAScreen->pitch * VGAScreen->h);
+
+	for (size_t i = 0; i < COUNTOF(inGameText); ++i)
+	{
+		const int y = INGAME_SETUP_Y + INGAME_SETUP_ROW_HEIGHT * i;
+		const bool selected = i == selectedIndex;
+		const int brightness = -4 + (selected ? 2 : 0);
+
+		draw_font_hv_shadow(VGAScreen, INGAME_SETUP_X, y, inGameText[i], normal_font, left_aligned, 15, brightness, false, 2);
+
+		switch (i)
+		{
+		case MENU_ITEM_MUSIC_VOLUME:
+			JE_barDrawShadow(VGAScreen, xMenuItemValue, y, 1, music_disabled ? 12 : 16, (tyrMusicVolume + 6) / 12, 3, 13);
+			break;
+		case MENU_ITEM_EFFECTS_VOLUME:
+			JE_barDrawShadow(VGAScreen, xMenuItemValue, y, 1, samples_disabled ? 12 : 16, (fxVolume + 6) / 12, 3, 13);
+			break;
+		case MENU_ITEM_DETAIL_LEVEL:
+			draw_font_hv_shadow(VGAScreen, xMenuItemValue, y, detailLevel[processorType-1], normal_font, left_aligned, 15, brightness, false, 2);
+			break;
+		case MENU_ITEM_GAME_SPEED:
+			draw_font_hv_shadow(VGAScreen, xMenuItemValue, y, gameSpeedText[gameSpeed-1], normal_font, left_aligned, 15, brightness, false, 2);
+			break;
+		}
+	}
+
+	JE_outTextAdjust(VGAScreen, 10, 147, mainMenuHelp[helpIndexes[selectedIndex]], 14, 6, TINY_FONT, true);
+}
+
+static bool wait_for_ingame_setup_input(void)
+{
+	bool mouseMoved;
+
+	service_SDL_events(true);
+	JE_mouseStart();
+	JE_showVGA();
+	JE_mouseReplace();
+
+	do
+	{
+		SDL_Delay(16);
+
+		Uint16 oldMouseX = mouse_x;
+		Uint16 oldMouseY = mouse_y;
+
+		push_joysticks_as_keyboard();
+		service_SDL_events(false);
+		NETWORK_KEEP_ALIVE();
+
+		mouseMoved = mouse_x != oldMouseX || mouse_y != oldMouseY;
+	} while (!(newkey || newmouse || mouseMoved));
+
+	return mouseMoved;
+}
+
+static void read_ingame_setup_mouse(size_t *selectedIndex, size_t menuItemsCount, bool mouseMoved,
+                                    InGameSetupAction *action)
+{
+	const int xMenuItemValue = INGAME_SETUP_X + INGAME_SETUP_NAME_WIDTH;
+	const int wMenuItem = INGAME_SETUP_NAME_WIDTH + INGAME_SETUP_VALUE_WIDTH;
+
+	if (!(newmouse || mouseMoved))
+		return;
+
+	if (mouse_x < INGAME_SETUP_X || mouse_x >= INGAME_SETUP_X + wMenuItem)
+		return;
+
+	for (size_t i = 0; i < menuItemsCount; ++i)
+	{
+		const int yMenuItem = INGAME_SETUP_Y + INGAME_SETUP_ROW_HEIGHT * i;
+		if (mouse_y < yMenuItem || mouse_y >= yMenuItem + INGAME_SETUP_ITEM_HEIGHT)
+			continue;
+
+		if (*selectedIndex != i)
+		{
+			JE_playSampleNum(S_CURSOR);
+			*selectedIndex = i;
+		}
+
+		if (!newmouse || lastmouse_but != SDL_BUTTON_LEFT ||
+		    lastmouse_x < INGAME_SETUP_X || lastmouse_x >= INGAME_SETUP_X + wMenuItem ||
+		    lastmouse_y < yMenuItem || lastmouse_y >= yMenuItem + INGAME_SETUP_ITEM_HEIGHT)
+			break;
+
+		if (lastmouse_x < xMenuItemValue)
+		{
+			action->activate = true;
+		}
+		else if (lastmouse_x < xMenuItemValue + INGAME_SETUP_VALUE_WIDTH)
+		{
+			switch (i)
+			{
+			case MENU_ITEM_MUSIC_VOLUME:
+			case MENU_ITEM_EFFECTS_VOLUME:
+			{
+				const int width = ((255 + 6) / 12) * 4 - 1;
+				action->volumeChanged = true;
+				action->volumeItem = (int)i;
+				action->volumeValue = MIN(MAX(0, (lastmouse_x - xMenuItemValue) * 255 / (width - 1)), 255);
+				break;
+			}
+			case MENU_ITEM_DETAIL_LEVEL:
+			case MENU_ITEM_GAME_SPEED:
+				action->increase = true;
+				break;
+			}
+		}
+		break;
+	}
+}
+
+static void read_ingame_setup_keyboard(size_t *selectedIndex, size_t menuItemsCount,
+                                      InGameSetupAction *action)
+{
+	if (newmouse)
+	{
+		if (lastmouse_but == SDL_BUTTON_RIGHT)
+		{
+			JE_playSampleNum(S_SPRING);
+			action->close = true;
+		}
+		return;
+	}
+
+	if (!newkey)
+		return;
+
+	switch (lastkey_scan)
+	{
+	case SDL_SCANCODE_UP:
+		JE_playSampleNum(S_CURSOR);
+		*selectedIndex = *selectedIndex == 0 ? menuItemsCount - 1 : *selectedIndex - 1;
+		break;
+	case SDL_SCANCODE_DOWN:
+		JE_playSampleNum(S_CURSOR);
+		*selectedIndex = *selectedIndex == menuItemsCount - 1 ? 0 : *selectedIndex + 1;
+		break;
+	case SDL_SCANCODE_LEFT:
+		action->decrease = true;
+		break;
+	case SDL_SCANCODE_RIGHT:
+		action->increase = true;
+		break;
+	case SDL_SCANCODE_SPACE:
+	case SDL_SCANCODE_RETURN:
+		action->activate = true;
+		break;
+	case SDL_SCANCODE_ESCAPE:
+		JE_playSampleNum(S_SPRING);
+		action->close = true;
+		break;
+	case SDL_SCANCODE_W:
+		if (*selectedIndex == MENU_ITEM_DETAIL_LEVEL)
+		{
+			processorType = 6;
+			JE_initProcessorType();
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void adjust_ingame_setup_setting(size_t selectedIndex, int direction)
+{
+	switch (selectedIndex)
+	{
+	case MENU_ITEM_MUSIC_VOLUME:
+		JE_playSampleNum(S_CURSOR);
+		JE_changeVolume(&tyrMusicVolume, direction * 12, &fxVolume, 0);
+		break;
+	case MENU_ITEM_EFFECTS_VOLUME:
+		JE_changeVolume(&tyrMusicVolume, 0, &fxVolume, direction * 12);
+		JE_playSampleNum(S_CURSOR);
+		break;
+	case MENU_ITEM_DETAIL_LEVEL:
+		JE_playSampleNum(S_CURSOR);
+		processorType = direction < 0
+			? (processorType > 1 ? processorType - 1 : 4)
+			: (processorType < 4 ? processorType + 1 : 1);
+		JE_initProcessorType();
+		JE_setNewGameSpeed();
+		break;
+	case MENU_ITEM_GAME_SPEED:
+		JE_playSampleNum(S_CURSOR);
+		gameSpeed = direction < 0
+			? (gameSpeed > 1 ? gameSpeed - 1 : 5)
+			: (gameSpeed < 5 ? gameSpeed + 1 : 1);
+		JE_initProcessorType();
+		JE_setNewGameSpeed();
+		break;
+	}
+}
+
+static void apply_ingame_setup_action(size_t selectedIndex, const InGameSetupAction *action,
+                                      bool *done, bool *result)
+{
+	if (action->volumeChanged && action->volumeItem == MENU_ITEM_MUSIC_VOLUME)
+	{
+		JE_playSampleNum(S_CURSOR);
+		tyrMusicVolume = action->volumeValue;
+		set_volume(tyrMusicVolume, fxVolume);
+	}
+	else if (action->volumeChanged && action->volumeItem == MENU_ITEM_EFFECTS_VOLUME)
+	{
+		fxVolume = action->volumeValue;
+		set_volume(tyrMusicVolume, fxVolume);
+		JE_playSampleNum(S_CURSOR);
+	}
+
+	if (action->activate)
+	{
+		switch (selectedIndex)
+		{
+		case MENU_ITEM_MUSIC_VOLUME:
+			JE_playSampleNum(S_SELECT);
+			music_disabled = !music_disabled;
+			break;
+		case MENU_ITEM_EFFECTS_VOLUME:
+			samples_disabled = !samples_disabled;
+			JE_playSampleNum(S_SELECT);
+			break;
+		case MENU_ITEM_RETURN_TO_GAME:
+			JE_playSampleNum(S_SELECT);
+			*done = true;
+			break;
+		case MENU_ITEM_QUIT:
+			JE_playSampleNum(S_SELECT);
+			if (constantPlay)
+				JE_tyrianHalt(0);
+			if (isNetworkGame)
+			{
+				haltGame = true;
+				playerEndLevel = true;
+			}
+			*result = true;
+			*done = true;
+			break;
+		}
+	}
+	else if (action->decrease)
+	{
+		adjust_ingame_setup_setting(selectedIndex, -1);
+	}
+	else if (action->increase)
+	{
+		adjust_ingame_setup_setting(selectedIndex, 1);
+	}
+
+	if (action->close)
+		*done = true;
+}
+
 JE_boolean JE_inGameSetup(void)
 {
 	bool result = false;
+	bool restart = true;
+	bool done = false;
+	size_t selectedIndex = MENU_ITEM_MUSIC_VOLUME;
+	const size_t menuItemsCount = COUNTOF(inGameText);
 
 	SDL_Surface *temp_surface = VGAScreen;
 	VGAScreen = VGAScreenSeg; /* side-effect of game_screen */
 
-	enum MenuItemIndex
-	{
-		MENU_ITEM_MUSIC_VOLUME = 0,
-		MENU_ITEM_EFFECTS_VOLUME,
-		MENU_ITEM_DETAIL_LEVEL,
-		MENU_ITEM_GAME_SPEED,
-		MENU_ITEM_RETURN_TO_GAME,
-		MENU_ITEM_QUIT,
-	};
-
-	const size_t helpIndexes[] = { 14, 14, 27, 28, 25, 26 };
-
 	if (shopSpriteSheet.data == NULL)
 		JE_loadCompShapes(&shopSpriteSheet, '1');  // need mouse pointer sprites
 
-	bool restart = true;
-
-	const size_t menuItemsCount = COUNTOF(inGameText);
-	size_t selectedIndex = MENU_ITEM_MUSIC_VOLUME;
-
-	const int yMenuItems = 20;
-	const int dyMenuItems = 20;
-	const int xMenuItem = 10;
-	const int xMenuItemName = xMenuItem;
-	const int wMenuItemName = 110;
-	const int xMenuItemValue = xMenuItemName + wMenuItemName;
-	const int wMenuItemValue = 90;
-	const int wMenuItem = wMenuItemName + wMenuItemValue;
-	const int hMenuItem = 13;
-
-	for (bool done = false; !done; )
+	while (!done)
 	{
-		if (restart)
-		{
-			// Main box
-			JE_barShade(VGAScreen, 3, 13, 217, 137);
-			JE_barShade(VGAScreen, 5, 15, 215, 135);
+		draw_ingame_setup_menu(selectedIndex, &restart);
+		bool mouseMoved = wait_for_ingame_setup_input();
 
-			// Help box
-			JE_barShade(VGAScreen, 3, 143, 257, 157);
-			JE_barShade(VGAScreen, 5, 145, 255, 155);
-
-			memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
-
-			mouseCursor = MOUSE_POINTER_NORMAL;
-
-			restart = false;
-		}
-
-		// Restore background.
-		memcpy(VGAScreen->pixels, VGAScreen2->pixels, (size_t)VGAScreen->pitch * VGAScreen->h);
-
-		// Draw menu items.
-		for (size_t i = 0; i < menuItemsCount; ++i)
-		{
-			const int y = yMenuItems + dyMenuItems * i;
-
-			const char *const name = inGameText[i];
-
-			const bool selected = i == selectedIndex;
-
-			draw_font_hv_shadow(VGAScreen, xMenuItemName, y, name, normal_font, left_aligned, 15, -4 + (selected ? 2 : 0), false, 2);
-
-			switch (i)
-			{
-			case MENU_ITEM_MUSIC_VOLUME:
-			{
-				JE_barDrawShadow(VGAScreen, xMenuItemValue, y, 1, music_disabled ? 12 : 16, (tyrMusicVolume + 6) / 12, 3, 13);
-				break;
-			}
-			case MENU_ITEM_EFFECTS_VOLUME:
-			{
-				JE_barDrawShadow(VGAScreen, xMenuItemValue, y, 1, samples_disabled ? 12 : 16, (fxVolume + 6) / 12, 3, 13);
-				break;
-			}
-			case MENU_ITEM_DETAIL_LEVEL:
-			{
-				draw_font_hv_shadow(VGAScreen, xMenuItemValue, y, detailLevel[processorType-1], normal_font, left_aligned, 15, -4 + (selected ? 2 : 0), false, 2);
-				break;
-			}
-			case MENU_ITEM_GAME_SPEED:
-			{
-				draw_font_hv_shadow(VGAScreen, xMenuItemValue, y, gameSpeedText[gameSpeed-1], normal_font, left_aligned, 15, -4 + (selected ? 2 : 0), false, 2);
-				break;
-			}
-			}
-		}
-
-		// Draw help text.
-		JE_outTextAdjust(VGAScreen, 10, 147, mainMenuHelp[helpIndexes[selectedIndex]], 14, 6, TINY_FONT, true);
-
-		service_SDL_events(true);
-
-		JE_mouseStart();
-		JE_showVGA();
-		JE_mouseReplace();
-
-		bool mouseMoved = false;
-		do
-		{
-			SDL_Delay(16);
-
-			Uint16 oldMouseX = mouse_x;
-			Uint16 oldMouseY = mouse_y;
-
-			push_joysticks_as_keyboard();
-			service_SDL_events(false);
-
-			NETWORK_KEEP_ALIVE();
-
-			mouseMoved = mouse_x != oldMouseX || mouse_y != oldMouseY;
-		} while (!(newkey || newmouse || mouseMoved));
-
-		// Handle interaction.
-
-		bool action = false;
-		bool leftAction = false;
-		bool rightAction = false;
-
-		if (mouseMoved || newmouse)
-		{
-			// Find menu item that was hovered or clicked.
-			if (mouse_x >= xMenuItem && mouse_x < xMenuItem + wMenuItem)
-			{
-				for (size_t i = 0; i < menuItemsCount; ++i)
-				{
-					const int yMenuItem = yMenuItems + dyMenuItems * i;
-					if (mouse_y >= yMenuItem && mouse_y < yMenuItem + hMenuItem)
-					{
-						if (selectedIndex != i)
-						{
-							JE_playSampleNum(S_CURSOR);
-
-							selectedIndex = i;
-						}
-
-						if (newmouse && lastmouse_but == SDL_BUTTON_LEFT &&
-						    lastmouse_x >= xMenuItem && lastmouse_x < xMenuItem + wMenuItem &&
-						    lastmouse_y >= yMenuItem && lastmouse_y < yMenuItem + hMenuItem)
-						{
-							// Act on menu item via name.
-							if (lastmouse_x >= xMenuItemName && lastmouse_x < xMenuItemName + wMenuItemName)
-							{
-								action = true;
-							}
-
-							// Act on menu item via value.
-							else if (lastmouse_x >= xMenuItemValue && lastmouse_x < xMenuItemValue + wMenuItemValue)
-							{
-								switch (i)
-								{
-								case MENU_ITEM_MUSIC_VOLUME:
-								{
-									JE_playSampleNum(S_CURSOR);
-
-									const int w = ((255 + 6) / 12) * (3 + 1) - 1;
-
-									int value = (lastmouse_x - xMenuItemValue) * 255 / (w - 1);
-									tyrMusicVolume = MIN(MAX(0, value), 255);
-
-									set_volume(tyrMusicVolume, fxVolume);
-									break;
-								}
-								case MENU_ITEM_EFFECTS_VOLUME:
-								{
-									const int w = ((255 + 6) / 12) * (3 + 1) - 1;
-
-									int value = (lastmouse_x - xMenuItemValue) * 255 / (w - 1);
-									fxVolume = MIN(MAX(0, value), 255);
-
-									set_volume(tyrMusicVolume, fxVolume);
-
-									JE_playSampleNum(S_CURSOR);
-									break;
-								}
-								case MENU_ITEM_DETAIL_LEVEL:
-								case MENU_ITEM_GAME_SPEED:
-								{
-									rightAction = true;
-									break;
-								}
-								default:
-									break;
-								}
-							}
-						}
-
-						break;
-					}
-				}
-			}
-		}
-
-		if (newmouse)
-		{
-			if (lastmouse_but == SDL_BUTTON_RIGHT)
-			{
-				JE_playSampleNum(S_SPRING);
-
-				done = true;
-			}
-		}
-		else if (newkey)
-		{
-			switch (lastkey_scan)
-			{
-			case SDL_SCANCODE_UP:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				selectedIndex = selectedIndex == 0
-					? menuItemsCount - 1
-					: selectedIndex - 1;
-				break;
-			}
-			case SDL_SCANCODE_DOWN:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				selectedIndex = selectedIndex == menuItemsCount - 1
-					? 0
-					: selectedIndex + 1;
-				break;
-			}
-			case SDL_SCANCODE_LEFT:
-			{
-				leftAction = true;
-				break;
-			}
-			case SDL_SCANCODE_RIGHT:
-			{
-				rightAction = true;
-				break;
-			}
-			case SDL_SCANCODE_SPACE:
-			case SDL_SCANCODE_RETURN:
-			{
-				action = true;
-				break;
-			}
-			case SDL_SCANCODE_ESCAPE:
-			{
-				JE_playSampleNum(S_SPRING);
-
-				done = true;
-				break;
-			}
-			case SDL_SCANCODE_W:
-			{
-				if (selectedIndex == MENU_ITEM_DETAIL_LEVEL)
-				{
-					processorType = 6;
-					JE_initProcessorType();
-				}
-				break;
-			}
-			default:
-				break;
-			}
-		}
-
-		if (action)
-		{
-			switch (selectedIndex)
-			{
-			case MENU_ITEM_MUSIC_VOLUME:
-			{
-				JE_playSampleNum(S_SELECT);
-
-				music_disabled = !music_disabled;
-				break;
-			}
-			case MENU_ITEM_EFFECTS_VOLUME:
-			{
-				samples_disabled = !samples_disabled;
-
-				JE_playSampleNum(S_SELECT);
-				break;
-			}
-			case MENU_ITEM_RETURN_TO_GAME:
-			{
-				JE_playSampleNum(S_SELECT);
-
-				done = true;
-				break;
-			}
-			case MENU_ITEM_QUIT:
-			{
-				JE_playSampleNum(S_SELECT);
-
-				if (constantPlay)
-					JE_tyrianHalt(0);
-
-				if (isNetworkGame)
-				{
-					/*Tell other computer to exit*/
-					haltGame = true;
-					playerEndLevel = true;
-				}
-
-				result = true;
-				done = true;
-				break;
-			}
-			default:
-				break;
-			}
-		}
-		else if (leftAction)
-		{
-			switch (selectedIndex)
-			{
-			case MENU_ITEM_MUSIC_VOLUME:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				JE_changeVolume(&tyrMusicVolume, -12, &fxVolume, 0);
-				break;
-			}
-			case MENU_ITEM_EFFECTS_VOLUME:
-			{
-				JE_changeVolume(&tyrMusicVolume, 0, &fxVolume, -12);
-
-				JE_playSampleNum(S_CURSOR);
-				break;
-			}
-			case MENU_ITEM_DETAIL_LEVEL:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				processorType = processorType > 1 ? processorType - 1 : 4;
-				JE_initProcessorType();
-				JE_setNewGameSpeed();
-				break;
-			}
-			case MENU_ITEM_GAME_SPEED:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				gameSpeed = gameSpeed > 1 ? gameSpeed - 1 : 5;
-				JE_initProcessorType();
-				JE_setNewGameSpeed();
-				break;
-			}
-			default:
-				break;
-			}
-		}
-		else if (rightAction)
-		{
-			switch (selectedIndex)
-			{
-			case MENU_ITEM_MUSIC_VOLUME:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				JE_changeVolume(&tyrMusicVolume, 12, &fxVolume, 0);
-				break;
-			}
-			case MENU_ITEM_EFFECTS_VOLUME:
-			{
-				JE_changeVolume(&tyrMusicVolume, 0, &fxVolume, 12);
-
-				JE_playSampleNum(S_CURSOR);
-				break;
-			}
-			case MENU_ITEM_DETAIL_LEVEL:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				processorType = processorType < 4 ? processorType + 1 : 1;
-				JE_initProcessorType();
-				JE_setNewGameSpeed();
-				break;
-			}
-			case MENU_ITEM_GAME_SPEED:
-			{
-				JE_playSampleNum(S_CURSOR);
-
-				gameSpeed = gameSpeed < 5 ? gameSpeed + 1 : 1;
-				JE_initProcessorType();
-				JE_setNewGameSpeed();
-				break;
-			}
-			default:
-				break;
-			}
-		}
+		InGameSetupAction action = { 0 };
+		read_ingame_setup_mouse(&selectedIndex, menuItemsCount, mouseMoved, &action);
+		read_ingame_setup_keyboard(&selectedIndex, menuItemsCount, &action);
+		apply_ingame_setup_action(selectedIndex, &action, &done, &result);
 	}
 
 	VGAScreen = temp_surface; /* side-effect of game_screen */
-
 	return result;
 }
 
