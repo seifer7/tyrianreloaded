@@ -91,16 +91,6 @@ const JE_word PGR[21] /* [1..21] */ =
 };
 const JE_byte PAni[21] /* [1..21] */ = {1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1};
 
-const JE_word linkGunWeapons[38] /* [1..38] */ =
-{
-	0,0,0,0,0,0,0,0,444,445,446,447,0,448,449,0,0,0,0,0,450,451,0,506,0,564,
-	  445,446,447,448,449,445,446,447,448,449,450,451
-};
-const JE_word chargeGunWeapons[38] /* [1..38] */ =
-{
-	0,0,0,0,0,0,0,0,476,458,464,482,0,488,470,0,0,0,0,0,494,500,0,528,0,558,
-	  458,458,458,458,458,458,458,458,458,458,458,458
-};
 const JE_byte randomEnemyLaunchSounds[3] /* [1..3] */ = {13,6,26};
 
 /* YKS: Twiddle cheat sheet:
@@ -962,7 +952,7 @@ void JE_setupExplosionLarge(JE_boolean enemyGround, JE_byte exploNum, JE_integer
 {
 	if (y >= 0)
 	{
-		if (enemyGround)
+		if (!enemyGround)
 		{
 			JE_setupExplosion(x - 6, y - 14, 0,  2, false, false);
 			JE_setupExplosion(x + 6, y - 14, 0,  4, false, false);

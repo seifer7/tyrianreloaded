@@ -49,7 +49,8 @@ void JE_eventJump(JE_word jump);
 
 void JE_whoa(void);
 
-Sint16 JE_newEnemy(int enemyOffset, Uint16 eDatI, Sint16 uniqueShapeTableI);
+Sint16 JE_newEnemyOld(int enemyOffset, Uint16 eDatI, Sint16 uniqueShapeTableI);
+Sint16 JE_newEnemy(int enemyOffset, int eDatI, Sint16 uniqueShapeTableI);
 void JE_drawEnemy(int enemyOffset);
 void JE_starShowVGA(void);
 

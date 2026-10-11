@@ -61,10 +61,14 @@ enum {
 	ITEM_WEAPONFRONT_HOTDOG,
 	ITEM_WEAPONFRONT_NORTSHIPSUPERPULSE,
 	ITEM_WEAPONFRONT_PULSECANNON,
+	ITEM_WEAPONFRONT_MISCELLANEOUS,
 	ITEM_WEAPONREAR_BANANABLAST,
 	ITEM_WEAPONREAR_HOTDOG,
 	ITEM_WEAPONREAR_NORTSHIPSPREADER,
 	ITEM_WEAPONREAR_VULCANCANNON,
+	ITEM_ENEMY_ARMORSHIP,
+	ITEM_ENEMY_FRONTPOWERUP,
+	ITEM_ENEMY_REARPOWERUP,
 	ITEM_STORE_MAX,
 };
 
@@ -114,6 +118,7 @@ struct JE_SingleEnemyType
 	JE_byte     freq[3]; /* [1..3] */
 	JE_byte     launchwait;
 	JE_word     launchtype;
+	JE_word     launchtypepos;
 	JE_byte     launchfreq;
 	JE_byte     xaccel;
 	JE_byte     yaccel;
@@ -242,8 +247,6 @@ extern const JE_byte specialArcadeWeapon[PORT_NUM];
 extern const JE_byte optionSelect[16][3][2];
 extern const JE_word PGR[21];
 extern const JE_byte PAni[21];
-extern const JE_word linkGunWeapons[38];
-extern const JE_word chargeGunWeapons[38];
 extern const JE_byte randomEnemyLaunchSounds[3];
 extern const JE_byte keyboardCombos[26][8];
 extern const JE_byte shipCombosB[21];

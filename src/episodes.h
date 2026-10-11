@@ -39,7 +39,7 @@ typedef struct
 	JE_word     weapani;
 	JE_byte     max;
 	JE_byte     tx, ty, aim;
-	JE_byte     attack[8], del[8]; /* [1..8] */
+	JE_byte     attack[8], del[8], iceticks[8], infinite[8]; /* [1..8] */
 	char        chainIds[8][11];
 	int         chain[8];
 	JE_shortint sx[8], sy[8]; /* [1..8] */
@@ -61,7 +61,7 @@ typedef struct
 	JE_word     weapani;
 	JE_byte     max;
 	JE_byte     tx, ty, aim;
-	JE_byte     attack[8], del[8], chain[8]; /* [1..8] */
+	JE_byte     attack[8], del[8], chain[8], iceticks[8], infinite[8]; /* [1..8] */
 	JE_shortint sx[8], sy[8]; /* [1..8] */
 	JE_shortint bx[8], by[8]; /* [1..8] */
 	JE_word     sg[8]; /* [1..8] */
@@ -87,6 +87,10 @@ typedef struct
 	JE_byte bigshipgraphfrnty;
 	JE_byte bigshipgraphrearx;
 	JE_byte bigshipgraphreary;
+	char    linkgunweaponId[11];
+	int     linkgunweapon;
+	char    chargegunweaponIds[5][11];
+	int     chargegunweapons[5];
 	JE_byte probability;
 	size_t  count;
 } JE_WeaponPortType;
@@ -264,7 +268,47 @@ typedef struct
 	JE_word     elaunchtype;
 	JE_integer  value;
 	JE_word     eenemydie;
-} JE_EnemyDatType[ENEMY_NUM + 1]; /* [0..enemynum] */
+} JE_EnemyDatTypeOld[ENEMY_NUM + 1]; /* [0..enemynum] */
+
+/* EnemyData */
+typedef struct
+{
+	char        id[11]; /* string [10] */
+	JE_byte     ani;
+	JE_byte     tur[3]; /* [1..3] */
+	JE_byte     freq[3]; /* [1..3] */
+	JE_shortint xmove;
+	JE_shortint ymove;
+	JE_shortint xaccel;
+	JE_shortint yaccel;
+	JE_shortint xcaccel;
+	JE_shortint ycaccel;
+	JE_integer  startx;
+	JE_integer  starty;
+	JE_shortint startxc;
+	JE_shortint startyc;
+	JE_byte     armor;
+	JE_byte     esize;
+	JE_word     egraphic[20];  /* [1..20] */
+	JE_byte     explosiontype;
+	JE_byte     animate;       /* 0:Not Yet   1:Always   2:When Firing Only */
+	JE_byte     shapebank;     /* See LEVELMAK.DOC */
+	JE_shortint xrev, yrev;
+	JE_word     dgr;
+	JE_shortint dlevel;
+	JE_shortint dani;
+	JE_byte     elaunchfreq;
+	char        elaunchtypeId[31];
+	int         elaunchtype;
+	JE_word     elaunchtypepos;
+	JE_byte     elaunchspecial;
+	JE_integer  value;
+	char        eenemydieId[11];
+	int         eenemydie;
+	JE_byte     eshotwait[3];
+	JE_boolean  enemyground;
+	size_t      count;
+} JE_EnemyDatType;
 
 JE_WeaponPortTypeOld oldWeaponPort[PORT_NUM + 1];
 JE_PowerTypeOld oldPowerSys[POWER_NUM + 1];
@@ -281,7 +325,8 @@ extern JE_ShipType* ships;
 extern JE_OptionType* options;
 extern JE_ShieldType *shields;
 extern JE_SpecialType *special;
-extern JE_EnemyDatType enemyDat;
+extern JE_EnemyDatType* enemyDat;
+extern JE_EnemyDatTypeOld oldEnemyDat;
 extern JE_byte initial_episode_num, episodeNum;
 extern JE_boolean episodeAvail[EPISODE_MAX];
 
@@ -301,7 +346,8 @@ enum ITEM_TYPE {
 	ItemType_SidekickLeft = 6,
 	ItemType_SidekickRight = 7,
 	ItemType_Special = 8,
-	ItemType_Count = 9,
+	ItemType_Enemy = 9,
+	ItemType_Count = 10,
 };
 
 extern bool value_in_array_je_byte(int val, JE_byte* arr, size_t n);

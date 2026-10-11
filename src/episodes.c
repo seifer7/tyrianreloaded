@@ -50,7 +50,8 @@ JE_ShieldTypeOld  oldShields[SHIELD_NUM + 1];
 JE_SpecialTypeOld oldSpecial[SPECIAL_NUM + 1];
 
 /* Enemy data */
-JE_EnemyDatType enemyDat;
+JE_EnemyDatTypeOld oldEnemyDat;
+JE_EnemyDatType *enemyDat;
 
 /* EPISODE variables */
 JE_byte    initial_episode_num, episodeNum = 0;
@@ -244,11 +245,15 @@ bool get_item_index(const enum ITEM_TYPE* item_type, const char* id, int* output
 			if (i == -1) i = special[0].count-1;
 			if (strcmp(special[i].id, id) == 0) index = i;
 			break;
+		case ItemType_Enemy:
+			if (i == -1) i = enemyDat[0].count-1;
+			if (strcmp(enemyDat[i].id, id) == 0) index = i;
+			break;
 		default:
 			end = true;
 			break;
 		}
-		if (end == true || index != -1 || i == 0) break;
+		if (end == true || index != -1 || i == 0 || i == -1) break;
 		i--;
 	}
 	if (index != -1) {
@@ -305,6 +310,9 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 		break;
 	case ItemType_Shot:
 		item_i = weapons[0].count++;
+		break;
+	case ItemType_Enemy:
+		item_i = enemyDat[0].count++;
 		break;
 	case ItemType_Count:
 		break;
@@ -466,6 +474,15 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 				}
 				else if (strcmp(key, "bigshipgraphreary") == 0) {
 					weaponPort[item_i].bigshipgraphreary = atoi(value);
+				}
+				else if (strcmp(key, "linkgunweapon") == 0) {
+					memcpy(weaponPort[item_i].linkgunweaponId, value, sizeof(weaponPort[item_i].linkgunweaponId) - 1);
+				}
+				else if (strcmp(key, "chargegunweapons") == 0) {
+					char tempC[11];
+					int j = 0;
+					while (str_pop_str(value, tempC) && j < COUNTOF(weaponPort[item_i].chargegunweaponIds))
+						memcpy(weaponPort[item_i].chargegunweaponIds[j++], tempC, sizeof(weaponPort[item_i].chargegunweaponIds[j++]) - 1);
 				}
 				else if (strcmp(key, "probability") == 0) {
 					weaponPort[item_i].probability = atoi(value);
@@ -666,6 +683,16 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 						j++;
 					}
 				}
+				else if (strcmp(key, "iceticks") == 0) {
+					int j = 0, temp;
+					while (str_pop_int(value, &temp) && j < COUNTOF(weapons[item_i].iceticks))
+						weapons[item_i].iceticks[j++] = temp;
+				}
+				else if (strcmp(key, "infinite") == 0) {
+					int j = 0, temp;
+					while (str_pop_int(value, &temp) && j < COUNTOF(weapons[item_i].infinite))
+						weapons[item_i].infinite[j++] = temp;
+				}
 				else if (strcmp(key, "del") == 0) {
 					int j = 0, temp;
 					while (str_pop_int(value, &temp) && j < COUNTOF(weapons[item_i].del))
@@ -715,6 +742,118 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 					weapons[item_i].shipblastfilter = atoi(value);
 				}
 				break;
+			case ItemType_Enemy:
+				if (strcmp(key, "id") == 0) {
+					memcpy(enemyDat[item_i].id, value, sizeof(enemyDat[item_i].id) - 1);
+				}
+				else if (strcmp(key, "ani") == 0) {
+					enemyDat[item_i].ani = atoi(value);
+				}
+				else if (strcmp(key, "tur") == 0) {
+					int j = 0, temp;
+					while (str_pop_int(value, &temp) && j < COUNTOF(enemyDat[item_i].tur))
+						enemyDat[item_i].tur[j++] = temp;
+				}
+				else if (strcmp(key, "freq") == 0) {
+					int j = 0, temp;
+					while (str_pop_int(value, &temp) && j < COUNTOF(enemyDat[item_i].freq))
+						enemyDat[item_i].freq[j++] = temp;
+				}
+				else if (strcmp(key, "xmove") == 0) {
+					enemyDat[item_i].xmove = atoi(value);
+				}
+				else if (strcmp(key, "ymove") == 0) {
+					enemyDat[item_i].ymove = atoi(value);
+				}
+				else if (strcmp(key, "xaccel") == 0) {
+					enemyDat[item_i].xaccel = atoi(value);
+				}
+				else if (strcmp(key, "yaccel") == 0) {
+					enemyDat[item_i].yaccel = atoi(value);
+				}
+				else if (strcmp(key, "xcaccel") == 0) {
+					enemyDat[item_i].xcaccel = atoi(value);
+				}
+				else if (strcmp(key, "ycaccel") == 0) {
+					enemyDat[item_i].ycaccel = atoi(value);
+				}
+				else if (strcmp(key, "startx") == 0) {
+					enemyDat[item_i].startx = atoi(value);
+				}
+				else if (strcmp(key, "starty") == 0) {
+					enemyDat[item_i].starty = atoi(value);
+				}
+				else if (strcmp(key, "startxc") == 0) {
+					enemyDat[item_i].startxc = atoi(value);
+				}
+				else if (strcmp(key, "startyc") == 0) {
+					enemyDat[item_i].startyc = atoi(value);
+				}
+				else if (strcmp(key, "armor") == 0) {
+					enemyDat[item_i].armor = atoi(value);
+				}
+				else if (strcmp(key, "esize") == 0) {
+					enemyDat[item_i].esize = atoi(value);
+				}
+				else if (strcmp(key, "egraphic") == 0) {
+					int j = 0, temp;
+					while (str_pop_int(value, &temp) && j < COUNTOF(enemyDat[item_i].egraphic))
+						enemyDat[item_i].egraphic[j++] = temp;
+				}
+				else if (strcmp(key, "esize") == 0) {
+					enemyDat[item_i].esize = atoi(value);
+				}
+				else if (strcmp(key, "explosiontype") == 0) {
+					enemyDat[item_i].explosiontype = atoi(value);
+				}
+				else if (strcmp(key, "animate") == 0) {
+					enemyDat[item_i].animate = atoi(value);
+				}
+				else if (strcmp(key, "shapebank") == 0) {
+					enemyDat[item_i].shapebank = atoi(value);
+				}
+				else if (strcmp(key, "xrev") == 0) {
+					enemyDat[item_i].xrev = atoi(value);
+				}
+				else if (strcmp(key, "yrev") == 0) {
+					enemyDat[item_i].yrev = atoi(value);
+				}
+				else if (strcmp(key, "dgr") == 0) {
+					enemyDat[item_i].dgr = atoi(value);
+				}
+				else if (strcmp(key, "dlevel") == 0) {
+					enemyDat[item_i].dlevel = atoi(value);
+				}
+				else if (strcmp(key, "dani") == 0) {
+					enemyDat[item_i].dani = atoi(value);
+				}
+				else if (strcmp(key, "elaunchfreq") == 0) {
+					enemyDat[item_i].elaunchfreq = atoi(value);
+				}
+				else if (strcmp(key, "elaunchtype") == 0) {
+					memcpy(enemyDat[item_i].elaunchtypeId, value, sizeof(enemyDat[item_i].elaunchtypeId) - 1);
+				}
+				else if (strcmp(key, "elaunchtypepos") == 0) {
+					enemyDat[item_i].elaunchtypepos = atoi(value);
+				}
+				else if (strcmp(key, "elaunchspecial") == 0) {
+					enemyDat[item_i].elaunchspecial = atoi(value);
+				}
+				else if (strcmp(key, "value") == 0) {
+					enemyDat[item_i].value = atoi(value);
+				}
+				else if (strcmp(key, "eenemydie") == 0) {
+					memcpy(enemyDat[item_i].eenemydieId, value, sizeof(enemyDat[item_i].eenemydieId) - 1);
+				}
+				else if (strcmp(key, "eshotwait") == 0) {
+					int j = 0, temp;
+					while (str_pop_int(value, &temp) && j < COUNTOF(enemyDat[item_i].eshotwait))
+						enemyDat[item_i].eshotwait[j++] = temp;
+				}
+				else if (strcmp(key, "enemyground") == 0) {
+					enemyDat[item_i].enemyground = atoi(value) == 1;
+				}
+				break;
 			case ItemType_Count:
 				break;
 		}
@@ -762,6 +901,10 @@ void load_items(void) {
 				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/items/special"));
 				strcpy(itemFileExt, "tyrspc");
 				break;
+			case ItemType_Enemy:
+				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/enemy"));
+				strcpy(itemFileExt, "tyremy");
+				break;
 			default:
 				continue;
 			break;
@@ -781,23 +924,23 @@ void load_items(void) {
 
 		switch (item_type) {
 		case ItemType_Shot:
-			weapons = calloc(numItems, sizeof(*weapons));
+			weapons = calloc(max(numItems, 1), sizeof(*weapons));
 			//weapons[0].count = numItems;
 			break;
 		case ItemType_Ship:
-			ships = calloc(numItems, sizeof(*ships));
+			ships = calloc(max(numItems, 1), sizeof(*ships));
 			//ships[0].count = numItems;
 			break;
 		case ItemType_WeaponFront:
-			weaponPort = calloc(numItems, sizeof(*weaponPort));
+			weaponPort = calloc(max(numItems, 1), sizeof(*weaponPort));
 			//weaponPort[0].count = numItems;
 			break;
 		case ItemType_Generator:
-			powerSys = calloc(numItems, sizeof(*powerSys));
+			powerSys = calloc(max(numItems, 1), sizeof(*powerSys));
 			//powerSys[0].count = numItems;
 			break;
 		case ItemType_Shield:
-			shields = calloc(numItems, sizeof(*shields));
+			shields = calloc(max(numItems, 1), sizeof(*shields));
 			//shields[0].count = numItems;
 			break;
 		case ItemType_SidekickLeft:
@@ -805,8 +948,12 @@ void load_items(void) {
 			//options[0].count = numItems;
 			break;
 		case ItemType_Special:
-			special = calloc(numItems, sizeof(*special));
+			special = calloc(max(numItems, 1), sizeof(*special));
 			//special[0].count = numItems;
+			break;
+		case ItemType_Enemy:
+			enemyDat = calloc(max(numItems, 1), sizeof(*enemyDat));
+			//enemyDat[0].count = numItems;
 			break;
 		default:
 			continue;
@@ -840,10 +987,32 @@ void load_items(void) {
 		}
 	}
 
+	tempItemType = ItemType_Shot;
+	for (int i = 0; i < weaponPort[0].count; i++) {
+		if (strcmp(weaponPort[i].linkgunweaponId, "0") != 0)
+			get_item_index(&tempItemType, weaponPort[i].linkgunweaponId, &weaponPort[i].linkgunweapon);
+
+		int chargegunweaponslen = COUNTOF(weaponPort->chargegunweapons);
+		for (int j = 0; j < chargegunweaponslen; j++) {
+			if (strcmp(weaponPort[i].chargegunweaponIds[j], "0") == 0) continue;
+			get_item_index(&tempItemType, weaponPort[i].chargegunweaponIds[j], &weaponPort[i].chargegunweapons[j]);
+		}
+	}
+
 	tempItemType = ItemType_WeaponFront;
 	for (int i = 0; i < options[0].count; i++) {
 		if (strcmp(options[i].wportId, "0") != 0) {
 			get_item_index(&tempItemType, options[i].wportId, &options[i].wport);
+		}
+	}
+
+	tempItemType = ItemType_Enemy;
+	for (int i = 0; i < enemyDat[0].count; i++) {
+		if (strcmp(enemyDat[i].eenemydieId, "0") != 0) {
+			get_item_index(&tempItemType, enemyDat[i].eenemydieId, &enemyDat[i].eenemydie);
+		}
+		if (strcmp(enemyDat[i].elaunchtypeId, "0") != 0) {
+			get_item_index(&tempItemType, enemyDat[i].elaunchtypeId, &enemyDat[i].elaunchtype);
 		}
 	}
 
@@ -872,11 +1041,16 @@ void load_items(void) {
 	ITEM_INDEX_STORE[ITEM_WEAPONFRONT_HOTDOG] = item_idx(&tempItemType, "25");
 	ITEM_INDEX_STORE[ITEM_WEAPONFRONT_NORTSHIPSUPERPULSE] = item_idx(&tempItemType, "36");
 	ITEM_INDEX_STORE[ITEM_WEAPONFRONT_PULSECANNON] = item_idx(&tempItemType, "1");
+	ITEM_INDEX_STORE[ITEM_WEAPONFRONT_MISCELLANEOUS] = item_idx(&tempItemType, "16");
 	tempItemType = ItemType_WeaponRear;
 	ITEM_INDEX_STORE[ITEM_WEAPONREAR_BANANABLAST] = item_idx(&tempItemType, "24");
 	ITEM_INDEX_STORE[ITEM_WEAPONREAR_HOTDOG] = item_idx(&tempItemType, "26");
 	ITEM_INDEX_STORE[ITEM_WEAPONREAR_NORTSHIPSPREADER] = item_idx(&tempItemType, "37");
 	ITEM_INDEX_STORE[ITEM_WEAPONREAR_VULCANCANNON] = item_idx(&tempItemType, "15");
+	tempItemType = ItemType_Enemy;
+	ITEM_INDEX_STORE[ITEM_ENEMY_ARMORSHIP] = item_idx(&tempItemType, "560");
+	ITEM_INDEX_STORE[ITEM_ENEMY_FRONTPOWERUP] = item_idx(&tempItemType, "533");
+	ITEM_INDEX_STORE[ITEM_ENEMY_REARPOWERUP] = item_idx(&tempItemType, "534");
 }
 
 void JE_loadItemDat(void)
@@ -945,6 +1119,14 @@ void JE_loadItemDat(void)
 					chainval = val - 100;
 					val = 1;
 				}
+				else if (val == 99) {
+					val = 0;
+					oldWeapons[i].iceticks[ii] = 40;
+				}
+				else if (val >= 250) {
+					val = val - 250;
+					oldWeapons[i].infinite[ii] = 1;
+				}
 				if (ii > 0) fputs(" ", outF);
 				fprintf(outF, "%d", val);
 				oldWeapons[i].chain[ii] = chainval;
@@ -954,6 +1136,18 @@ void JE_loadItemDat(void)
 			for (int ii = 0; ii < COUNTOF(oldWeapons[i].chain); ii++) {
 				if (ii > 0) fputs(" ", outF);
 				fprintf(outF, "%d", oldWeapons[i].chain[ii]);
+			}
+			fputs("\n", outF);
+			fputs("iceticks=", outF);
+			for (int ii = 0; ii < COUNTOF(oldWeapons[i].iceticks); ii++) {
+				if (ii > 0) fputs(" ", outF);
+				fprintf(outF, "%d", oldWeapons[i].iceticks[ii]);
+			}
+			fputs("\n", outF);
+			fputs("infinite=", outF);
+			for (int ii = 0; ii < COUNTOF(oldWeapons[i].infinite); ii++) {
+				if (ii > 0) fputs(" ", outF);
+				fprintf(outF, "%d", oldWeapons[i].infinite[ii]);
 			}
 			fputs("\n", outF);
 			fputs("del=", outF);
@@ -1086,6 +1280,18 @@ void JE_loadItemDat(void)
 			0, 1, 0, 0, 0, // 40
 			0, 0 // 42
 		};
+		// The ID of the weapon to use when fired as a two-player linked gun. These values were originally hardcoded in varz.c
+		JE_word linkGunWeapons[38] /* [1..38] */ =
+		{
+			0,0,0,0,0,0,0,0,444,445,446,447,0,448,449,0,0,0,0,0,450,451,0,506,0,564,
+			  445,446,447,448,449,445,446,447,448,449,450,451
+		};
+		// The ID of the weapon to use when fired as a charged shot on player 2. These values were originally hardcoded in varz.c
+		const JE_word chargeGunWeapons[38] /* [1..38] */ =
+		{
+			0,0,0,0,0,0,0,0,476,458,464,482,0,488,470,0,0,0,0,0,494,500,0,528,0,558,
+			  458,458,458,458,458,458,458,458,458,458,458,458
+		};
 
 		char filename[60];
 		snprintf(filename, sizeof(filename), "data\\items\\weapon\\%d.tyrwep", i);
@@ -1115,6 +1321,18 @@ void JE_loadItemDat(void)
 			fprintf(outF, "bigshipgraphfrnty=%d\n", bigshipgraphfrontxy[i][1]);
 			fprintf(outF, "bigshipgraphrearx=%d\n", bigshipgraphrearxy[i][0]);
 			fprintf(outF, "bigshipgraphreary=%d\n", bigshipgraphrearxy[i][1]);
+			fprintf(outF, "linkgunweapon=%d\n", (i > 0 && i <= COUNTOF(linkGunWeapons) ? linkGunWeapons[i-1] : 0));
+			fputs("chargegunweapons=", outF);
+			for (int ii = 0; ii <= COUNTOF(weaponPort[0].chargegunweapons); ii++) {
+				if (ii > 0) fputs(" ", outF);
+				if (i > 0 && i <= COUNTOF(chargeGunWeapons) && chargeGunWeapons[i-1] > 0) {
+					fprintf(outF, "%d", chargeGunWeapons[i-1] + ii);
+				}
+				else {
+					fputs("0", outF);
+				}
+			}
+			fputs("\n", outF);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
 			fclose(outF);
 		}
@@ -1403,34 +1621,34 @@ void JE_loadItemDat(void)
 	
 	for (int i = 0; i < ENEMY_NUM + 1; ++i)
 	{
-		fread_u8_die( &enemyDat[i].ani,           1, f);
-		fread_u8_die(  enemyDat[i].tur,           3, f);
-		fread_u8_die(  enemyDat[i].freq,          3, f);
-		fread_s8_die( &enemyDat[i].xmove,         1, f);
-		fread_s8_die( &enemyDat[i].ymove,         1, f);
-		fread_s8_die( &enemyDat[i].xaccel,        1, f);
-		fread_s8_die( &enemyDat[i].yaccel,        1, f);
-		fread_s8_die( &enemyDat[i].xcaccel,       1, f);
-		fread_s8_die( &enemyDat[i].ycaccel,       1, f);
-		fread_s16_die(&enemyDat[i].startx,        1, f);
-		fread_s16_die(&enemyDat[i].starty,        1, f);
-		fread_s8_die( &enemyDat[i].startxc,       1, f);
-		fread_s8_die( &enemyDat[i].startyc,       1, f);
-		fread_u8_die( &enemyDat[i].armor,         1, f);
-		fread_u8_die( &enemyDat[i].esize,         1, f);
-		fread_u16_die( enemyDat[i].egraphic,     20, f);
-		fread_u8_die( &enemyDat[i].explosiontype, 1, f);
-		fread_u8_die( &enemyDat[i].animate,       1, f);
-		fread_u8_die( &enemyDat[i].shapebank,     1, f);
-		fread_s8_die( &enemyDat[i].xrev,          1, f);
-		fread_s8_die( &enemyDat[i].yrev,          1, f);
-		fread_u16_die(&enemyDat[i].dgr,           1, f);
-		fread_s8_die( &enemyDat[i].dlevel,        1, f);
-		fread_s8_die( &enemyDat[i].dani,          1, f);
-		fread_u8_die( &enemyDat[i].elaunchfreq,   1, f);
-		fread_u16_die(&enemyDat[i].elaunchtype,   1, f);
-		fread_s16_die(&enemyDat[i].value,         1, f);
-		fread_u16_die(&enemyDat[i].eenemydie,     1, f);
+		fread_u8_die( &oldEnemyDat[i].ani,           1, f);
+		fread_u8_die(  oldEnemyDat[i].tur,           3, f);
+		fread_u8_die(  oldEnemyDat[i].freq,          3, f);
+		fread_s8_die( &oldEnemyDat[i].xmove,         1, f);
+		fread_s8_die( &oldEnemyDat[i].ymove,         1, f);
+		fread_s8_die( &oldEnemyDat[i].xaccel,        1, f);
+		fread_s8_die( &oldEnemyDat[i].yaccel,        1, f);
+		fread_s8_die( &oldEnemyDat[i].xcaccel,       1, f);
+		fread_s8_die( &oldEnemyDat[i].ycaccel,       1, f);
+		fread_s16_die(&oldEnemyDat[i].startx,        1, f);
+		fread_s16_die(&oldEnemyDat[i].starty,        1, f);
+		fread_s8_die( &oldEnemyDat[i].startxc,       1, f);
+		fread_s8_die( &oldEnemyDat[i].startyc,       1, f);
+		fread_u8_die( &oldEnemyDat[i].armor,         1, f);
+		fread_u8_die( &oldEnemyDat[i].esize,         1, f);
+		fread_u16_die( oldEnemyDat[i].egraphic,     20, f);
+		fread_u8_die( &oldEnemyDat[i].explosiontype, 1, f);
+		fread_u8_die( &oldEnemyDat[i].animate,       1, f);
+		fread_u8_die( &oldEnemyDat[i].shapebank,     1, f);
+		fread_s8_die( &oldEnemyDat[i].xrev,          1, f);
+		fread_s8_die( &oldEnemyDat[i].yrev,          1, f);
+		fread_u16_die(&oldEnemyDat[i].dgr,           1, f);
+		fread_s8_die( &oldEnemyDat[i].dlevel,        1, f);
+		fread_s8_die( &oldEnemyDat[i].dani,          1, f);
+		fread_u8_die( &oldEnemyDat[i].elaunchfreq,   1, f);
+		fread_u16_die(&oldEnemyDat[i].elaunchtype,   1, f);
+		fread_s16_die(&oldEnemyDat[i].value,         1, f);
+		fread_u16_die(&oldEnemyDat[i].eenemydie,     1, f);
 
 		#ifdef DO_DECYRPT
 		char filename[60];
@@ -1438,49 +1656,71 @@ void JE_loadItemDat(void)
 		if (!dir_file_exists(get_user_directory(), filename)) {
 			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
 			fprintf(outF, "id=%d\n", i);
-			fprintf(outF, "ani=%d\n", enemyDat[i].ani);
+			fprintf(outF, "ani=%d\n", oldEnemyDat[i].ani);
 			fputs("tur=", outF);
-			for (int ii = 0; ii < COUNTOF(enemyDat[i].tur); ii++) {
+			for (int ii = 0; ii < COUNTOF(oldEnemyDat[i].tur); ii++) {
 				if (ii > 0) fputs(" ", outF);
-				fprintf(outF, "%d", enemyDat[i].tur[ii]);
+				fprintf(outF, "%d", oldEnemyDat[i].tur[ii]);
 			}
 			fputs("\n", outF);
 			fputs("freq=", outF);
-			for (int ii = 0; ii < COUNTOF(enemyDat[i].freq); ii++) {
+			for (int ii = 0; ii < COUNTOF(oldEnemyDat[i].freq); ii++) {
 				if (ii > 0) fputs(" ", outF);
-				fprintf(outF, "%d", enemyDat[i].freq[ii]);
+				fprintf(outF, "%d", oldEnemyDat[i].freq[ii]);
 			}
 			fputs("\n", outF);
-			fprintf(outF, "xmove=%d\n", enemyDat[i].xmove);
-			fprintf(outF, "ymove=%d\n", enemyDat[i].ymove);
-			fprintf(outF, "xaccel=%d\n", enemyDat[i].xaccel);
-			fprintf(outF, "yaccel=%d\n", enemyDat[i].yaccel);
-			fprintf(outF, "xcaccel=%d\n", enemyDat[i].xcaccel);
-			fprintf(outF, "ycaccel=%d\n", enemyDat[i].ycaccel);
-			fprintf(outF, "startx=%d\n", enemyDat[i].startx);
-			fprintf(outF, "starty=%d\n", enemyDat[i].starty);
-			fprintf(outF, "startxc=%d\n", enemyDat[i].startxc);
-			fprintf(outF, "startyc=%d\n", enemyDat[i].startyc);
-			fprintf(outF, "armor=%d\n", enemyDat[i].armor);
-			fprintf(outF, "esize=%d\n", enemyDat[i].esize);
+			fprintf(outF, "xmove=%d\n", oldEnemyDat[i].xmove);
+			fprintf(outF, "ymove=%d\n", oldEnemyDat[i].ymove);
+			fprintf(outF, "xaccel=%d\n", oldEnemyDat[i].xaccel);
+			fprintf(outF, "yaccel=%d\n", oldEnemyDat[i].yaccel);
+			fprintf(outF, "xcaccel=%d\n", oldEnemyDat[i].xcaccel);
+			fprintf(outF, "ycaccel=%d\n", oldEnemyDat[i].ycaccel);
+			fprintf(outF, "startx=%d\n", oldEnemyDat[i].startx);
+			fprintf(outF, "starty=%d\n", oldEnemyDat[i].starty);
+			fprintf(outF, "startxc=%d\n", oldEnemyDat[i].startxc);
+			fprintf(outF, "startyc=%d\n", oldEnemyDat[i].startyc);
+			fprintf(outF, "armor=%d\n", oldEnemyDat[i].armor);
+			fprintf(outF, "esize=%d\n", oldEnemyDat[i].esize);
 			fputs("egraphic=", outF);
-			for (int ii = 0; ii < COUNTOF(enemyDat[i].egraphic); ii++) {
+			for (int ii = 0; ii < COUNTOF(oldEnemyDat[i].egraphic); ii++) {
 				if (ii > 0) fputs(" ", outF);
-				fprintf(outF, "%d", enemyDat[i].egraphic[ii]);
+				fprintf(outF, "%d", oldEnemyDat[i].egraphic[ii]);
 			}
 			fputs("\n", outF);
-			fprintf(outF, "explosiontype=%d\n", enemyDat[i].explosiontype);
-			fprintf(outF, "animate=%d\n", enemyDat[i].animate);
-			fprintf(outF, "shapebank=%d\n", enemyDat[i].shapebank);
-			fprintf(outF, "xrev=%d\n", enemyDat[i].xrev);
-			fprintf(outF, "yrev=%d\n", enemyDat[i].yrev);
-			fprintf(outF, "dgr=%d\n", enemyDat[i].dgr);
-			fprintf(outF, "dlevel=%d\n", enemyDat[i].dlevel);
-			fprintf(outF, "dani=%d\n", enemyDat[i].dani);
-			fprintf(outF, "elaunchfreq=%d\n", enemyDat[i].elaunchfreq);
-			fprintf(outF, "elaunchtype=%d\n", enemyDat[i].elaunchtype);
-			fprintf(outF, "value=%d\n", enemyDat[i].value);
-			fprintf(outF, "eenemydie=%d\n", enemyDat[i].eenemydie);
+			fprintf(outF, "explosiontype=%d\n", (oldEnemyDat[i].explosiontype >> 1));
+			fprintf(outF, "animate=%d\n", oldEnemyDat[i].animate);
+			fprintf(outF, "shapebank=%d\n", oldEnemyDat[i].shapebank);
+			fprintf(outF, "xrev=%d\n", oldEnemyDat[i].xrev);
+			fprintf(outF, "yrev=%d\n", oldEnemyDat[i].yrev);
+			fprintf(outF, "dgr=%d\n", oldEnemyDat[i].dgr);
+			fprintf(outF, "dlevel=%d\n", oldEnemyDat[i].dlevel);
+			fprintf(outF, "dani=%d\n", oldEnemyDat[i].dani);
+			fprintf(outF, "elaunchfreq=%d\n", oldEnemyDat[i].elaunchfreq);
+			tempW = oldEnemyDat[i].elaunchtype % 1000;
+			temp = oldEnemyDat[i].elaunchtype / 1000;
+			fprintf(outF, "elaunchtype=%d\n", tempW);
+			fprintf(outF, "elaunchtypepos=%d\n", tempW);
+			fprintf(outF, "elaunchspecial=%d\n", temp);
+			fprintf(outF, "value=%d\n", oldEnemyDat[i].value);
+			fprintf(outF, "eenemydie=%d\n", oldEnemyDat[i].eenemydie);
+
+			fputs("eshotwait=", outF);
+			for (int ii = 0; ii < COUNTOF(oldEnemyDat[i].tur); ii++) {
+				if (ii > 0) fputs(" ", outF);
+
+				if (oldEnemyDat[i].tur[ii] == 252)
+					temp = 1;
+				else if (oldEnemyDat[i].tur[ii] > 0)
+					temp = 20;
+				else
+					temp = 255;
+
+				fprintf(outF, "%d", temp);
+			}
+			fputs("\n", outF);
+
+			fprintf(outF, "enemyground=%d\n", (oldEnemyDat[i].explosiontype & 1) != 0);
+
 			fclose(outF);
 		}
 		#endif

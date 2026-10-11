@@ -27,7 +27,7 @@ typedef struct {
 	JE_byte shotTrail;
 	JE_word shotGr, shotAni, shotAniMax, chainReaction;
 	Uint8 shotDmg;
-	JE_byte shotBlastFilter, playerNumber, aimAtEnemy, aimDelay, aimDelayMax;
+	JE_byte shotBlastFilter, playerNumber, aimAtEnemy, aimDelay, aimDelayMax, iceticks, infinite;
 } PlayerShotDataType;
 
 #define MAX_PWEAPON     81 /* 81*/
