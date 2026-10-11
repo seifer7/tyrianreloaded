@@ -172,448 +172,439 @@ inline static void blit_enemy(SDL_Surface *surface, unsigned int i, signed int x
 		blit_sprite2(surface, x, y, *enemy[i].sprite2s, index);
 }
 
-void JE_drawEnemy(int enemyOffset) // actually does a whole lot more than just drawing
+static void update_enemy_acceleration(int i)
+{
+	if (enemy[i].xaccel && enemy[i].xaccel - 89u > mt_rand() % 11)
+	{
+		if (player[0].x > enemy[i].ex)
+		{
+			if (enemy[i].exc < enemy[i].xaccel - 89)
+				enemy[i].exc++;
+		}
+		else if (enemy[i].exc >= 0 || -enemy[i].exc < enemy[i].xaccel - 89)
+		{
+			enemy[i].exc--;
+		}
+	}
+
+	if (enemy[i].yaccel && enemy[i].yaccel - 89u > mt_rand() % 11)
+	{
+		if (player[0].y > enemy[i].ey)
+		{
+			if (enemy[i].eyc < enemy[i].yaccel - 89)
+				enemy[i].eyc++;
+		}
+		else if (enemy[i].eyc >= 0 || -enemy[i].eyc < enemy[i].yaccel - 89)
+		{
+			enemy[i].eyc--;
+		}
+	}
+}
+
+static bool animate_and_draw_enemy(int i)
+{
+	if (enemy[i].ex + tempMapXOfs <= -29 || enemy[i].ex + tempMapXOfs >= 300)
+		return true;
+
+	if (enemy[i].aniactive == 1)
+	{
+		enemy[i].enemycycle++;
+
+		if (enemy[i].enemycycle == enemy[i].animax)
+			enemy[i].aniactive = enemy[i].aniwhenfire;
+		else if (enemy[i].enemycycle > enemy[i].ani)
+			enemy[i].enemycycle = enemy[i].animin;
+	}
+
+	if (enemy[i].egr[enemy[i].enemycycle - 1] == 999)
+		return false;
+
+	if (enemy[i].size == 1)
+	{
+		if (enemy[i].ey > -13)
+		{
+			blit_enemy(VGAScreen, i, -6, -7, 0);
+			blit_enemy(VGAScreen, i, 6, -7, 1);
+		}
+		if (enemy[i].ey > -26 && enemy[i].ey < 182)
+		{
+			blit_enemy(VGAScreen, i, -6, 7, 19);
+			blit_enemy(VGAScreen, i, 6, 7, 20);
+		}
+	}
+	else if (enemy[i].ey > -13)
+	{
+		blit_enemy(VGAScreen, i, 0, 0, 0);
+	}
+
+	enemy[i].filter = 0;
+	return true;
+}
+
+static void update_enemy_oscillation(JE_shortint *change, JE_shortint *wait, JE_shortint *velocity,
+                                     JE_shortint *reverse, JE_integer *increment, JE_shortint wait_max)
+{
+	if (*change && --*wait <= 0)
+	{
+		if (*velocity == *reverse)
+		{
+			*change = -*change;
+			*reverse = -*reverse;
+			*increment = -*increment;
+		}
+		else
+		{
+			*velocity += *increment;
+			*wait = wait_max;
+			if (*velocity == *reverse)
+			{
+				*change = -*change;
+				*reverse = -*reverse;
+				*increment = -*increment;
+			}
+		}
+	}
+}
+
+static bool update_enemy_position(int i)
+{
+	update_enemy_oscillation(&enemy[i].excc, &enemy[i].exccw, &enemy[i].exc,
+	                         &enemy[i].exrev, &enemy[i].exccadd, enemy[i].exccwmax);
+	update_enemy_oscillation(&enemy[i].eycc, &enemy[i].eyccw, &enemy[i].eyc,
+	                         &enemy[i].eyrev, &enemy[i].eyccadd, enemy[i].eyccwmax);
+
+	enemy[i].ey += enemy[i].fixedmovey;
+	enemy[i].ex += enemy[i].exc;
+	if (enemy[i].ex < -80 || enemy[i].ex > 340)
+	{
+		enemyAvail[i] = 1;
+		return false;
+	}
+
+	enemy[i].ey += enemy[i].eyc;
+	if (enemy[i].ey < -112 || enemy[i].ey > 190)
+	{
+		enemyAvail[i] = 1;
+		return false;
+	}
+
+	if (enemy[i].ex <= enemy[i].xminbounce || enemy[i].ex >= enemy[i].xmaxbounce)
+		enemy[i].exc = -enemy[i].exc;
+	if (enemy[i].ey <= enemy[i].yminbounce || enemy[i].ey >= enemy[i].ymaxbounce)
+		enemy[i].eyc = -enemy[i].eyc;
+
+	if (enemy[i].scoreitem)
+	{
+		if (enemy[i].ex < -5)
+			enemy[i].ex++;
+		if (enemy[i].ex > 245)
+			enemy[i].ex--;
+	}
+
+	enemy[i].ey += tempBackMove;
+	if (enemy[i].ex <= -24 || enemy[i].ex >= 296)
+		return false;
+
+	tempX = enemy[i].ex;
+	tempY = enemy[i].ey;
+	temp = enemy[i].enemytype;
+	return true;
+}
+
+static void calculate_enemy_aim_velocity(int target_x, int target_y, int enemy_x, int enemy_y,
+                                         int speed, JE_integer *x_velocity, JE_integer *y_velocity)
+{
+	int relative_x = (target_x + 25) - enemy_x - tempMapXOfs - 4;
+	int relative_y = target_y - enemy_y;
+	if (relative_x == 0)
+		relative_x = 1;
+	if (relative_y == 0)
+		relative_y = 1;
+
+	const int longest_side = MAX(abs(relative_x), abs(relative_y));
+	*x_velocity = roundf((float)relative_x / longest_side * speed);
+	*y_velocity = roundf((float)relative_y / longest_side * speed);
+}
+
+static void aim_enemy_shot(int shot, int weapon_type, int enemy_x, int enemy_y)
+{
+	int aim = weapons[weapon_type].aim;
+	if (difficultyLevel > DIFFICULTY_NORMAL)
+		aim += difficultyLevel - 2;
+
+	JE_word target_x = player[0].x;
+	JE_word target_y = player[0].y;
+	if (twoPlayerMode)
+	{
+		if (player[0].is_alive && !player[1].is_alive)
+			temp = 0;
+		else if (player[1].is_alive && !player[0].is_alive)
+			temp = 1;
+		else
+			temp = mt_rand() % 2;
+
+		if (temp == 1)
+		{
+			target_x = player[1].x - 25;
+			target_y = player[1].y;
+		}
+	}
+
+	calculate_enemy_aim_velocity(target_x, target_y, enemy_x, enemy_y, aim,
+	                             &enemyShot[shot].sxm, &enemyShot[shot].sym);
+}
+
+static bool create_enemy_shot(int i, int turret, int weapon_type)
+{
+	for (b = 0; b < ENEMY_SHOT_MAX; ++b)
+	{
+		if (enemyShotAvail[b] == 1)
+			break;
+	}
+	if (b == ENEMY_SHOT_MAX)
+		return false;
+
+	enemyShotAvail[b] = !enemyShotAvail[b];
+
+	if (weapons[weapon_type].sound > 0)
+	{
+		do
+		{
+			temp = mt_rand() % 8;
+		} while (temp == 3);
+		soundQueue[temp] = weapons[weapon_type].sound;
+	}
+
+	if (enemy[i].aniactive == 2)
+		enemy[i].aniactive = 1;
+
+	if (++enemy[i].eshotmultipos[turret - 1] > weapons[weapon_type].max)
+		enemy[i].eshotmultipos[turret - 1] = 1;
+
+	const int position = enemy[i].eshotmultipos[turret - 1] - 1;
+	if (turret == 1)
+		temp2 = 4;
+
+	enemyShot[b].sx = tempX + weapons[weapon_type].bx[position] + tempMapXOfs;
+	enemyShot[b].sy = tempY + weapons[weapon_type].by[position];
+	enemyShot[b].sdmg = weapons[weapon_type].attack[position];
+	enemyShot[b].tx = weapons[weapon_type].tx;
+	enemyShot[b].ty = weapons[weapon_type].ty;
+	enemyShot[b].duration = weapons[weapon_type].del[position];
+	enemyShot[b].animate = 0;
+	enemyShot[b].animax = weapons[weapon_type].weapani;
+	enemyShot[b].sgr = weapons[weapon_type].sg[position];
+
+	switch (turret)
+	{
+	case 1:
+		enemyShot[b].syc = weapons[weapon_type].acceleration;
+		enemyShot[b].sxc = weapons[weapon_type].accelerationx;
+		enemyShot[b].sxm = weapons[weapon_type].sx[position];
+		enemyShot[b].sym = weapons[weapon_type].sy[position];
+		break;
+	case 3:
+		enemyShot[b].sxc = -weapons[weapon_type].acceleration;
+		enemyShot[b].syc = weapons[weapon_type].accelerationx;
+		enemyShot[b].sxm = -weapons[weapon_type].sy[position];
+		enemyShot[b].sym = -weapons[weapon_type].sx[position];
+		break;
+	case 2:
+		enemyShot[b].sxc = weapons[weapon_type].acceleration;
+		enemyShot[b].syc = -weapons[weapon_type].acceleration;
+		enemyShot[b].sxm = weapons[weapon_type].sy[position];
+		enemyShot[b].sym = -weapons[weapon_type].sx[position];
+		break;
+	}
+
+	if (weapons[weapon_type].aim > 0)
+		aim_enemy_shot(b, weapon_type, tempX, tempY);
+
+	return true;
+}
+
+static bool apply_enemy_weapon_special(int i, int turret, int weapon_type)
+{
+	switch (weapon_type)
+	{
+	case 252:
+		if (enemy[i].ey > 20)
+		{
+			JE_setupExplosion(tempX - 8 + tempMapXOfs, tempY - 20 - backMove * 8, -2, 6, false, false);
+			JE_setupExplosion(tempX + 4 + tempMapXOfs, tempY - 20 - backMove * 8, -2, 6, false, false);
+		}
+		return true;
+	case 251:
+	{
+		const int attractivity = 4 - (abs(player[0].x - tempX) + abs(player[0].y - tempY)) / 100;
+		player[0].x_velocity += (player[0].x > tempX) ? -attractivity : attractivity;
+		return true;
+	}
+	case 253:
+	case 254:
+	{
+		const int push = weapon_type == 253 ? 2 : -2;
+		if (abs(player[0].x + 25 - 14 - tempX) < 24 && abs(player[0].y - tempY) < 28)
+			player[0].x_velocity += push;
+		if (twoPlayerMode &&
+		    abs(player[1].x - 14 - tempX) < 24 && abs(player[1].y - tempY) < 28)
+			player[1].x_velocity += push;
+		return true;
+	}
+	case 255:
+		if (difficultyLevel != DIFFICULTY_EASY)
+		{
+			if (turret == 3)
+			{
+				enemy[i].filter = 0x70;
+			}
+			else
+			{
+				const int repulsivity = 4 - (abs(player[0].x - tempX) + abs(player[0].y - tempY)) / 20;
+				if (repulsivity > 0)
+					player[0].x_velocity += (player[0].x > tempX) ? repulsivity : -repulsivity;
+			}
+		}
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool fire_enemy_shots(int i)
+{
+	for (int turret = 3; turret > 0; --turret)
+	{
+		if (!enemy[i].freq[turret - 1])
+			continue;
+
+		temp3 = enemy[i].tur[turret - 1];
+		if (--enemy[i].eshotwait[turret - 1] != 0 || !temp3)
+			continue;
+
+		enemy[i].eshotwait[turret - 1] = enemy[i].freq[turret - 1];
+		if (difficultyLevel > DIFFICULTY_NORMAL)
+		{
+			enemy[i].eshotwait[turret - 1] = enemy[i].eshotwait[turret - 1] / 2 + 1;
+			if (difficultyLevel > DIFFICULTY_MANIACAL)
+				enemy[i].eshotwait[turret - 1] = enemy[i].eshotwait[turret - 1] / 2 + 1;
+		}
+
+		if (galagaMode && (enemy[i].eyc == 0 || (mt_rand() % 400) >= galagaShotFreq))
+			return false;
+
+		if (apply_enemy_weapon_special(i, turret, temp3))
+			continue;
+
+		for (int count = weapons[temp3].multi; count > 0; --count)
+		{
+			if (!create_enemy_shot(i, turret, temp3))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+static bool process_enemy_attacks(int i)
+{
+	if (enemy[i].edamaged == 1)
+		return false;
+
+	enemyOnScreen++;
+	if (enemy[i].iced)
+	{
+		enemy[i].iced--;
+		if (enemy[i].enemyground != 0)
+			enemy[i].filter = 0x09;
+		return false;
+	}
+
+	return fire_enemy_shots(i);
+}
+
+static void launch_enemy_from_parent(int enemy_index, int enemyOffset)
+{
+	if (!enemy[enemy_index].launchfreq)
+		return;
+
+	if (--enemy[enemy_index].launchwait != 0)
+		return;
+
+	enemy[enemy_index].launchwait = enemy[enemy_index].launchfreq;
+
+	if (enemy[enemy_index].launchspecial != 0 &&
+	    abs(enemy[enemy_index].ey - player[0].y) > 5)
+		return;
+
+	if (enemy[enemy_index].aniactive == 2)
+		enemy[enemy_index].aniactive = 1;
+
+	if (enemy[enemy_index].launchtype == 0)
+		return;
+
+	tempW = enemy[enemy_index].launchtype;
+	b = JE_newEnemy(enemyOffset == 50 ? 75 : enemyOffset - 25, tempW, 0);
+	if (b <= 0)
+		return;
+
+	struct JE_SingleEnemyType *launched = &enemy[b - 1];
+	launched->ex = tempX;
+	launched->ey = tempY + enemyDat[launched->enemytype].startyc;
+	if (launched->size == 0)
+		launched->ey -= 7;
+
+	if (launched->launchtype > 0 && launched->launchfreq == 0)
+	{
+		if (launched->launchtype > 90)
+		{
+			launched->ex += mt_rand() % ((launched->launchtype - 90) * 4) -
+			               (launched->launchtype - 90) * 2;
+		}
+		else
+		{
+			JE_integer x_velocity, y_velocity;
+			calculate_enemy_aim_velocity(player[0].x, player[0].y, tempX, tempY,
+			                             launched->launchtype, &x_velocity, &y_velocity);
+			launched->exc = x_velocity;
+			launched->eyc = y_velocity;
+		}
+	}
+
+	do
+	{
+		temp = mt_rand() % 8;
+	} while (temp == 3);
+	soundQueue[temp] = randomEnemyLaunchSounds[mt_rand() % 3];
+
+	if (enemy[enemy_index].launchspecial == 1 &&
+	    enemy[enemy_index].linknum < 100)
+	{
+		launched->linknum = enemy[enemy_index].linknum;
+	}
+}
+
+void JE_drawEnemy(int enemyOffset)
 {
 	player[0].x -= 25;
 
 	for (int i = enemyOffset - 25; i < enemyOffset; i++)
 	{
-		if (enemyAvail[i] != 1)
+		if (enemyAvail[i] == 1)
+			continue;
+
+		enemy[i].mapoffset = tempMapXOfs;
+		update_enemy_acceleration(i);
+		if (!animate_and_draw_enemy(i))
 		{
-			enemy[i].mapoffset = tempMapXOfs;
-
-			if (enemy[i].xaccel && enemy[i].xaccel - 89u > mt_rand() % 11)
-			{
-				if (player[0].x > enemy[i].ex)
-				{
-					if (enemy[i].exc < enemy[i].xaccel - 89)
-						enemy[i].exc++;
-				}
-				else
-				{
-					if (enemy[i].exc >= 0 || -enemy[i].exc < enemy[i].xaccel - 89)
-						enemy[i].exc--;
-				}
-			}
-
-			if (enemy[i].yaccel && enemy[i].yaccel - 89u > mt_rand() % 11)
-			{
-				if (player[0].y > enemy[i].ey)
-				{
-					if (enemy[i].eyc < enemy[i].yaccel - 89)
-						enemy[i].eyc++;
-				}
-				else
-				{
-					if (enemy[i].eyc >= 0 || -enemy[i].eyc < enemy[i].yaccel - 89)
-						enemy[i].eyc--;
-				}
-			}
-
- 			if (enemy[i].ex + tempMapXOfs > -29 && enemy[i].ex + tempMapXOfs < 300)
-			{
-				if (enemy[i].aniactive == 1)
-				{
-					enemy[i].enemycycle++;
-
-					if (enemy[i].enemycycle == enemy[i].animax)
-						enemy[i].aniactive = enemy[i].aniwhenfire;
-					else if (enemy[i].enemycycle > enemy[i].ani)
-						enemy[i].enemycycle = enemy[i].animin;
-				}
-
-				if (enemy[i].egr[enemy[i].enemycycle - 1] == 999)
-					goto enemy_gone;
-
-				if (enemy[i].size == 1) // 2x2 enemy
-				{
-					if (enemy[i].ey > -13)
-					{
-						blit_enemy(VGAScreen, i, -6, -7, 0);
-						blit_enemy(VGAScreen, i,  6, -7, 1);
-					}
-					if (enemy[i].ey > -26 && enemy[i].ey < 182)
-					{
-						blit_enemy(VGAScreen, i, -6,  7, 19);
-						blit_enemy(VGAScreen, i,  6,  7, 20);
-					}
-				}
-				else
-				{
-					if (enemy[i].ey > -13)
-						blit_enemy(VGAScreen, i, 0, 0, 0);
-				}
-
-				enemy[i].filter = 0;
-			}
-
-			if (enemy[i].excc)
-			{
-				if (--enemy[i].exccw <= 0)
-				{
-					if (enemy[i].exc == enemy[i].exrev)
-					{
-						enemy[i].excc = -enemy[i].excc;
-						enemy[i].exrev = -enemy[i].exrev;
-						enemy[i].exccadd = -enemy[i].exccadd;
-					}
-					else
-					{
-						enemy[i].exc += enemy[i].exccadd;
-						enemy[i].exccw = enemy[i].exccwmax;
-						if (enemy[i].exc == enemy[i].exrev)
-						{
-							enemy[i].excc = -enemy[i].excc;
-							enemy[i].exrev = -enemy[i].exrev;
-							enemy[i].exccadd = -enemy[i].exccadd;
-						}
-					}
-				}
-			}
-
-			if (enemy[i].eycc)
-			{
-				if (--enemy[i].eyccw <= 0)
-				{
-					if (enemy[i].eyc == enemy[i].eyrev)
-					{
-						enemy[i].eycc = -enemy[i].eycc;
-						enemy[i].eyrev = -enemy[i].eyrev;
-						enemy[i].eyccadd = -enemy[i].eyccadd;
-					}
-					else
-					{
-						enemy[i].eyc += enemy[i].eyccadd;
-						enemy[i].eyccw = enemy[i].eyccwmax;
-						if (enemy[i].eyc == enemy[i].eyrev)
-						{
-							enemy[i].eycc = -enemy[i].eycc;
-							enemy[i].eyrev = -enemy[i].eyrev;
-							enemy[i].eyccadd = -enemy[i].eyccadd;
-						}
-					}
-				}
-			}
-
-			enemy[i].ey += enemy[i].fixedmovey;
-
-			enemy[i].ex += enemy[i].exc;
-			if (enemy[i].ex < -80 || enemy[i].ex > 340)
-				goto enemy_gone;
-
-			enemy[i].ey += enemy[i].eyc;
-			if (enemy[i].ey < -112 || enemy[i].ey > 190)
-				goto enemy_gone;
-
-			goto enemy_still_exists;
-
-enemy_gone:
-			/* enemy[i].egr[10] &= 0x00ff; <MXD> madness? */
 			enemyAvail[i] = 1;
-			goto draw_enemy_end;
-
-enemy_still_exists:
-
-			/*X bounce*/
-			if (enemy[i].ex <= enemy[i].xminbounce || enemy[i].ex >= enemy[i].xmaxbounce)
-				enemy[i].exc = -enemy[i].exc;
-
-			/*Y bounce*/
-			if (enemy[i].ey <= enemy[i].yminbounce || enemy[i].ey >= enemy[i].ymaxbounce)
-				enemy[i].eyc = -enemy[i].eyc;
-
-			/* Evalue != 0 - score item at boundary */
-			if (enemy[i].scoreitem)
-			{
-				if (enemy[i].ex < -5)
-					enemy[i].ex++;
-				if (enemy[i].ex > 245)
-					enemy[i].ex--;
-			}
-
-			enemy[i].ey += tempBackMove;
-
-			if (enemy[i].ex <= -24 || enemy[i].ex >= 296)
-				goto draw_enemy_end;
-
-			tempX = enemy[i].ex;
-			tempY = enemy[i].ey;
-
-			temp = enemy[i].enemytype;
-
-			/* Enemy Shots */
-			if (enemy[i].edamaged == 1)
-				goto draw_enemy_end;
-
-			enemyOnScreen++;
-
-			if (enemy[i].iced)
-			{
-				enemy[i].iced--;
-				if (enemy[i].enemyground != 0)
-				{
-					enemy[i].filter = 0x09;
-				}
-				goto draw_enemy_end;
-			}
-
-			for (int j = 3; j > 0; j--)
-			{
-				if (enemy[i].freq[j-1])
-				{
-					temp3 = enemy[i].tur[j-1];
-
-					if (--enemy[i].eshotwait[j-1] == 0 && temp3)
-					{
-						enemy[i].eshotwait[j-1] = enemy[i].freq[j-1];
-						if (difficultyLevel > DIFFICULTY_NORMAL)
-						{
-							enemy[i].eshotwait[j-1] = (enemy[i].eshotwait[j-1] / 2) + 1;
-							if (difficultyLevel > DIFFICULTY_MANIACAL)
-								enemy[i].eshotwait[j-1] = (enemy[i].eshotwait[j-1] / 2) + 1;
-						}
-
-						if (galagaMode && (enemy[i].eyc == 0 || (mt_rand() % 400) >= galagaShotFreq))
-							goto draw_enemy_end;
-
-						switch (temp3)
-						{
-						case 252: /* Savara Boss DualMissile */
-							if (enemy[i].ey > 20)
-							{
-								JE_setupExplosion(tempX - 8 + tempMapXOfs, tempY - 20 - backMove * 8, -2, 6, false, false);
-								JE_setupExplosion(tempX + 4 + tempMapXOfs, tempY - 20 - backMove * 8, -2, 6, false, false);
-							}
-							break;
-						case 251:; /* Suck-O-Magnet */
-							const int attractivity = 4 - (abs(player[0].x - tempX) + abs(player[0].y - tempY)) / 100;
-							player[0].x_velocity += (player[0].x > tempX) ? -attractivity : attractivity;
-							break;
-						case 253: /* Left ShortRange Magnet */
-							if (abs(player[0].x + 25 - 14 - tempX) < 24 && abs(player[0].y - tempY) < 28)
-							{
-								player[0].x_velocity += 2;
-							}
-							if (twoPlayerMode &&
-							   (abs(player[1].x - 14 - tempX) < 24 && abs(player[1].y - tempY) < 28))
-							{
-								player[1].x_velocity += 2;
-							}
-							break;
-						case 254: /* Left ShortRange Magnet */
-							if (abs(player[0].x + 25 - 14 - tempX) < 24 && abs(player[0].y - tempY) < 28)
-							{
-								player[0].x_velocity -= 2;
-							}
-							if (twoPlayerMode &&
-							   (abs(player[1].x - 14 - tempX) < 24 && abs(player[1].y - tempY) < 28))
-							{
-								player[1].x_velocity -= 2;
-							}
-							break;
-						case 255: /* Magneto RePulse!! */
-							if (difficultyLevel != DIFFICULTY_EASY) /*DIF*/
-							{
-								if (j == 3)
-								{
-									enemy[i].filter = 0x70;
-								}
-								else
-								{
-									const int repulsivity = 4 - (abs(player[0].x - tempX) + abs(player[0].y - tempY)) / 20;
-									if (repulsivity > 0)
-										player[0].x_velocity += (player[0].x > tempX) ? repulsivity : -repulsivity;
-								}
-							}
-							break;
-						default:
-						/*Rot*/
-							for (int tempCount = weapons[temp3].multi; tempCount > 0; tempCount--)
-							{
-								for (b = 0; b < ENEMY_SHOT_MAX; b++)
-								{
-									if (enemyShotAvail[b] == 1)
-										break;
-								}
-								if (b == ENEMY_SHOT_MAX)
-									goto draw_enemy_end;
-
-								enemyShotAvail[b] = !enemyShotAvail[b];
-
-								if (weapons[temp3].sound > 0)
-								{
-									do
-									{
-										temp = mt_rand() % 8;
-									} while (temp == 3);
-									soundQueue[temp] = weapons[temp3].sound;
-								}
-
-								if (enemy[i].aniactive == 2)
-									enemy[i].aniactive = 1;
-
-								if (++enemy[i].eshotmultipos[j-1] > weapons[temp3].max)
-									enemy[i].eshotmultipos[j-1] = 1;
-
-								int tempPos = enemy[i].eshotmultipos[j-1] - 1;
-
-								if (j == 1)
-									temp2 = 4;
-
-								enemyShot[b].sx = tempX + weapons[temp3].bx[tempPos] + tempMapXOfs;
-								enemyShot[b].sy = tempY + weapons[temp3].by[tempPos];
-								enemyShot[b].sdmg = weapons[temp3].attack[tempPos];
-								enemyShot[b].tx = weapons[temp3].tx;
-								enemyShot[b].ty = weapons[temp3].ty;
-								enemyShot[b].duration = weapons[temp3].del[tempPos];
-								enemyShot[b].animate = 0;
-								enemyShot[b].animax = weapons[temp3].weapani;
-
-								enemyShot[b].sgr = weapons[temp3].sg[tempPos];
-								switch (j)
-								{
-								case 1:
-									enemyShot[b].syc = weapons[temp3].acceleration;
-									enemyShot[b].sxc = weapons[temp3].accelerationx;
-
-									enemyShot[b].sxm = weapons[temp3].sx[tempPos];
-									enemyShot[b].sym = weapons[temp3].sy[tempPos];
-									break;
-								case 3:
-									enemyShot[b].sxc = -weapons[temp3].acceleration;
-									enemyShot[b].syc = weapons[temp3].accelerationx;
-
-									enemyShot[b].sxm = -weapons[temp3].sy[tempPos];
-									enemyShot[b].sym = -weapons[temp3].sx[tempPos];
-									break;
-								case 2:
-									enemyShot[b].sxc = weapons[temp3].acceleration;
-									enemyShot[b].syc = -weapons[temp3].acceleration;
-
-									enemyShot[b].sxm = weapons[temp3].sy[tempPos];
-									enemyShot[b].sym = -weapons[temp3].sx[tempPos];
-									break;
-								}
-
-								if (weapons[temp3].aim > 0)
-								{
-									int aim = weapons[temp3].aim;
-
-									/*DIF*/
-									if (difficultyLevel > DIFFICULTY_NORMAL)
-									{
-										aim += difficultyLevel - 2;
-									}
-
-									JE_word target_x = player[0].x;
-									JE_word target_y = player[0].y;
-
-									if (twoPlayerMode)
-									{
-										// fire at live player(s)
-										if (player[0].is_alive && !player[1].is_alive)
-											temp = 0;
-										else if (player[1].is_alive && !player[0].is_alive)
-											temp = 1;
-										else
-											temp = mt_rand() % 2;
-
-										if (temp == 1)
-										{
-											target_x = player[1].x - 25;
-											target_y = player[1].y;
-										}
-									}
-
-									int relative_x = (target_x + 25) - tempX - tempMapXOfs - 4;
-									if (relative_x == 0)
-										relative_x = 1;
-									int relative_y = target_y - tempY;
-									if (relative_y == 0)
-										relative_y = 1;
-									const int longest_side = MAX(abs(relative_x), abs(relative_y));
-									enemyShot[b].sxm = roundf((float)relative_x / longest_side * aim);
-									enemyShot[b].sym = roundf((float)relative_y / longest_side * aim);
-								}
-							}
-							break;
-						}
-					}
-				}
-			}
-
-			/* Enemy Launch Routine */
-			if (enemy[i].launchfreq)
-			{
-				if (--enemy[i].launchwait == 0)
-				{
-					enemy[i].launchwait = enemy[i].launchfreq;
-
-					if (enemy[i].launchspecial != 0)
-					{
-						/*Type  1 : Must be inline with player*/
-						if (abs(enemy[i].ey - player[0].y) > 5)
-							goto draw_enemy_end;
-					}
-
-					if (enemy[i].aniactive == 2)
-					{
-						enemy[i].aniactive = 1;
-					}
-
-					if (enemy[i].launchtype == 0)
-						goto draw_enemy_end;
-
-					tempW = enemy[i].launchtype;
-					b = JE_newEnemy(enemyOffset == 50 ? 75 : enemyOffset - 25, tempW, 0);
-
-					/*Launch Enemy Placement*/
-					if (b > 0)
-					{
-						struct JE_SingleEnemyType* e = &enemy[b-1];
-
-						e->ex = tempX;
-						e->ey = tempY + enemyDat[e->enemytype].startyc;
-						if (e->size == 0)
-							e->ey -= 7;
-
-						if (e->launchtype > 0 && e->launchfreq == 0)
-						{
-							if (e->launchtype > 90)
-							{
-								e->ex += mt_rand() % ((e->launchtype - 90) * 4) - (e->launchtype - 90) * 2;
-							}
-							else
-							{
-								int target_x = (player[0].x + 25) - tempX - tempMapXOfs - 4;
-								if (target_x == 0)
-									target_x = 1;
-								int tempI5 = player[0].y - tempY;
-								if (tempI5 == 0)
-									tempI5 = 1;
-								const int longest_side = MAX(abs(target_x), abs(tempI5));
-								e->exc = roundf(((float)target_x / longest_side) * e->launchtype);
-								e->eyc = roundf(((float)tempI5 / longest_side) * e->launchtype);
-							}
-						}
-
-						do
-						{
-							temp = mt_rand() % 8;
-						} while (temp == 3);
-						soundQueue[temp] = randomEnemyLaunchSounds[(mt_rand() % 3)];
-
-						if (enemy[i].launchspecial == 1 &&
-						    enemy[i].linknum < 100)
-						{
-							e->linknum = enemy[i].linknum;
-						}
-					}
-				}
-			}
+			continue;
 		}
-draw_enemy_end:
-		;
+
+		if (!update_enemy_position(i) || !process_enemy_attacks(i))
+			continue;
+
+		launch_enemy_from_parent(i, enemyOffset);
 	}
 
 	player[0].x += 25;
