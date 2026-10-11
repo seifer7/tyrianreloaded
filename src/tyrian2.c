@@ -4300,6 +4300,36 @@ bool JE_searchFor/*enemy*/(JE_byte PLType, JE_byte* out_index)
 	}
 }
 
+static void resolve_event_enemy_link(void)
+{
+	if (eventRec[eventLoc-1].eventdat3 > 79 && eventRec[eventLoc-1].eventdat3 < 90)
+		eventRec[eventLoc-1].eventdat4 = newPL[eventRec[eventLoc-1].eventdat3 - 80];
+}
+
+static void create_event_enemy_at_y(JE_byte enemyTypeOfs, JE_word enemyOffset, int y, bool addEventData5)
+{
+	JE_createNewEventEnemy(enemyTypeOfs, enemyOffset, 0);
+	if (b > 0)
+		enemy[b-1].ey = y + (addEventData5 ? eventRec[eventLoc-1].eventdat5 : 0);
+}
+
+static void apply_event_random_special_drop(void)
+{
+	const Uint8 lives = *player[0].lives;
+
+	if (eventRec[eventLoc-1].eventdat == 533 && (lives == 11 || (mt_rand() % 15) < lives))
+		eventRec[eventLoc-1].eventdat = 829 + (mt_rand() % 6);
+}
+
+static void set_event_enemy_death(void)
+{
+	for (temp = 0; temp < 100; temp++)
+	{
+		if (enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
+			enemy[temp].enemydie = eventRec[eventLoc-1].eventdat;
+	}
+}
+
 static void handle_environment_event(void)
 {
 	switch (eventRec[eventLoc-1].eventtype)
@@ -4476,15 +4506,11 @@ static void handle_environment_event(void)
 		break;
 
 	case 17: /* Ground Bottom */
-		JE_createNewEventEnemy(0, 25, 0);
-		if (b > 0)
-			enemy[b-1].ey = 190 + eventRec[eventLoc-1].eventdat5;
+		create_event_enemy_at_y(0, 25, 190, true);
 		break;
 
 	case 18: /* Sky Enemy on Bottom */
-		JE_createNewEventEnemy(0, 0, 0);
-		if (b > 0)
-			enemy[b-1].ey = 190 + eventRec[eventLoc-1].eventdat5;
+		create_event_enemy_at_y(0, 0, 190, true);
 		break;
 
 	default:
@@ -4565,8 +4591,7 @@ static void handle_enemy_event(void)
 	}
 
 	case 20: /* Enemy Global Accel */
-		if (eventRec[eventLoc-1].eventdat3 > 79 && eventRec[eventLoc-1].eventdat3 < 90)
-			eventRec[eventLoc-1].eventdat4 = newPL[eventRec[eventLoc-1].eventdat3 - 80];
+		resolve_event_enemy_link();
 
 		for (temp = 0; temp < 100; temp++)
 		{
@@ -4619,9 +4644,7 @@ static void handle_enemy_event(void)
 		break;
 
 	case 23: /* Sky Enemy on Bottom */
-		JE_createNewEventEnemy(0, 50, 0);
-		if (b > 0)
-			enemy[b-1].ey = 180 + eventRec[eventLoc-1].eventdat5;
+		create_event_enemy_at_y(0, 50, 180, true);
 		break;
 
 	case 24: /* Enemy Global Animate */
@@ -4676,8 +4699,7 @@ static void handle_enemy_event(void)
 		break;
 
 	case 27: /* Enemy Global AccelRev */
-		if (eventRec[eventLoc-1].eventdat3 > 79 && eventRec[eventLoc-1].eventdat3 < 90)
-			eventRec[eventLoc-1].eventdat4 = newPL[eventRec[eventLoc-1].eventdat3 - 80];
+		resolve_event_enemy_link();
 
 		for (temp = 0; temp < 100; temp++)
 		{
@@ -4735,9 +4757,7 @@ static void handle_enemy_event(void)
 		break;
 
 	case 32:  // create enemy
-		JE_createNewEventEnemy(0, 50, 0);
-		if (b > 0)
-			enemy[b-1].ey = 190;
+		create_event_enemy_at_y(0, 50, 190, false);
 		break;
 
 	case 33: /* Enemy From other Enemies */
@@ -4750,22 +4770,13 @@ static void handle_enemy_event(void)
 			}
 			else if (!superTyrian)
 			{
-				const Uint8 lives = *player[0].lives;
-
-				if (eventRec[eventLoc-1].eventdat == 533 && (lives == 11 || (mt_rand() % 15) < lives))
-				{
-					// enemy will drop random special weapon
-					eventRec[eventLoc-1].eventdat = 829 + (mt_rand() % 6);
-				}
+				// enemy will drop random special weapon
+				apply_event_random_special_drop();
 			}
 			if (eventRec[eventLoc-1].eventdat == 534 && superTyrian)
 				eventRec[eventLoc-1].eventdat = 828 + superTyrianSpecials[mt_rand() % 4];
 
-			for (temp = 0; temp < 100; temp++)
-			{
-				if (enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
-					enemy[temp].enemydie = eventRec[eventLoc-1].eventdat;
-			}
+			set_event_enemy_death();
 		}
 		break;
 
@@ -4860,20 +4871,9 @@ static void handle_level_event(void)
 	case 45: /* arcade-only enemy from other enemies */
 		if (!superTyrian)
 		{
-			const Uint8 lives = *player[0].lives;
-
-			if (eventRec[eventLoc-1].eventdat == 533 && (lives == 11 || (mt_rand() % 15) < lives))
-			{
-				eventRec[eventLoc-1].eventdat = 829 + (mt_rand() % 6);
-			}
+			apply_event_random_special_drop();
 			if (twoPlayerMode || onePlayerAction)
-			{
-				for (temp = 0; temp < 100; temp++)
-				{
-					if (enemy[temp].linknum == eventRec[eventLoc-1].eventdat4)
-						enemy[temp].enemydie = eventRec[eventLoc-1].eventdat;
-				}
-			}
+				set_event_enemy_death();
 		}
 		break;
 
@@ -4945,8 +4945,7 @@ static void handle_level_event(void)
 		break;
 
 	case 55: /* Enemy Global AccelRev */
-		if (eventRec[eventLoc-1].eventdat3 > 79 && eventRec[eventLoc-1].eventdat3 < 90)
-			eventRec[eventLoc-1].eventdat4 = newPL[eventRec[eventLoc-1].eventdat3 - 80];
+		resolve_event_enemy_link();
 
 		for (temp = 0; temp < 100; temp++)
 		{
@@ -4961,9 +4960,7 @@ static void handle_level_event(void)
 		break;
 
 	case 56: /* Ground2 Bottom */
-		JE_createNewEventEnemy(0, 75, 0);
-		if (b > 0)
-			enemy[b-1].ey = 190;
+		create_event_enemy_at_y(0, 75, 190, false);
 		break;
 
 	case 57:
