@@ -4655,381 +4655,383 @@ const char *JE_getName(JE_byte pnum)
 	return miscText[47 + pnum];
 }
 
+static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z, int evalue, char tempStr[256])
+{
+	if (evalue == 30000)
+	{
+		this_player->cash += 100;
+
+		if (!galagaMode)
+		{
+			handle_got_purple_ball(this_player);
+		}
+		else
+		{
+			if (twoPlayerMode)
+				this_player->cash += 2400;
+			twoPlayerMode = true;
+			twoPlayerLinked = true;
+			player[1].items.weapon[REAR_WEAPON].power = 1;
+			player[1].armor = 10;
+			player[1].is_alive = true;
+		}
+
+		enemyAvail[z] = 1;
+		soundQueue[7] = S_POWERUP;
+	}
+	else if (superArcadeMode != SA_NONE && evalue > 30000)
+	{
+		shotMultiPos[SHOT_FRONT] = 0;
+		shotRepeat[SHOT_FRONT] = 10;
+		tempW = SAWeapon[superArcadeMode-1][evalue - 30000-1];
+
+		if (tempW == player[0].items.weapon[FRONT_WEAPON].id)
+		{
+			this_player->cash += 1000;
+			power_up_weapon(this_player, FRONT_WEAPON);
+		}
+		else
+		{
+			handle_got_purple_ball(this_player);
+		}
+
+		player[0].items.weapon[FRONT_WEAPON].id = tempW;
+		this_player->cash += 200;
+		soundQueue[7] = S_POWERUP;
+		enemyAvail[z] = 1;
+	}
+	else if (evalue > 32100)
+	{
+		if (playerNum_ == 1)
+		{
+			this_player->cash += 250;
+			player[0].items.special = evalue - 32100;
+			shotMultiPos[SHOT_SPECIAL] = 0;
+			shotRepeat[SHOT_SPECIAL] = 10;
+			shotMultiPos[SHOT_SPECIAL2] = 0;
+			shotRepeat[SHOT_SPECIAL2] = 0;
+
+			if (isNetworkGame)
+				sprintf(tempStr, "%s %s %s", JE_getName(1), miscTextB[4-1], special[evalue - 32100].name);
+			else if (twoPlayerMode)
+				sprintf(tempStr, "%s %s", miscText[43-1], special[evalue - 32100].name);
+			else
+				sprintf(tempStr, "%s %s", miscText[64-1], special[evalue - 32100].name);
+			JE_drawTextWindow(tempStr);
+			soundQueue[7] = S_POWERUP;
+			enemyAvail[z] = 1;
+		}
+	}
+	else if (evalue > 32000)
+	{
+		if (playerNum_ == 2)
+		{
+			enemyAvail[z] = 1;
+			if (isNetworkGame)
+				sprintf(tempStr, "%s %s %s", JE_getName(2), miscTextB[4-1], options[evalue - 32000].name);
+			else
+				sprintf(tempStr, "%s %s", miscText[44-1], options[evalue - 32000].name);
+			JE_drawTextWindow(tempStr);
+
+			if (evalue - 32000u != player[1].items.sidekick_series)
+			{
+				player[1].items.sidekick_series = evalue - 32000;
+				player[1].items.sidekick_level = 101;
+			}
+			else if (player[1].items.sidekick_level < 103)
+			{
+				++player[1].items.sidekick_level;
+			}
+
+			uint temp = player[1].items.sidekick_level - 100 - 1;
+			for (uint i = 0; i < COUNTOF(player[1].items.sidekick); ++i)
+				player[1].items.sidekick[i] = optionSelect[player[1].items.sidekick_series][temp][i];
+
+			shotMultiPos[SHOT_LEFT_SIDEKICK] = 0;
+			shotMultiPos[SHOT_RIGHT_SIDEKICK] = 0;
+			JE_drawOptions();
+			soundQueue[7] = S_POWERUP;
+		}
+		else if (onePlayerAction)
+		{
+			enemyAvail[z] = 1;
+			sprintf(tempStr, "%s %s", miscText[64-1], options[evalue - 32000].name);
+			JE_drawTextWindow(tempStr);
+
+			for (uint i = 0; i < COUNTOF(player[0].items.sidekick); ++i)
+				player[0].items.sidekick[i] = evalue - 32000;
+			shotMultiPos[SHOT_LEFT_SIDEKICK] = 0;
+			shotMultiPos[SHOT_RIGHT_SIDEKICK] = 0;
+
+			JE_drawOptions();
+			soundQueue[7] = S_POWERUP;
+		}
+		if (enemyAvail[z] == 1)
+			this_player->cash += 250;
+	}
+	else if (evalue > 31000)
+	{
+		this_player->cash += 250;
+		if (playerNum_ == 2)
+		{
+			if (isNetworkGame)
+				sprintf(tempStr, "%s %s %s", JE_getName(2), miscTextB[4-1], weaponPort[evalue - 31000].name);
+			else
+				sprintf(tempStr, "%s %s", miscText[44-1], weaponPort[evalue - 31000].name);
+			JE_drawTextWindow(tempStr);
+			player[1].items.weapon[REAR_WEAPON].id = evalue - 31000;
+			shotMultiPos[SHOT_REAR] = 0;
+			enemyAvail[z] = 1;
+			soundQueue[7] = S_POWERUP;
+		}
+		else if (onePlayerAction)
+		{
+			sprintf(tempStr, "%s %s", miscText[64-1], weaponPort[evalue - 31000].name);
+			JE_drawTextWindow(tempStr);
+			player[0].items.weapon[REAR_WEAPON].id = evalue - 31000;
+			shotMultiPos[SHOT_REAR] = 0;
+			enemyAvail[z] = 1;
+			soundQueue[7] = S_POWERUP;
+
+			if (player[0].items.weapon[REAR_WEAPON].power == 0)
+				player[0].items.weapon[REAR_WEAPON].power = 1;
+		}
+	}
+	else if (evalue > 30000)
+	{
+		if (playerNum_ == 1 && twoPlayerMode)
+		{
+			if (isNetworkGame)
+				sprintf(tempStr, "%s %s %s", JE_getName(1), miscTextB[4-1], weaponPort[evalue - 30000].name);
+			else
+				sprintf(tempStr, "%s %s", miscText[43-1], weaponPort[evalue - 30000].name);
+			JE_drawTextWindow(tempStr);
+			player[0].items.weapon[FRONT_WEAPON].id = evalue - 30000;
+			shotMultiPos[SHOT_FRONT] = 0;
+			enemyAvail[z] = 1;
+			soundQueue[7] = S_POWERUP;
+		}
+		else if (onePlayerAction)
+		{
+			sprintf(tempStr, "%s %s", miscText[64-1], weaponPort[evalue - 30000].name);
+			JE_drawTextWindow(tempStr);
+			player[0].items.weapon[FRONT_WEAPON].id = evalue - 30000;
+			shotMultiPos[SHOT_FRONT] = 0;
+			enemyAvail[z] = 1;
+			soundQueue[7] = S_POWERUP;
+		}
+
+		if (enemyAvail[z] == 1)
+		{
+			player[0].items.special = specialArcadeWeapon[evalue - 30000-1];
+			if (player[0].items.special > 0)
+			{
+				shotMultiPos[SHOT_SPECIAL] = 0;
+				shotRepeat[SHOT_SPECIAL] = 0;
+				shotMultiPos[SHOT_SPECIAL2] = 0;
+				shotRepeat[SHOT_SPECIAL2] = 0;
+			}
+			this_player->cash += 250;
+		}
+	}
+}
+
+static void collect_armor_pickup(Player *this_player, int z, int evalue)
+{
+	if (twoPlayerLinked)
+	{
+		for (uint i = 0; i < COUNTOF(player); ++i)
+		{
+			player[i].armor += (evalue - 20000) / COUNTOF(player);
+			if (player[i].armor > 28)
+				player[i].armor = 28;
+		}
+	}
+	else
+	{
+		this_player->armor += evalue - 20000;
+		if (this_player->armor > 28)
+			this_player->armor = 28;
+	}
+	enemyAvail[z] = 1;
+	VGAScreen = VGAScreenSeg; /* side-effect of game_screen */
+	JE_drawArmor();
+	VGAScreen = game_screen; /* side-effect of game_screen */
+	soundQueue[7] = S_POWERUP;
+}
+
+static void collect_bonus_level_pickup(int z, int evalue)
+{
+	if (!bonusLevel)
+	{
+		play_song(30);
+		bonusLevel = true;
+		nextLevel = evalue - 10000;
+		enemyAvail[z] = 1;
+		displayTime = 150;
+	}
+}
+
+static void collect_score_item(Player *this_player, JE_byte playerNum_, int z, int evalue,
+                               int enemy_screen_x, char tempStr[256])
+{
+	enemyAvail[z] = 1;
+	soundQueue[7] = S_ITEM;
+	if (evalue == 1)
+	{
+		cubeMax++;
+		soundQueue[3] = V_DATA_CUBE;
+	}
+	else if (evalue == -1)
+	{
+		if (isNetworkGame)
+			sprintf(tempStr, "%s %s %s", JE_getName(1), miscTextB[4-1], miscText[45-1]);
+		else if (twoPlayerMode)
+			sprintf(tempStr, "%s %s", miscText[43-1], miscText[45-1]);
+		else
+			strcpy(tempStr, miscText[45-1]);
+		JE_drawTextWindow(tempStr);
+
+		power_up_weapon(&player[0], FRONT_WEAPON);
+		soundQueue[7] = S_POWERUP;
+	}
+	else if (evalue == -2)
+	{
+		if (isNetworkGame)
+			sprintf(tempStr, "%s %s %s", JE_getName(2), miscTextB[4-1], miscText[46-1]);
+		else if (twoPlayerMode)
+			sprintf(tempStr, "%s %s", miscText[44-1], miscText[46-1]);
+		else
+			strcpy(tempStr, miscText[46-1]);
+		JE_drawTextWindow(tempStr);
+
+		power_up_weapon(twoPlayerMode ? &player[1] : &player[0], REAR_WEAPON);
+		soundQueue[7] = S_POWERUP;
+	}
+	else if (evalue == -3)
+	{
+		shotMultiPos[SHOT_MISC] = 0;
+		b = player_shot_create(0, SHOT_MISC, this_player->x, this_player->y, mouseX, mouseY, 104, playerNum_);
+		shotAvail[z] = 0;
+	}
+	else if (evalue == -4)
+	{
+		if (player[playerNum_-1].superbombs < 10)
+			++player[playerNum_-1].superbombs;
+	}
+	else if (evalue == -5)
+	{
+		player[0].items.weapon[FRONT_WEAPON].id = 25;
+		player[0].items.weapon[REAR_WEAPON].id = 26;
+		player[1].items.weapon[REAR_WEAPON].id = 26;
+		player[0].last_items = player[0].items;
+
+		for (uint i = 0; i < COUNTOF(player); ++i)
+			player[i].weapon_mode = 1;
+
+		memset(shotMultiPos, 0, sizeof(shotMultiPos));
+	}
+	else if (twoPlayerLinked)
+	{
+		for (uint i = 0; i < COUNTOF(player); ++i)
+			player[i].cash += evalue / COUNTOF(player);
+	}
+	else
+	{
+		this_player->cash += evalue;
+	}
+	JE_setupExplosion(enemy_screen_x, enemy[z].ey, 0, enemyDat[enemy[z].enemytype].explosiontype, true, false);
+}
+
+static void destroy_linked_enemies(int z, int linkNumber)
+{
+	temp = linkNumber == 0 ? 255 : linkNumber;
+	b = z;
+
+	for (temp2 = 0; temp2 < 100; temp2++)
+	{
+		if (enemyAvail[temp2] == 1)
+			continue;
+
+		temp3 = enemy[temp2].linknum;
+		if (temp2 != b &&
+		    (temp == 255 ||
+		     !(temp == temp3 || temp - 100 == temp3 ||
+		       (temp3 > 40 && temp3 / 20 == temp / 20 && temp3 <= temp))))
+			continue;
+
+		int enemy_screen_x = enemy[temp2].ex + enemy[temp2].mapoffset;
+		enemy[temp2].linknum = 0;
+		enemyAvail[temp2] = 1;
+
+		if (enemyDat[enemy[temp2].enemytype].esize == 1)
+		{
+			JE_setupExplosionLarge(enemy[temp2].enemyground, enemy[temp2].explonum, enemy_screen_x, enemy[temp2].ey);
+			soundQueue[6] = S_EXPLOSION_9;
+		}
+		else
+		{
+			JE_setupExplosion(enemy_screen_x, enemy[temp2].ey, 0, 1, false, false);
+			soundQueue[5] = S_EXPLOSION_4;
+		}
+	}
+	enemyAvail[z] = 1;
+}
+
+static void damage_enemy_on_collision(Player *this_player, int z)
+{
+	int armorDamage = enemy[z].armorleft;
+	if (armorDamage > damageRate)
+		armorDamage = damageRate;
+
+	JE_playerDamage(armorDamage, this_player);
+
+	if (enemy[z].armorleft > 0)
+	{
+		this_player->x_velocity += (enemy[z].exc * enemy[z].armorleft) / 2;
+		this_player->y_velocity += (enemy[z].eyc * enemy[z].armorleft) / 2;
+	}
+
+	int enemyArmor = enemy[z].armorleft;
+	if (enemyArmor == 255)
+		enemyArmor = 30000;
+
+	if (enemyArmor > armorDamage)
+	{
+		if (enemy[z].armorleft != 255)
+			enemy[z].armorleft -= armorDamage;
+		soundQueue[5] = S_ENEMY_HIT;
+	}
+	else
+	{
+		destroy_linked_enemies(z, enemy[z].linknum);
+	}
+}
+
 void JE_playerCollide(Player *this_player, JE_byte playerNum_)
 {
 	char tempStr[256];
 
-	for (int z = 0; z < 100; z++)
+	for (int z = 0; z < 100; ++z)
 	{
-		if (enemyAvail[z] != 1)
-		{
-			int enemy_screen_x = enemy[z].ex + enemy[z].mapoffset;
+		if (enemyAvail[z] == 1)
+			continue;
 
-			if (abs(this_player->x - enemy_screen_x) < 12 && abs(this_player->y - enemy[z].ey) < 14)
-			{   /*Collide*/
-				int evalue = enemy[z].evalue;
-				if (evalue > 29999)
-				{
-					if (evalue == 30000)  // spawn dragonwing in galaga mode, otherwise just a purple ball
-					{
-						this_player->cash += 100;
+		int enemy_screen_x = enemy[z].ex + enemy[z].mapoffset;
+		if (abs(this_player->x - enemy_screen_x) >= 12 || abs(this_player->y - enemy[z].ey) >= 14)
+			continue;
 
-						if (!galagaMode)
-						{
-							handle_got_purple_ball(this_player);
-						}
-						else
-						{
-							// spawn the dragonwing?
-							if (twoPlayerMode)
-								this_player->cash += 2400;
-							twoPlayerMode = true;
-							twoPlayerLinked = true;
-							player[1].items.weapon[REAR_WEAPON].power = 1;
-							player[1].armor = 10;
-							player[1].is_alive = true;
-						}
-						enemyAvail[z] = 1;
-						soundQueue[7] = S_POWERUP;
-					}
-					else if (superArcadeMode != SA_NONE && evalue > 30000)
-					{
-						shotMultiPos[SHOT_FRONT] = 0;
-						shotRepeat[SHOT_FRONT] = 10;
-
-						tempW = SAWeapon[superArcadeMode-1][evalue - 30000-1];
-
-						// if picked up already-owned weapon, power weapon up
-						if (tempW == player[0].items.weapon[FRONT_WEAPON].id)
-						{
-							this_player->cash += 1000;
-							power_up_weapon(this_player, FRONT_WEAPON);
-						}
-						// else weapon also gives purple ball
-						else
-						{
-							handle_got_purple_ball(this_player);
-						}
-
-						player[0].items.weapon[FRONT_WEAPON].id = tempW;
-						this_player->cash += 200;
-						soundQueue[7] = S_POWERUP;
-						enemyAvail[z] = 1;
-					}
-					else if (evalue > 32100)
-					{
-						if (playerNum_ == 1)
-						{
-							this_player->cash += 250;
-							player[0].items.special = evalue - 32100;
-							shotMultiPos[SHOT_SPECIAL] = 0;
-							shotRepeat[SHOT_SPECIAL] = 10;
-							shotMultiPos[SHOT_SPECIAL2] = 0;
-							shotRepeat[SHOT_SPECIAL2] = 0;
-
-							if (isNetworkGame)
-								sprintf(tempStr, "%s %s %s", JE_getName(1), miscTextB[4-1], special[evalue - 32100].name);
-							else if (twoPlayerMode)
-								sprintf(tempStr, "%s %s", miscText[43-1], special[evalue - 32100].name);
-							else
-								sprintf(tempStr, "%s %s", miscText[64-1], special[evalue - 32100].name);
-							JE_drawTextWindow(tempStr);
-							soundQueue[7] = S_POWERUP;
-							enemyAvail[z] = 1;
-						}
-					}
-					else if (evalue > 32000)
-					{
-						if (playerNum_ == 2)
-						{
-							enemyAvail[z] = 1;
-							if (isNetworkGame)
-								sprintf(tempStr, "%s %s %s", JE_getName(2), miscTextB[4-1], options[evalue - 32000].name);
-							else
-								sprintf(tempStr, "%s %s", miscText[44-1], options[evalue - 32000].name);
-							JE_drawTextWindow(tempStr);
-
-							// if picked up a different sidekick than player already has, then reset sidekicks to least powerful, else power them up
-							if (evalue - 32000u != player[1].items.sidekick_series)
-							{
-								player[1].items.sidekick_series = evalue - 32000;
-								player[1].items.sidekick_level = 101;
-							}
-							else if (player[1].items.sidekick_level < 103)
-							{
-								++player[1].items.sidekick_level;
-							}
-
-							uint temp = player[1].items.sidekick_level - 100 - 1;
-							for (uint i = 0; i < COUNTOF(player[1].items.sidekick); ++i)
-								player[1].items.sidekick[i] = optionSelect[player[1].items.sidekick_series][temp][i];
-
-							shotMultiPos[SHOT_LEFT_SIDEKICK] = 0;
-							shotMultiPos[SHOT_RIGHT_SIDEKICK] = 0;
-							JE_drawOptions();
-							soundQueue[7] = S_POWERUP;
-						}
-						else if (onePlayerAction)
-						{
-							enemyAvail[z] = 1;
-							sprintf(tempStr, "%s %s", miscText[64-1], options[evalue - 32000].name);
-							JE_drawTextWindow(tempStr);
-
-							for (uint i = 0; i < COUNTOF(player[0].items.sidekick); ++i)
-								player[0].items.sidekick[i] = evalue - 32000;
-							shotMultiPos[SHOT_LEFT_SIDEKICK] = 0;
-							shotMultiPos[SHOT_RIGHT_SIDEKICK] = 0;
-
-							JE_drawOptions();
-							soundQueue[7] = S_POWERUP;
-						}
-						if (enemyAvail[z] == 1)
-							this_player->cash += 250;
-					}
-					else if (evalue > 31000)
-					{
-						this_player->cash += 250;
-						if (playerNum_ == 2)
-						{
-							if (isNetworkGame)
-								sprintf(tempStr, "%s %s %s", JE_getName(2), miscTextB[4-1], weaponPort[evalue - 31000].name);
-							else
-								sprintf(tempStr, "%s %s", miscText[44-1], weaponPort[evalue - 31000].name);
-							JE_drawTextWindow(tempStr);
-							player[1].items.weapon[REAR_WEAPON].id = evalue - 31000;
-							shotMultiPos[SHOT_REAR] = 0;
-							enemyAvail[z] = 1;
-							soundQueue[7] = S_POWERUP;
-						}
-						else if (onePlayerAction)
-						{
-							sprintf(tempStr, "%s %s", miscText[64-1], weaponPort[evalue - 31000].name);
-							JE_drawTextWindow(tempStr);
-							player[0].items.weapon[REAR_WEAPON].id = evalue - 31000;
-							shotMultiPos[SHOT_REAR] = 0;
-							enemyAvail[z] = 1;
-							soundQueue[7] = S_POWERUP;
-
-							if (player[0].items.weapon[REAR_WEAPON].power == 0)  // does this ever happen?
-								player[0].items.weapon[REAR_WEAPON].power = 1;
-						}
-					}
-					else if (evalue > 30000)
-					{
-						if (playerNum_ == 1 && twoPlayerMode)
-						{
-							if (isNetworkGame)
-								sprintf(tempStr, "%s %s %s", JE_getName(1), miscTextB[4-1], weaponPort[evalue - 30000].name);
-							else
-								sprintf(tempStr, "%s %s", miscText[43-1], weaponPort[evalue - 30000].name);
-							JE_drawTextWindow(tempStr);
-							player[0].items.weapon[FRONT_WEAPON].id = evalue - 30000;
-							shotMultiPos[SHOT_FRONT] = 0;
-							enemyAvail[z] = 1;
-							soundQueue[7] = S_POWERUP;
-						}
-						else if (onePlayerAction)
-						{
-							sprintf(tempStr, "%s %s", miscText[64-1], weaponPort[evalue - 30000].name);
-							JE_drawTextWindow(tempStr);
-							player[0].items.weapon[FRONT_WEAPON].id = evalue - 30000;
-							shotMultiPos[SHOT_FRONT] = 0;
-							enemyAvail[z] = 1;
-							soundQueue[7] = S_POWERUP;
-						}
-
-						if (enemyAvail[z] == 1)
-						{
-							player[0].items.special = specialArcadeWeapon[evalue - 30000-1];
-							if (player[0].items.special > 0)
-							{
-								shotMultiPos[SHOT_SPECIAL] = 0;
-								shotRepeat[SHOT_SPECIAL] = 0;
-								shotMultiPos[SHOT_SPECIAL2] = 0;
-								shotRepeat[SHOT_SPECIAL2] = 0;
-							}
-							this_player->cash += 250;
-						}
-
-					}
-				}
-				else if (evalue > 20000)
-				{
-					if (twoPlayerLinked)
-					{
-						// share the armor evenly between linked players
-						for (uint i = 0; i < COUNTOF(player); ++i)
-						{
-							player[i].armor += (evalue - 20000) / COUNTOF(player);
-							if (player[i].armor > 28)
-								player[i].armor = 28;
-						}
-					}
-					else
-					{
-						this_player->armor += evalue - 20000;
-						if (this_player->armor > 28)
-							this_player->armor = 28;
-					}
-					enemyAvail[z] = 1;
-					VGAScreen = VGAScreenSeg; /* side-effect of game_screen */
-					JE_drawArmor();
-					VGAScreen = game_screen; /* side-effect of game_screen */
-					soundQueue[7] = S_POWERUP;
-				}
-				else if (evalue > 10000 && enemyAvail[z] == 2)
-				{
-					if (!bonusLevel)
-					{
-						play_song(30);  /*Zanac*/
-						bonusLevel = true;
-						nextLevel = evalue - 10000;
-						enemyAvail[z] = 1;
-						displayTime = 150;
-					}
-				}
-				else if (enemy[z].scoreitem)
-				{
-					enemyAvail[z] = 1;
-					soundQueue[7] = S_ITEM;
-					if (evalue == 1)
-					{
-						cubeMax++;
-						soundQueue[3] = V_DATA_CUBE;
-					}
-					else if (evalue == -1)  // got front weapon powerup
-					{
-						if (isNetworkGame)
-							sprintf(tempStr, "%s %s %s", JE_getName(1), miscTextB[4-1], miscText[45-1]);
-						else if (twoPlayerMode)
-							sprintf(tempStr, "%s %s", miscText[43-1], miscText[45-1]);
-						else
-							strcpy(tempStr, miscText[45-1]);
-						JE_drawTextWindow(tempStr);
-
-						power_up_weapon(&player[0], FRONT_WEAPON);
-						soundQueue[7] = S_POWERUP;
-					}
-					else if (evalue == -2)  // got rear weapon powerup
-					{
-						if (isNetworkGame)
-							sprintf(tempStr, "%s %s %s", JE_getName(2), miscTextB[4-1], miscText[46-1]);
-						else if (twoPlayerMode)
-							sprintf(tempStr, "%s %s", miscText[44-1], miscText[46-1]);
-						else
-							strcpy(tempStr, miscText[46-1]);
-						JE_drawTextWindow(tempStr);
-
-						power_up_weapon(twoPlayerMode ? &player[1] : &player[0], REAR_WEAPON);
-						soundQueue[7] = S_POWERUP;
-					}
-					else if (evalue == -3)
-					{
-						// picked up orbiting asteroid killer
-						shotMultiPos[SHOT_MISC] = 0;
-						b = player_shot_create(0, SHOT_MISC, this_player->x, this_player->y, mouseX, mouseY, 104, playerNum_);
-						shotAvail[z] = 0;
-					}
-					else if (evalue == -4)
-					{
-						if (player[playerNum_-1].superbombs < 10)
-							++player[playerNum_-1].superbombs;
-					}
-					else if (evalue == -5)
-					{
-						player[0].items.weapon[FRONT_WEAPON].id = 25;  // HOT DOG!
-						player[0].items.weapon[REAR_WEAPON].id = 26;
-						player[1].items.weapon[REAR_WEAPON].id = 26;
-
-						player[0].last_items = player[0].items;
-
-						for (uint i = 0; i < COUNTOF(player); ++i)
-							player[i].weapon_mode = 1;
-
-						memset(shotMultiPos, 0, sizeof(shotMultiPos));
-					}
-					else if (twoPlayerLinked)
-					{
-						// players get equal share of pick-up cash when linked
-						for (uint i = 0; i < COUNTOF(player); ++i)
-							player[i].cash += evalue / COUNTOF(player);
-					}
-					else
-					{
-						this_player->cash += evalue;
-					}
-					JE_setupExplosion(enemy_screen_x, enemy[z].ey, 0, enemyDat[enemy[z].enemytype].explosiontype, true, false);
-				}
-				else if (this_player->invulnerable_ticks == 0 && enemyAvail[z] == 0 &&
-				         (enemyDat[enemy[z].enemytype].explosiontype & 1) == 0) // explosiontype & 1 == 0: not ground enemy
-				{
-					int armorleft = enemy[z].armorleft;
-					if (armorleft > damageRate)
-						armorleft = damageRate;
-
-					JE_playerDamage(armorleft, this_player);
-
-					// player ship gets push-back from collision
-					if (enemy[z].armorleft > 0)
-					{
-						this_player->x_velocity += (enemy[z].exc * enemy[z].armorleft) / 2;
-						this_player->y_velocity += (enemy[z].eyc * enemy[z].armorleft) / 2;
-					}
-
-					int armorleft2 = enemy[z].armorleft;
-					if (armorleft2 == 255)
-						armorleft2 = 30000;
-
-					temp = enemy[z].linknum;
-					if (temp == 0)
-						temp = 255;
-
-					b = z;
-
-					if (armorleft2 > armorleft)
-					{
-						// damage enemy
-						if (enemy[z].armorleft != 255)
-							enemy[z].armorleft -= armorleft;
-						soundQueue[5] = S_ENEMY_HIT;
-					}
-					else
-					{
-						// kill enemy
-						for (temp2 = 0; temp2 < 100; temp2++)
-						{
-							if (enemyAvail[temp2] != 1)
-							{
-								temp3 = enemy[temp2].linknum;
-								if (temp2 == b ||
-									(temp != 255 &&
-									 (temp == temp3 || temp - 100 == temp3 ||
-									  (temp3 > 40 && temp3 / 20 == temp / 20 && temp3 <= temp))))
-								{
-									int enemy_screen_x = enemy[temp2].ex + enemy[temp2].mapoffset;
-
-									enemy[temp2].linknum = 0;
-
-									enemyAvail[temp2] = 1;
-
-									if (enemyDat[enemy[temp2].enemytype].esize == 1)
-									{
-										JE_setupExplosionLarge(enemy[temp2].enemyground, enemy[temp2].explonum, enemy_screen_x, enemy[temp2].ey);
-										soundQueue[6] = S_EXPLOSION_9;
-									}
-									else
-									{
-										JE_setupExplosion(enemy_screen_x, enemy[temp2].ey, 0, 1, false, false);
-										soundQueue[5] = S_EXPLOSION_4;
-									}
-								}
-							}
-						}
-						enemyAvail[z] = 1;
-					}
-				}
-			}
-
-		}
+		int evalue = enemy[z].evalue;
+		if (evalue > 29999)
+			collect_arcade_pickup(this_player, playerNum_, z, evalue, tempStr);
+		else if (evalue > 20000)
+			collect_armor_pickup(this_player, z, evalue);
+		else if (evalue > 10000 && enemyAvail[z] == 2)
+			collect_bonus_level_pickup(z, evalue);
+		else if (enemy[z].scoreitem)
+			collect_score_item(this_player, playerNum_, z, evalue, enemy_screen_x, tempStr);
+		else if (this_player->invulnerable_ticks == 0 && enemyAvail[z] == 0 &&
+		         (enemyDat[enemy[z].enemytype].explosiontype & 1) == 0)
+			damage_enemy_on_collision(this_player, z);
 	}
 }
