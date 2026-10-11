@@ -2445,23 +2445,269 @@ level_loop:
 }
 
 /* --- Load Level/Map Data --- */
-void JE_loadMap(void)
+static void read_level_header_and_events(FILE *level_f, JE_char *shapeFile)
+{
+	JE_char mapFile;
+	JE_word x;
+
+	fread_die(&mapFile, 1, 1, level_f);
+	fread_die(shapeFile, 1, 1, level_f);
+	fread_u16_die(&mapX, 1, level_f);
+	fread_u16_die(&mapX2, 1, level_f);
+	fread_u16_die(&mapX3, 1, level_f);
+
+	fread_u16_die(&levelEnemyMax, 1, level_f);
+	fread_u16_die(levelEnemy, levelEnemyMax, level_f);
+
+	fread_u16_die(&maxEvent, 1, level_f);
+	for (x = 0; x < maxEvent; x++)
+	{
+		fread_u16_die(&eventRec[x].eventtime, 1, level_f);
+		fread_u8_die( &eventRec[x].eventtype, 1, level_f);
+		fread_s16_die(&eventRec[x].eventdat,  1, level_f);
+		fread_s16_die(&eventRec[x].eventdat2, 1, level_f);
+		fread_s8_die( &eventRec[x].eventdat3, 1, level_f);
+		fread_s8_die( &eventRec[x].eventdat5, 1, level_f);
+		fread_s8_die( &eventRec[x].eventdat6, 1, level_f);
+		fread_u8_die( &eventRec[x].eventdat4, 1, level_f);
+	}
+	eventRec[x].eventtime = 65500;
+}
+
+static void load_level_shapes(FILE *level_f, JE_char shapeFile, JE_byte *ref[3][128])
 {
 	JE_DanCShape shape;
-
-	JE_word x, y;
+	JE_word mapSh[3][128];
+	JE_word y;
 	JE_integer yy;
-	JE_word mapSh[3][128]; /* [1..3, 0..127] */
+
+	for (int map = 0; map < 3; ++map)
+	{
+		fread_u16_die(mapSh[map], COUNTOF(mapSh[map]), level_f);
+		for (int i = 0; i < COUNTOF(mapSh[map]); ++i)
+			mapSh[map][i] = SDL_Swap16(mapSh[map][i]);
+	}
+
+	sprintf(tempStr, "shapes%c.dat", tolower((unsigned char)shapeFile));
+	FILE *shpFile = dir_fopen_die(data_dir(), tempStr, "rb");
+
+	for (int z = 0; z < 600; ++z)
+	{
+		JE_boolean shapeBlank;
+		fread_bool_die(&shapeBlank, shpFile);
+
+		if (shapeBlank)
+			memset(shape, 0, sizeof(shape));
+		else
+			fread_u8_die(shape, sizeof(shape), shpFile);
+
+		for (int i = 0; i <= 71; ++i)
+		{
+			if (mapSh[0][i] == z + 1)
+			{
+				memcpy(megaData1.shapes[i].sh, shape, sizeof(JE_DanCShape));
+				ref[0][i] = megaData1.shapes[i].sh;
+			}
+		}
+
+		for (int i = 0; i <= 71; ++i)
+		{
+			if (mapSh[1][i] == z + 1)
+			{
+				if (i != 71 && !shapeBlank)
+				{
+					memcpy(megaData2.shapes[i].sh, shape, sizeof(JE_DanCShape));
+
+					y = 1;
+					for (yy = 0; yy < (24 * 28) >> 1; ++yy)
+						if (shape[yy] == 0)
+							y = 0;
+
+					megaData2.shapes[i].fill = y;
+					ref[1][i] = megaData2.shapes[i].sh;
+				}
+				else
+				{
+					ref[1][i] = NULL;
+				}
+			}
+		}
+
+		for (int i = 0; i <= 71; ++i)
+		{
+			if (mapSh[2][i] == z + 1)
+			{
+				if (i < 70 && !shapeBlank)
+				{
+					memcpy(megaData3.shapes[i].sh, shape, sizeof(JE_DanCShape));
+
+					y = 1;
+					for (yy = 0; yy < (24 * 28) >> 1; ++yy)
+						if (shape[yy] == 0)
+							y = 0;
+
+					megaData3.shapes[i].fill = y;
+					ref[2][i] = megaData3.shapes[i].sh;
+				}
+				else
+				{
+					ref[2][i] = NULL;
+				}
+			}
+		}
+	}
+
+	fclose(shpFile);
+}
+
+static void load_level_map_layer(FILE *level_f, JE_byte *shapeRefs[128], void *map, JE_word width, JE_word height)
+{
+	JE_byte mapBuf[15 * 600];
+	JE_word bufLoc = 0;
+	unsigned char *mapRows = map;
+
+	fread_u8_die(mapBuf, width * height, level_f);
+	for (JE_word y = 0; y < height; ++y)
+	{
+		JE_byte **mapRow = (JE_byte **)(mapRows + y * width * sizeof(*mapRow));
+		for (JE_word x = 0; x < width; ++x)
+		{
+			mapRow[x] = shapeRefs[mapBuf[bufLoc]];
+			bufLoc++;
+		}
+	}
+}
+
+static void play_map_transition(const char *section, Uint8 pic_buffer[320 * 200])
+{
+	const char transition = section[1];
+
+	if (constantPlay)
+		return;
+
+	memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
+
+	tempX = atoi(section + 3);
+	JE_loadPic(VGAScreen, tempX, false);
+	memcpy(pic_buffer, VGAScreen->pixels, sizeof(Uint8) * 320 * 200);
+
+	service_SDL_events(true);
+
+	if (transition == 'U')
+	{
+		for (int z = 0; z <= 199; z++)
+		{
+			if (!newkey)
+			{
+				Uint8 *vga = VGAScreen->pixels;
+				Uint8 *vga2 = VGAScreen2->pixels;
+				Uint8 *pic = pic_buffer + (199 - z) * 320;
+
+				setDelay(1);
+
+				for (int y = 0; y <= 199; y++)
+				{
+					if (y <= z)
+					{
+						memcpy(vga, pic, 320);
+						pic += 320;
+					}
+					else
+					{
+						memcpy(vga, vga2, VGAScreen->pitch);
+						vga2 += VGAScreen->pitch;
+					}
+					vga += VGAScreen->pitch;
+				}
+
+				JE_showVGA();
+				if (isNetworkGame)
+				{
+					/* TODO: NETWORK */
+				}
+				service_wait_delay();
+			}
+		}
+	}
+	else if (transition == 'V')
+	{
+		for (int z = 0; z <= 199; z++)
+		{
+			if (!newkey)
+			{
+				Uint8 *vga = VGAScreen->pixels;
+				Uint8 *vga2 = VGAScreen2->pixels;
+				Uint8 *pic = pic_buffer;
+
+				setDelay(1);
+
+				for (int y = 0; y < 199; y++)
+				{
+					if (y <= 199 - z)
+					{
+						memcpy(vga, vga2, VGAScreen->pitch);
+						vga2 += VGAScreen2->pitch;
+					}
+					else
+					{
+						memcpy(vga, pic, 320);
+						pic += 320;
+					}
+					vga += VGAScreen->pitch;
+				}
+
+				JE_showVGA();
+				if (isNetworkGame)
+				{
+					/* TODO: NETWORK */
+				}
+				service_wait_delay();
+			}
+		}
+	}
+	else
+	{
+		for (int z = 0; z <= 318; z++)
+		{
+			if (!newkey)
+			{
+				Uint8 *vga = VGAScreen->pixels;
+				Uint8 *vga2 = VGAScreen2->pixels;
+				Uint8 *pic = pic_buffer;
+
+				setDelay(1);
+
+				for (int y = 0; y < 200; y++)
+				{
+					memcpy(vga, vga2 + z, 319 - z);
+					vga += 320 - z;
+					vga2 += VGAScreen2->pitch;
+					memcpy(vga, pic, z + 1);
+					vga += z;
+					pic += 320;
+				}
+
+				JE_showVGA();
+				if (isNetworkGame)
+				{
+					/* TODO: NETWORK */
+				}
+				service_wait_delay();
+			}
+		}
+	}
+
+	memcpy(VGAScreen->pixels, pic_buffer, sizeof(Uint8) * 320 * 200);
+}
+
+void JE_loadMap(void)
+{
 	JE_byte *ref[3][128]; /* [1..3, 0..127] */
 	char s[256];
-
-	JE_byte mapBuf[15 * 600]; /* [1..15 * 600] */
-	JE_word bufLoc;
 
 	char buffer[256];
 	int i;
 	Uint8 pic_buffer[320*200]; /* screen buffer, 8-bit specific */
-	Uint8 *vga, *pic, *vga2; /* screen pointer, 8-bit specific */
 
 	lastCubeMax = cubeMax;
 
@@ -2815,152 +3061,15 @@ new_game:
 						break;
 
 					case 'U':
-						if (!constantPlay)
-						{
-							memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
-
-							tempX = atoi(s + 3);
-							JE_loadPic(VGAScreen, tempX, false);
-							memcpy(pic_buffer, VGAScreen->pixels, sizeof(pic_buffer));
-
-							service_SDL_events(true);
-
-							for (int z = 0; z <= 199; z++)
-							{
-								if (!newkey)
-								{
-									vga = VGAScreen->pixels;
-									vga2 = VGAScreen2->pixels;
-									pic = pic_buffer + (199 - z) * 320;
-
-									setDelay(1);
-
-									for (y = 0; y <= 199; y++)
-									{
-										if (y <= z)
-										{
-											memcpy(vga, pic, 320);
-											pic += 320;
-										}
-										else
-										{
-											memcpy(vga, vga2, VGAScreen->pitch);
-											vga2 += VGAScreen->pitch;
-										}
-										vga += VGAScreen->pitch;
-									}
-
-									JE_showVGA();
-
-									if (isNetworkGame)
-									{
-										/* TODO: NETWORK */
-									}
-
-									service_wait_delay();
-								}
-							}
-
-							memcpy(VGAScreen->pixels, pic_buffer, sizeof(pic_buffer));
-						}
+						play_map_transition(s, pic_buffer);
 						break;
 
 					case 'V':
-						if (!constantPlay)
-						{
-							/* TODO: NETWORK */
-							memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
-
-							tempX = atoi(s + 3);
-							JE_loadPic(VGAScreen, tempX, false);
-							memcpy(pic_buffer, VGAScreen->pixels, sizeof(pic_buffer));
-
-							service_SDL_events(true);
-							for (int z = 0; z <= 199; z++)
-							{
-								if (!newkey)
-								{
-									vga = VGAScreen->pixels;
-									vga2 = VGAScreen2->pixels;
-									pic = pic_buffer;
-
-									setDelay(1);
-
-									for (y = 0; y < 199; y++)
-									{
-										if (y <= 199 - z)
-										{
-											memcpy(vga, vga2, VGAScreen->pitch);
-											vga2 += VGAScreen->pitch;
-										}
-										else
-										{
-											memcpy(vga, pic, 320);
-											pic += 320;
-										}
-										vga += VGAScreen->pitch;
-									}
-
-									JE_showVGA();
-
-									if (isNetworkGame)
-									{
-										/* TODO: NETWORK */
-									}
-
-									service_wait_delay();
-								}
-							}
-
-							memcpy(VGAScreen->pixels, pic_buffer, sizeof(pic_buffer));
-						}
+						play_map_transition(s, pic_buffer);
 						break;
 
 					case 'R':
-						if (!constantPlay)
-						{
-							/* TODO: NETWORK */
-							memcpy(VGAScreen2->pixels, VGAScreen->pixels, VGAScreen2->pitch * VGAScreen2->h);
-
-							tempX = atoi(s + 3);
-							JE_loadPic(VGAScreen, tempX, false);
-							memcpy(pic_buffer, VGAScreen->pixels, sizeof(pic_buffer));
-
-							service_SDL_events(true);
-
-							for (int z = 0; z <= 318; z++)
-							{
-								if (!newkey)
-								{
-									vga = VGAScreen->pixels;
-									vga2 = VGAScreen2->pixels;
-									pic = pic_buffer;
-
-									setDelay(1);
-
-									for (y = 0; y < 200; y++)
-									{
-										memcpy(vga, vga2 + z, 319 - z);
-										vga += 320 - z;
-										vga2 += VGAScreen2->pitch;
-										memcpy(vga, pic, z + 1);
-										vga += z;
-										pic += 320;
-									}
-
-									JE_showVGA();
-
-									if (isNetworkGame)
-									{
-										/* TODO: NETWORK */
-									}
-
-									service_wait_delay();
-								}
-							}
-
-							memcpy(VGAScreen->pixels, pic_buffer, sizeof(pic_buffer));
-						}
+						play_map_transition(s, pic_buffer);
 						break;
 
 					case 'C':
@@ -3071,153 +3180,18 @@ new_game:
 	FILE *level_f = dir_fopen_die(data_dir(), levelFile, "rb");
 	fseek(level_f, lvlPos[(lvlFileNum-1) * 2], SEEK_SET);
 
-	JE_char char_mapFile;
 	JE_char char_shapeFile;
-	fread_die(&char_mapFile,   1, 1, level_f);
-	fread_die(&char_shapeFile, 1, 1, level_f);
-	fread_u16_die(&mapX,  1, level_f);
-	fread_u16_die(&mapX2, 1, level_f);
-	fread_u16_die(&mapX3, 1, level_f);
-
-	fread_u16_die(&levelEnemyMax, 1, level_f);
-	fread_u16_die(levelEnemy, levelEnemyMax, level_f);
-
-	fread_u16_die(&maxEvent, 1, level_f);
-	for (x = 0; x < maxEvent; x++)
-	{
-		fread_u16_die(&eventRec[x].eventtime, 1, level_f);
-		fread_u8_die( &eventRec[x].eventtype, 1, level_f);
-		fread_s16_die(&eventRec[x].eventdat,  1, level_f);
-		fread_s16_die(&eventRec[x].eventdat2, 1, level_f);
-		fread_s8_die( &eventRec[x].eventdat3, 1, level_f);
-		fread_s8_die( &eventRec[x].eventdat5, 1, level_f);
-		fread_s8_die( &eventRec[x].eventdat6, 1, level_f);
-		fread_u8_die( &eventRec[x].eventdat4, 1, level_f);
-	}
-	eventRec[x].eventtime = 65500;  /*Not needed but just in case*/
+	read_level_header_and_events(level_f, &char_shapeFile);
 
 	/*debuginfo('Level loaded.');*/
 
 	/*debuginfo('Loading Map');*/
 
 	/* MAP SHAPE LOOKUP TABLE - Each map is directly after level */
-	for (temp = 0; temp < 3; temp++)
-	{
-		fread_u16_die(mapSh[temp], sizeof(*mapSh) / sizeof(JE_word), level_f);
-		for (temp2 = 0; temp2 < 128; temp2++)
-		{
-			mapSh[temp][temp2] = SDL_Swap16(mapSh[temp][temp2]);
-		}
-	}
-
-	/* Read Shapes.DAT */
-	sprintf(tempStr, "shapes%c.dat", tolower((unsigned char)char_shapeFile));
-	FILE *shpFile = dir_fopen_die(data_dir(), tempStr, "rb");
-
-	for (int z = 0; z < 600; z++)
-	{
-		JE_boolean shapeBlank;
-		fread_bool_die(&shapeBlank, shpFile);
-
-		if (shapeBlank)
-			memset(shape, 0, sizeof(shape));
-		else
-			fread_u8_die(shape, sizeof(shape), shpFile);
-
-		/* Match 1 */
-		for (int x = 0; x <= 71; ++x)
-		{
-			if (mapSh[0][x] == z+1)
-			{
-				memcpy(megaData1.shapes[x].sh, shape, sizeof(JE_DanCShape));
-
-				ref[0][x] = megaData1.shapes[x].sh;
-			}
-		}
-
-		/* Match 2 */
-		for (int x = 0; x <= 71; ++x)
-		{
-			if (mapSh[1][x] == z+1)
-			{
-				if (x != 71 && !shapeBlank)
-				{
-					memcpy(megaData2.shapes[x].sh, shape, sizeof(JE_DanCShape));
-
-					y = 1;
-					for (yy = 0; yy < (24 * 28) >> 1; yy++)
-						if (shape[yy] == 0)
-							y = 0;
-
-					megaData2.shapes[x].fill = y;
-					ref[1][x] = megaData2.shapes[x].sh;
-				}
-				else
-				{
-					ref[1][x] = NULL;
-				}
-			}
-		}
-
-		/*Match 3*/
-		for (int x = 0; x <= 71; ++x)
-		{
-			if (mapSh[2][x] == z+1)
-			{
-				if (x < 70 && !shapeBlank)
-				{
-					memcpy(megaData3.shapes[x].sh, shape, sizeof(JE_DanCShape));
-
-					y = 1;
-					for (yy = 0; yy < (24 * 28) >> 1; yy++)
-						if (shape[yy] == 0)
-							y = 0;
-
-					megaData3.shapes[x].fill = y;
-					ref[2][x] = megaData3.shapes[x].sh;
-				}
-				else
-				{
-					ref[2][x] = NULL;
-				}
-			}
-		}
-	}
-
-	fclose(shpFile);
-
-	fread_u8_die(mapBuf, 14 * 300, level_f);
-	bufLoc = 0;              /* MAP NUMBER 1 */
-	for (y = 0; y < 300; y++)
-	{
-		for (x = 0; x < 14; x++)
-		{
-			megaData1.mainmap[y][x] = ref[0][mapBuf[bufLoc]];
-			bufLoc++;
-		}
-	}
-
-	fread_u8_die(mapBuf, 14 * 600, level_f);
-	bufLoc = 0;              /* MAP NUMBER 2 */
-	for (y = 0; y < 600; y++)
-	{
-		for (x = 0; x < 14; x++)
-		{
-			megaData2.mainmap[y][x] = ref[1][mapBuf[bufLoc]];
-			bufLoc++;
-		}
-	}
-
-	fread_u8_die(mapBuf, 15 * 600, level_f);
-	bufLoc = 0;              /* MAP NUMBER 3 */
-	for (y = 0; y < 600; y++)
-	{
-		for (x = 0; x < 15; x++)
-		{
-			megaData3.mainmap[y][x] = ref[2][mapBuf[bufLoc]];
-			bufLoc++;
-		}
-	}
+	load_level_shapes(level_f, char_shapeFile, ref);
+	load_level_map_layer(level_f, ref[0], &megaData1.mainmap[0][0], 14, 300);
+	load_level_map_layer(level_f, ref[1], &megaData2.mainmap[0][0], 14, 600);
+	load_level_map_layer(level_f, ref[2], &megaData3.mainmap[0][0], 15, 600);
 
 	fclose(level_f);
 
