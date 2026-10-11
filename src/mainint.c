@@ -3419,47 +3419,16 @@ void JE_pauseGame(void)
 	mouseSetRelative(true);
 }
 
-void JE_playerMovement(Player *this_player,
-                       JE_byte inputDevice,
-                       JE_byte playerNum_,
-                       JE_word shipGr_,
-                       Sprite2_array *shipGrPtr_,
-                       JE_word *mouseX_, JE_word *mouseY_)
+typedef struct
 {
 	JE_integer mouseXC, mouseYC;
 	JE_integer accelXC, accelYC;
+	bool link_gun_analog;
+	float link_gun_angle;
+} JE_PlayerMovementState;
 
-	if (playerNum_ == 2 || !twoPlayerMode)
-	{
-		tempW = weaponPort[this_player->items.weapon[REAR_WEAPON].id].opnum;
-
-		if (this_player->weapon_mode > tempW)
-			this_player->weapon_mode = 1;
-	}
-
-#ifdef WITH_NETWORK
-	if (isNetworkGame && thisPlayerNum == playerNum_)
-	{
-		network_state_prepare();
-		memset(&packet_state_out[0]->data[4], 0, 10);
-	}
-#endif
-
-redo:
-
-	if (isNetworkGame)
-	{
-		inputDevice = 0;
-	}
-
-	mouseXC = 0;
-	mouseYC = 0;
-	accelXC = 0;
-	accelYC = 0;
-
-	bool link_gun_analog = false;
-	float link_gun_angle = 0;
-
+static bool update_player_death(Player *this_player, JE_byte playerNum_)
+{
 	/* Draw Player */
 	if (!this_player->is_alive)
 	{
@@ -3521,7 +3490,7 @@ redo:
 					JE_drawArmor();
 					JE_drawShield();
 					VGAScreen = game_screen; /* side-effect of game_screen */
-					goto redo;
+					return true;
 				}
 				else
 				{
@@ -3562,24 +3531,16 @@ redo:
 				++(*player[0].lives);
 		}
 	}
+	return false;
+}
 
-	if (!this_player->is_alive)
-	{
-		explosionFollowAmountX = explosionFollowAmountY = 0;
-		return;
-	}
 
-	if (!endLevel)
-	{
-		*mouseX_ = this_player->x;
-		*mouseY_ = this_player->y;
-		button[1-1] = false;
-		button[2-1] = false;
-		button[3-1] = false;
-		button[4-1] = false;
-
-		/* --- Movement Routine Beginning --- */
-
+static void collect_player_movement_input(Player *this_player,
+                                          JE_byte inputDevice,
+                                          JE_byte playerNum_,
+                                          JE_word *mouseX_, JE_word *mouseY_,
+                                          JE_PlayerMovementState *movement)
+{
 		if (!isNetworkGame || playerNum_ == thisPlayerNum)
 		{
 			if (endLevel)
@@ -3612,10 +3573,10 @@ redo:
 
 						if (joystick[j].analog)
 						{
-							mouseXC += joystick_axis_reduce(j, joystick[j].x);
-							mouseYC += joystick_axis_reduce(j, joystick[j].y);
+							movement->mouseXC += joystick_axis_reduce(j, joystick[j].x);
+							movement->mouseYC += joystick_axis_reduce(j, joystick[j].y);
 
-							link_gun_analog = joystick_analog_angle(j, &link_gun_angle);
+							movement->link_gun_analog = joystick_analog_angle(j, &movement->link_gun_angle);
 						}
 						else
 						{
@@ -3645,8 +3606,8 @@ redo:
 					Sint32 mouseXR;
 					Sint32 mouseYR;
 					mouseGetRelativePosition(&mouseXR, &mouseYR);
-					mouseXC += mouseXR;
-					mouseYC += mouseYR;
+					movement->mouseXC += mouseXR;
+					movement->mouseYC += mouseYR;
 				}
 
 				/* keyboard input */
@@ -3709,38 +3670,38 @@ redo:
 				if (smoothies[9-1])
 				{
 					*mouseY_ = this_player->y - (*mouseY_ - this_player->y);
-					mouseYC = -mouseYC;
+					movement->mouseYC = -movement->mouseYC;
 				}
 
-				accelXC += this_player->x - *mouseX_;
-				accelYC += this_player->y - *mouseY_;
+				movement->accelXC += this_player->x - *mouseX_;
+				movement->accelYC += this_player->y - *mouseY_;
 
-				if (mouseXC > 30)
-					mouseXC = 30;
-				else if (mouseXC < -30)
-					mouseXC = -30;
-				if (mouseYC > 30)
-					mouseYC = 30;
-				else if (mouseYC < -30)
-					mouseYC = -30;
+				if (movement->mouseXC > 30)
+					movement->mouseXC = 30;
+				else if (movement->mouseXC < -30)
+					movement->mouseXC = -30;
+				if (movement->mouseYC > 30)
+					movement->mouseYC = 30;
+				else if (movement->mouseYC < -30)
+					movement->mouseYC = -30;
 
-				if (mouseXC > 0)
-					this_player->x += (mouseXC + 3) / 4;
-				else if (mouseXC < 0)
-					this_player->x += (mouseXC - 3) / 4;
-				if (mouseYC > 0)
-					this_player->y += (mouseYC + 3) / 4;
-				else if (mouseYC < 0)
-					this_player->y += (mouseYC - 3) / 4;
+				if (movement->mouseXC > 0)
+					this_player->x += (movement->mouseXC + 3) / 4;
+				else if (movement->mouseXC < 0)
+					this_player->x += (movement->mouseXC - 3) / 4;
+				if (movement->mouseYC > 0)
+					this_player->y += (movement->mouseYC + 3) / 4;
+				else if (movement->mouseYC < 0)
+					this_player->y += (movement->mouseYC - 3) / 4;
 
-				if (mouseXC > 3)
-					accelXC++;
-				else if (mouseXC < -2)
-					accelXC--;
-				if (mouseYC > 2)
-					accelYC++;
-				else if (mouseYC < -2)
-					accelYC--;
+				if (movement->mouseXC > 3)
+					movement->accelXC++;
+				else if (movement->mouseXC < -2)
+					movement->accelXC--;
+				if (movement->mouseYC > 2)
+					movement->accelYC++;
+				else if (movement->mouseYC < -2)
+					movement->accelYC--;
 
 			}   /*endLevel*/
 
@@ -3756,8 +3717,8 @@ redo:
 
 				SDLNet_Write16(this_player->x - *mouseX_, &packet_state_out[0]->data[4]);
 				SDLNet_Write16(this_player->y - *mouseY_, &packet_state_out[0]->data[6]);
-				SDLNet_Write16(accelXC,                   &packet_state_out[0]->data[8]);
-				SDLNet_Write16(accelYC,                   &packet_state_out[0]->data[10]);
+				SDLNet_Write16(movement->accelXC,                   &packet_state_out[0]->data[8]);
+				SDLNet_Write16(movement->accelYC,                   &packet_state_out[0]->data[10]);
 				SDLNet_Write16(buttons,                   &packet_state_out[0]->data[12]);
 
 				this_player->x = *mouseX_;
@@ -3768,54 +3729,20 @@ redo:
 				button[2] = false;
 				button[3] = false;
 
-				accelXC = 0;
-				accelYC = 0;
+				movement->accelXC = 0;
+				movement->accelYC = 0;
 			}
 #endif
-		}  /*isNetworkGame*/
-
-		/* --- Movement Routine Ending --- */
-
-		moveOk = true;
-
-#ifdef WITH_NETWORK
-		if (isNetworkGame && !network_state_is_reset())
-		{
-			if (playerNum_ != thisPlayerNum)
-			{
-				if (thisPlayerNum == 2)
-					difficultyLevel = SDLNet_Read16(&packet_state_in[0]->data[16]);
-
-				Uint16 buttons = SDLNet_Read16(&packet_state_in[0]->data[12]);
-				for (int i = 0; i < 4; i++)
-				{
-					button[i] = buttons & 1;
-					buttons >>= 1;
-				}
-
-				this_player->x += (Sint16)SDLNet_Read16(&packet_state_in[0]->data[4]);
-				this_player->y += (Sint16)SDLNet_Read16(&packet_state_in[0]->data[6]);
-				accelXC = (Sint16)SDLNet_Read16(&packet_state_in[0]->data[8]);
-				accelYC = (Sint16)SDLNet_Read16(&packet_state_in[0]->data[10]);
-			}
-			else
-			{
-				Uint16 buttons = SDLNet_Read16(&packet_state_out[network_delay]->data[12]);
-				for (int i = 0; i < 4; i++)
-				{
-					button[i] = buttons & 1;
-					buttons >>= 1;
-				}
-
-				this_player->x += (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[4]);
-				this_player->y += (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[6]);
-				accelXC = (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[8]);
-				accelYC = (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[10]);
-			}
 		}
-#endif
+}
 
-		/*Street-Fighter codes*/
+
+static void update_player_linking(Player *this_player,
+                                  JE_byte playerNum_,
+                                  JE_word *mouseX_, JE_word *mouseY_,
+                                  JE_PlayerMovementState *movement)
+{
+/*Street-Fighter codes*/
 		JE_SFCodes(playerNum_, this_player->x, this_player->y, *mouseX_, *mouseY_);
 
 		if (moveOk)
@@ -3839,9 +3766,9 @@ redo:
 			{
 				if (button[0])
 				{
-					if (link_gun_analog)
+					if (movement->link_gun_analog)
 					{
-						linkGunDirec = link_gun_angle;
+						linkGunDirec = movement->link_gun_angle;
 					}
 					else
 					{
@@ -3873,8 +3800,13 @@ redo:
 				}
 			}
 		}
-	}
+}
 
+
+static void draw_player_level_end(Player *this_player,
+                                  JE_word shipGr_,
+                                  Sprite2_array *shipGrPtr_)
+{
 	if (levelEnd > 0 && all_players_dead())
 		reallyEndLevel = true;
 
@@ -3928,10 +3860,15 @@ redo:
 			}
 		}
 	}
+}
 
-	if (play_demo)
-		JE_dString(VGAScreen, 115, 10, miscText[7], SMALL_FONT_SHAPES); // insert coin
 
+static void update_player_movement(Player *this_player,
+                                   JE_byte playerNum_,
+                                   JE_word shipGr_,
+                                   JE_word *mouseX_, JE_word *mouseY_,
+                                   JE_PlayerMovementState *movement)
+{
 	if (this_player->is_alive && !endLevel)
 	{
 		if (!twoPlayerLinked || playerNum_ < 2)
@@ -3979,8 +3916,8 @@ redo:
 					--this_player->y_velocity;
 			}
 
-			this_player->x_velocity += accelXC;
-			this_player->y_velocity += accelYC;
+			this_player->x_velocity += movement->accelXC;
+			this_player->y_velocity += movement->accelYC;
 
 			this_player->x_velocity = MIN(MAX(-4, this_player->x_velocity), 4);
 			this_player->y_velocity = MIN(MAX(-4, this_player->y_velocity), 4);
@@ -4031,174 +3968,14 @@ redo:
 			}
 		}
 	}
+}
 
-	if (!endLevel)
-	{
-		if (this_player->x > 256)
-		{
-			this_player->x = 256;
-			constantLastX = -constantLastX;
-		}
-		if (this_player->x < 40)
-		{
-			this_player->x = 40;
-			constantLastX = -constantLastX;
-		}
 
-		if (isNetworkGame && playerNum_ == 1)
-		{
-			if (this_player->y > 154)
-				this_player->y = 154;
-		}
-		else
-		{
-			if (this_player->y > 160)
-				this_player->y = 160;
-		}
-
-		if (this_player->y < 10)
-			this_player->y = 10;
-
-		// Determines the ship banking sprite to display, depending on horizontal velocity and acceleration
-		int ship_banking = this_player->x_velocity / 2 + (this_player->x - *mouseX_) / 6;
-		ship_banking = MAX(-2, MIN(ship_banking, 2));
-
-		int ship_sprite = ship_banking * 2 + shipGr_;
-
-		explosionFollowAmountX = this_player->x - this_player->last_x_explosion_follow;
-		explosionFollowAmountY = this_player->y - this_player->last_y_explosion_follow;
-
-		if (explosionFollowAmountY < 0)
-			explosionFollowAmountY = 0;
-
-		this_player->last_x_explosion_follow = this_player->x;
-		this_player->last_y_explosion_follow = this_player->y;
-
-		if (shipGr_ == 0)
-		{
-			if (background2)
-			{
-				blit_sprite2x2_darken(VGAScreen, this_player->x - 17 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 13);
-				blit_sprite2x2_darken(VGAScreen, this_player->x + 7 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 51);
-				if (superWild)
-				{
-					blit_sprite2x2_darken(VGAScreen, this_player->x - 16 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 13);
-					blit_sprite2x2_darken(VGAScreen, this_player->x + 6 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 51);
-				}
-			}
-		}
-		else if (shipGr_ == 1)
-		{
-			if (background2)
-			{
-				blit_sprite2x2_darken(VGAScreen, this_player->x - 17 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, 220);
-				blit_sprite2x2_darken(VGAScreen, this_player->x + 7 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, 222);
-			}
-		}
-		else
-		{
-			if (background2)
-			{
-				blit_sprite2x2_darken(VGAScreen, this_player->x - 5 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite);
-				if (superWild)
-				{
-					blit_sprite2x2_darken(VGAScreen, this_player->x - 4 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite);
-				}
-			}
-		}
-
-		if (this_player->invulnerable_ticks > 0)
-		{
-			--this_player->invulnerable_ticks;
-
-			if (shipGr_ == 0)
-			{
-				blit_sprite2x2_blend(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, ship_sprite + 13);
-				blit_sprite2x2_blend(VGAScreen, this_player->x + 7 , this_player->y - 7, *shipGrPtr_, ship_sprite + 51);
-			}
-			else if (shipGr_ == 1)
-			{
-				blit_sprite2x2_blend(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, 220);
-				blit_sprite2x2_blend(VGAScreen, this_player->x + 7 , this_player->y - 7, *shipGrPtr_, 222);
-			}
-			else
-				blit_sprite2x2_blend(VGAScreen, this_player->x - 5, this_player->y - 7, *shipGrPtr_, ship_sprite);
-		}
-		else
-		{
-			if (shipGr_ == 0)
-			{
-				blit_sprite2x2(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, ship_sprite + 13);
-				blit_sprite2x2(VGAScreen, this_player->x + 7, this_player->y - 7, *shipGrPtr_, ship_sprite + 51);
-			}
-			else if (shipGr_ == 1)
-			{
-				blit_sprite2x2(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, 220);
-				blit_sprite2x2(VGAScreen, this_player->x + 7, this_player->y - 7, *shipGrPtr_, 222);
-
-				int ship_banking = 0;
-				switch (ship_sprite)
-				{
-				case 5:
-					blit_sprite2(VGAScreen, this_player->x - 17, this_player->y + 7, *shipGrPtr_, 40);
-					tempW = this_player->x - 7;
-					ship_banking = -2;
-					break;
-				case 3:
-					blit_sprite2(VGAScreen, this_player->x - 17, this_player->y + 7, *shipGrPtr_, 39);
-					tempW = this_player->x - 7;
-					ship_banking = -1;
-					break;
-				case 1:
-					ship_banking = 0;
-					break;
-				case -1:
-					blit_sprite2(VGAScreen, this_player->x + 19, this_player->y + 7, *shipGrPtr_, 58);
-					tempW = this_player->x + 9;
-					ship_banking = 1;
-					break;
-				case -3:
-					blit_sprite2(VGAScreen, this_player->x + 19, this_player->y + 7, *shipGrPtr_, 59);
-					tempW = this_player->x + 9;
-					ship_banking = 2;
-					break;
-				}
-				if (ship_banking != 0)  // NortSparks
-				{
-					if (shotRepeat[SHOT_NORTSPARKS] > 0)
-					{
-						--shotRepeat[SHOT_NORTSPARKS];
-					}
-					else
-					{
-						b = player_shot_create(0, SHOT_NORTSPARKS, tempW + (mt_rand() % 8) - 4, this_player->y + (mt_rand() % 8) - 4, *mouseX_, *mouseY_, 671, 1);
-						shotRepeat[SHOT_NORTSPARKS] = abs(ship_banking) - 1;
-					}
-				}
-			}
-			else
-			{
-				blit_sprite2x2(VGAScreen, this_player->x - 5, this_player->y - 7, *shipGrPtr_, ship_sprite);
-			}
-		}
-
-		/*Options Location*/
-		if (playerNum_ == 2 && shipGr_ == 0)  // if dragonwing
-		{
-			if (this_player->sidekick[LEFT_SIDEKICK].style == 0)
-			{
-				this_player->sidekick[LEFT_SIDEKICK].x = this_player->x - 14 + ship_banking * 2;
-				this_player->sidekick[LEFT_SIDEKICK].y = this_player->y;
-			}
-
-			if (this_player->sidekick[RIGHT_SIDEKICK].style == 0)
-			{
-				this_player->sidekick[RIGHT_SIDEKICK].x = this_player->x + 17 + ship_banking * 2;
-				this_player->sidekick[RIGHT_SIDEKICK].y = this_player->y;
-			}
-		}
-	}  // !endLevel
-
+static void update_player_attacks(Player *this_player,
+                                  JE_byte playerNum_,
+                                  JE_word shipGr_,
+                                  JE_word *mouseX_, JE_word *mouseY_)
+{
 	if (moveOk)
 	{
 		if (this_player->is_alive)
@@ -4542,8 +4319,12 @@ redo:
 				}  // end of if player has sidekicks
 			}  // !endLevel
 		} // this_player->is_alive
-	} // moveOK
+	}
+}
 
+
+static void draw_player_sidekicks(Player *this_player, JE_byte playerNum_)
+{
 	// draw sidekicks
 	if ((playerNum_ == 2 || !twoPlayerMode) && !endLevel)
 	{
@@ -4580,6 +4361,300 @@ redo:
 			}
 		}
 	}
+}
+
+
+static void draw_player_ship(Player *this_player,
+                             JE_byte playerNum_,
+                             JE_word shipGr_,
+                             Sprite2_array *shipGrPtr_,
+                             JE_word *mouseX_, JE_word *mouseY_)
+{
+	if (!endLevel)
+	{
+		if (this_player->x > 256)
+		{
+			this_player->x = 256;
+			constantLastX = -constantLastX;
+		}
+		if (this_player->x < 40)
+		{
+			this_player->x = 40;
+			constantLastX = -constantLastX;
+		}
+
+		if (isNetworkGame && playerNum_ == 1)
+		{
+			if (this_player->y > 154)
+				this_player->y = 154;
+		}
+		else
+		{
+			if (this_player->y > 160)
+				this_player->y = 160;
+		}
+
+		if (this_player->y < 10)
+			this_player->y = 10;
+
+		// Determines the ship banking sprite to display, depending on horizontal velocity and acceleration
+		int ship_banking = this_player->x_velocity / 2 + (this_player->x - *mouseX_) / 6;
+		ship_banking = MAX(-2, MIN(ship_banking, 2));
+
+		int ship_sprite = ship_banking * 2 + shipGr_;
+
+		explosionFollowAmountX = this_player->x - this_player->last_x_explosion_follow;
+		explosionFollowAmountY = this_player->y - this_player->last_y_explosion_follow;
+
+		if (explosionFollowAmountY < 0)
+			explosionFollowAmountY = 0;
+
+		this_player->last_x_explosion_follow = this_player->x;
+		this_player->last_y_explosion_follow = this_player->y;
+
+		if (shipGr_ == 0)
+		{
+			if (background2)
+			{
+				blit_sprite2x2_darken(VGAScreen, this_player->x - 17 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 13);
+				blit_sprite2x2_darken(VGAScreen, this_player->x + 7 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 51);
+				if (superWild)
+				{
+					blit_sprite2x2_darken(VGAScreen, this_player->x - 16 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 13);
+					blit_sprite2x2_darken(VGAScreen, this_player->x + 6 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite + 51);
+				}
+			}
+		}
+		else if (shipGr_ == 1)
+		{
+			if (background2)
+			{
+				blit_sprite2x2_darken(VGAScreen, this_player->x - 17 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, 220);
+				blit_sprite2x2_darken(VGAScreen, this_player->x + 7 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, 222);
+			}
+		}
+		else
+		{
+			if (background2)
+			{
+				blit_sprite2x2_darken(VGAScreen, this_player->x - 5 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite);
+				if (superWild)
+				{
+					blit_sprite2x2_darken(VGAScreen, this_player->x - 4 - mapX2Ofs + 30, this_player->y - 7 + shadowYDist, *shipGrPtr_, ship_sprite);
+				}
+			}
+		}
+
+		if (this_player->invulnerable_ticks > 0)
+		{
+			--this_player->invulnerable_ticks;
+
+			if (shipGr_ == 0)
+			{
+				blit_sprite2x2_blend(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, ship_sprite + 13);
+				blit_sprite2x2_blend(VGAScreen, this_player->x + 7 , this_player->y - 7, *shipGrPtr_, ship_sprite + 51);
+			}
+			else if (shipGr_ == 1)
+			{
+				blit_sprite2x2_blend(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, 220);
+				blit_sprite2x2_blend(VGAScreen, this_player->x + 7 , this_player->y - 7, *shipGrPtr_, 222);
+			}
+			else
+				blit_sprite2x2_blend(VGAScreen, this_player->x - 5, this_player->y - 7, *shipGrPtr_, ship_sprite);
+		}
+		else
+		{
+			if (shipGr_ == 0)
+			{
+				blit_sprite2x2(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, ship_sprite + 13);
+				blit_sprite2x2(VGAScreen, this_player->x + 7, this_player->y - 7, *shipGrPtr_, ship_sprite + 51);
+			}
+			else if (shipGr_ == 1)
+			{
+				blit_sprite2x2(VGAScreen, this_player->x - 17, this_player->y - 7, *shipGrPtr_, 220);
+				blit_sprite2x2(VGAScreen, this_player->x + 7, this_player->y - 7, *shipGrPtr_, 222);
+
+				int ship_banking = 0;
+				switch (ship_sprite)
+				{
+				case 5:
+					blit_sprite2(VGAScreen, this_player->x - 17, this_player->y + 7, *shipGrPtr_, 40);
+					tempW = this_player->x - 7;
+					ship_banking = -2;
+					break;
+				case 3:
+					blit_sprite2(VGAScreen, this_player->x - 17, this_player->y + 7, *shipGrPtr_, 39);
+					tempW = this_player->x - 7;
+					ship_banking = -1;
+					break;
+				case 1:
+					ship_banking = 0;
+					break;
+				case -1:
+					blit_sprite2(VGAScreen, this_player->x + 19, this_player->y + 7, *shipGrPtr_, 58);
+					tempW = this_player->x + 9;
+					ship_banking = 1;
+					break;
+				case -3:
+					blit_sprite2(VGAScreen, this_player->x + 19, this_player->y + 7, *shipGrPtr_, 59);
+					tempW = this_player->x + 9;
+					ship_banking = 2;
+					break;
+				}
+				if (ship_banking != 0)  // NortSparks
+				{
+					if (shotRepeat[SHOT_NORTSPARKS] > 0)
+					{
+						--shotRepeat[SHOT_NORTSPARKS];
+					}
+					else
+					{
+						b = player_shot_create(0, SHOT_NORTSPARKS, tempW + (mt_rand() % 8) - 4, this_player->y + (mt_rand() % 8) - 4, *mouseX_, *mouseY_, 671, 1);
+						shotRepeat[SHOT_NORTSPARKS] = abs(ship_banking) - 1;
+					}
+				}
+			}
+			else
+			{
+				blit_sprite2x2(VGAScreen, this_player->x - 5, this_player->y - 7, *shipGrPtr_, ship_sprite);
+			}
+		}
+
+		/*Options Location*/
+		if (playerNum_ == 2 && shipGr_ == 0)  // if dragonwing
+		{
+			if (this_player->sidekick[LEFT_SIDEKICK].style == 0)
+			{
+				this_player->sidekick[LEFT_SIDEKICK].x = this_player->x - 14 + ship_banking * 2;
+				this_player->sidekick[LEFT_SIDEKICK].y = this_player->y;
+			}
+
+			if (this_player->sidekick[RIGHT_SIDEKICK].style == 0)
+			{
+				this_player->sidekick[RIGHT_SIDEKICK].x = this_player->x + 17 + ship_banking * 2;
+				this_player->sidekick[RIGHT_SIDEKICK].y = this_player->y;
+			}
+		}
+	}
+}
+
+void JE_playerMovement(Player *this_player,
+                       JE_byte inputDevice,
+                       JE_byte playerNum_,
+                       JE_word shipGr_,
+                       Sprite2_array *shipGrPtr_,
+                       JE_word *mouseX_, JE_word *mouseY_)
+{
+	JE_PlayerMovementState movement = { 0 };
+
+	if (playerNum_ == 2 || !twoPlayerMode)
+	{
+		tempW = weaponPort[this_player->items.weapon[REAR_WEAPON].id].opnum;
+
+		if (this_player->weapon_mode > tempW)
+			this_player->weapon_mode = 1;
+	}
+
+#ifdef WITH_NETWORK
+	if (isNetworkGame && thisPlayerNum == playerNum_)
+	{
+		network_state_prepare();
+		memset(&packet_state_out[0]->data[4], 0, 10);
+	}
+#endif
+
+redo:
+
+	if (isNetworkGame)
+	{
+		inputDevice = 0;
+	}
+
+	movement.mouseXC = 0;
+	movement.mouseYC = 0;
+	movement.accelXC = 0;
+	movement.accelYC = 0;
+	movement.link_gun_analog = false;
+	movement.link_gun_angle = 0;
+
+	if (update_player_death(this_player, playerNum_))
+		goto redo;
+
+	if (!this_player->is_alive)
+	{
+		explosionFollowAmountX = explosionFollowAmountY = 0;
+		return;
+	}
+
+	if (!endLevel)
+	{
+		*mouseX_ = this_player->x;
+		*mouseY_ = this_player->y;
+		button[1-1] = false;
+		button[2-1] = false;
+		button[3-1] = false;
+		button[4-1] = false;
+
+		/* --- Movement Routine Beginning --- */
+
+		collect_player_movement_input(this_player, inputDevice, playerNum_, mouseX_, mouseY_, &movement);
+
+		/* --- Movement Routine Ending --- */
+
+		moveOk = true;
+
+#ifdef WITH_NETWORK
+		if (isNetworkGame && !network_state_is_reset())
+		{
+			if (playerNum_ != thisPlayerNum)
+			{
+				if (thisPlayerNum == 2)
+					difficultyLevel = SDLNet_Read16(&packet_state_in[0]->data[16]);
+
+				Uint16 buttons = SDLNet_Read16(&packet_state_in[0]->data[12]);
+				for (int i = 0; i < 4; i++)
+				{
+					button[i] = buttons & 1;
+					buttons >>= 1;
+				}
+
+				this_player->x += (Sint16)SDLNet_Read16(&packet_state_in[0]->data[4]);
+				this_player->y += (Sint16)SDLNet_Read16(&packet_state_in[0]->data[6]);
+				movement.accelXC = (Sint16)SDLNet_Read16(&packet_state_in[0]->data[8]);
+				movement.accelYC = (Sint16)SDLNet_Read16(&packet_state_in[0]->data[10]);
+			}
+			else
+			{
+				Uint16 buttons = SDLNet_Read16(&packet_state_out[network_delay]->data[12]);
+				for (int i = 0; i < 4; i++)
+				{
+					button[i] = buttons & 1;
+					buttons >>= 1;
+				}
+
+				this_player->x += (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[4]);
+				this_player->y += (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[6]);
+				movement.accelXC = (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[8]);
+				movement.accelYC = (Sint16)SDLNet_Read16(&packet_state_out[network_delay]->data[10]);
+			}
+		}
+#endif
+
+		update_player_linking(this_player, playerNum_, mouseX_, mouseY_, &movement);
+	}
+
+	draw_player_level_end(this_player, shipGr_, shipGrPtr_);
+
+	if (play_demo)
+		JE_dString(VGAScreen, 115, 10, miscText[7], SMALL_FONT_SHAPES); // insert coin
+
+	update_player_movement(this_player, playerNum_, shipGr_, mouseX_, mouseY_, &movement);
+
+	draw_player_ship(this_player, playerNum_, shipGr_, shipGrPtr_, mouseX_, mouseY_);  // !endLevel
+
+	update_player_attacks(this_player, playerNum_, shipGr_, mouseX_, mouseY_);
+
+	draw_player_sidekicks(this_player, playerNum_);
 }
 
 void JE_mainGamePlayerFunctions(void)
