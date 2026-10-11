@@ -4300,7 +4300,7 @@ bool JE_searchFor/*enemy*/(JE_byte PLType, JE_byte* out_index)
 	}
 }
 
-void JE_eventSystem(void)
+static void handle_environment_event(void)
 {
 	switch (eventRec[eventLoc-1].eventtype)
 	{
@@ -4487,6 +4487,16 @@ void JE_eventSystem(void)
 			enemy[b-1].ey = 190 + eventRec[eventLoc-1].eventdat5;
 		break;
 
+	default:
+		break;
+	}
+}
+
+
+static void handle_enemy_event(void)
+{
+	switch (eventRec[eventLoc-1].eventtype)
+	{
 	case 19: /* Enemy Global Move */
 	{
 		int initial_i = 0, max_i = 0;
@@ -4759,6 +4769,16 @@ void JE_eventSystem(void)
 		}
 		break;
 
+	default:
+		break;
+	}
+}
+
+
+static void handle_level_event(void)
+{
+	switch (eventRec[eventLoc-1].eventtype)
+	{
 	case 34: /* Start Music Fade */
 		if (firstGameOver)
 		{
@@ -4950,6 +4970,16 @@ void JE_eventSystem(void)
 		superEnemy254Jump = eventRec[eventLoc-1].eventdat;
 		break;
 
+	default:
+		break;
+	}
+}
+
+
+static void handle_misc_event(void)
+{
+	switch (eventRec[eventLoc-1].eventtype)
+	{
 	case 60: /*Assign Special Enemy*/
 		for (temp = 0; temp < 100; temp++)
 		{
@@ -5147,14 +5177,27 @@ void JE_eventSystem(void)
 		shotMultiPos[SHOT_SPECIAL2] = 0;
 		shotRepeat[SHOT_SPECIAL2] = 0;
 		break;
-
-	default:
-		fprintf(stderr, "warning: ignoring unknown event %d\n", eventRec[eventLoc-1].eventtype);
-		break;
 	}
+}
+
+void JE_eventSystem(void)
+{
+	const int eventtype = eventRec[eventLoc-1].eventtype;
+
+	if (eventtype >= 1 && eventtype <= 18)
+		handle_environment_event();
+	else if (eventtype >= 19 && eventtype <= 33)
+		handle_enemy_event();
+	else if (eventtype >= 34 && eventtype <= 57)
+		handle_level_event();
+	else if (eventtype >= 60 && eventtype <= 82)
+		handle_misc_event();
+	else
+		fprintf(stderr, "warning: ignoring unknown event %d\n", eventtype);
 
 	eventLoc++;
 }
+
 
 void JE_whoa(void)
 {
