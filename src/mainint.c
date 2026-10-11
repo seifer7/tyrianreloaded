@@ -342,6 +342,7 @@ void JE_helpSystem(JE_byte startTopic)
 			}
 			case SDL_SCANCODE_SPACE:
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			{
 				action = true;
 				break;
@@ -373,6 +374,138 @@ void JE_helpSystem(JE_byte startTopic)
 			fade_black(15);
 
 			return;
+		}
+	}
+}
+
+void saveGameNamePopup(bool isSave)
+{
+	if (shopSpriteSheet.data == NULL) {
+		JE_loadCompShapes(&shopSpriteSheet, '1');  // need mouse pointer sprite
+	}
+
+	wait_noinput(false, true, false);
+	{
+		/* Enter Thy name */
+		JE_byte flash = 8 * 16 + 10;
+		JE_boolean quit = false, cancel = false;
+		char stemp[30], tempstr[30];
+
+		strcpy(stemp, "                             ");
+		temp = 0;
+
+		JE_barShade(VGAScreen, 65, 55, 255, 155);
+
+		do
+		{
+			service_SDL_events(true);
+
+			blit_sprite(VGAScreen, 50, 50, OPTION_SHAPES, 35);  // message box
+
+			JE_textShade(VGAScreen, 60, 55, miscText[1 - 1], 11, 4, DARKEN);
+			JE_textShade(VGAScreen, 70, 70, levelName, 11, 4, DARKEN);
+
+			do
+			{
+				flash = (flash == 8 * 16 + 10) ? 8 * 16 + 2 : 8 * 16 + 10;
+
+				strncpy(tempstr, stemp, temp);
+				tempstr[temp] = '\0';
+				JE_outText(VGAScreen, 65, 89, tempstr, 8, 3);
+				tempW = 65 + JE_textWidth(tempstr, TINY_FONT);
+				JE_barShade(VGAScreen, tempW + 2, 90, tempW + 6, 95);
+				fill_rectangle_xy(VGAScreen, tempW + 1, 89, tempW + 5, 94, flash);
+
+				int text_x = 54 + 45 - (JE_textWidth(miscText[9], FONT_SHAPES) / 2);
+				JE_outTextAdjust(VGAScreen, text_x, 128, miscText[9], 15, -5, FONT_SHAPES, true);
+
+				text_x = 149 + 45 - (JE_textWidth(miscText[10], FONT_SHAPES) / 2);
+				JE_outTextAdjust(VGAScreen, text_x, 128, miscText[10], 15, -5, FONT_SHAPES, true);
+
+				for (int i = 0; i < 14; i++)
+				{
+					setDelay(1);
+
+					JE_mouseStart();
+					JE_showVGA();
+					JE_mouseReplace();
+
+					push_joysticks_as_keyboard();
+					service_wait_delay();
+
+					if (newkey || newmouse)
+						break;
+				}
+				mouseButton = JE_mousePosition(&mouseX, &mouseY);
+
+			} while (!newkey && !newmouse && !new_text);
+
+			if (newmouse == true)
+			{
+				mouseButton = JE_mousePosition(&mouseX, &mouseY);
+				if (mouseX > 56 && mouseX < 142 && mouseY > 123 && mouseY < 149)
+				{
+					quit = true;
+				}
+				else if (mouseX > 151 && mouseX < 237 && mouseY > 123 && mouseY < 149)
+				{
+					quit = true;
+					cancel = true;
+				}
+			}
+			else if (new_text)
+			{
+				for (size_t ti = 0U; last_text[ti] != '\0'; ++ti)
+				{
+					const char c = (unsigned char)last_text[ti] <= 127U ? toupper(last_text[ti]) : 0;
+					if ((c == ' ' || font_ascii[(unsigned char)c] != -1) &&
+						temp < 28)
+					{
+						stemp[temp] = c;
+						temp += 1;
+					}
+				}
+			}
+			else if (newkey)
+			{
+				switch (lastkey_scan)
+				{
+				case SDL_SCANCODE_BACKSPACE:
+				case SDL_SCANCODE_DELETE:
+					if (temp)
+					{
+						temp--;
+						stemp[temp] = ' ';
+					}
+					break;
+				case SDL_SCANCODE_ESCAPE:
+					quit = true;
+					cancel = true;
+					break;
+				case SDL_SCANCODE_RETURN:
+				case SDL_SCANCODE_KP_ENTER:
+					quit = true;
+					break;
+				default:
+					break;
+				}
+			}
+		} while (!quit);
+
+		if (!cancel)
+		{
+			int filenamelength = sizeof(stemp)-1;
+			int i = filenamelength;
+			for(;i>0;) {
+				char c = stemp[i-1];
+				if (c != '\0' && c != ' ') break;
+				i--;
+			}
+			stemp[i] = '\0';
+			if (i > 0) {
+				if (isSave == true) saveGameOperation(stemp);
+					else loadGameOperation(stemp);
+			}
 		}
 	}
 }
@@ -549,6 +682,7 @@ static bool helpSystemPage(Uint8 *topic, bool *restart)
 			case SDL_SCANCODE_RIGHT:
 			case SDL_SCANCODE_SPACE:
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			{
 				JE_playSampleNum(S_CURSOR);
 
@@ -642,7 +776,12 @@ enum
 	LOAD_SCREEN_Y_CONTROLS = 179,
 };
 
-static void draw_load_screen(size_t playersIndex, size_t selectedIndex, bool restart)
+static size_t saved_game_count(const SavedGame *savedGames)
+{
+	return savedGames->count > 0 ? (size_t)savedGames->count : 0;
+}
+
+static void draw_load_screen(const SavedGame *savedGames, size_t pageIndex, size_t selectedIndex, bool restart)
 {
 	if (restart)
 	{
@@ -652,7 +791,7 @@ static void draw_load_screen(size_t playersIndex, size_t selectedIndex, bool res
 
 	memcpy(VGAScreen->pixels, VGAScreen2->pixels, (size_t)VGAScreen->pitch * VGAScreen->h);
 	draw_font_hv_shadow(VGAScreen, LOAD_SCREEN_X_CENTER, LOAD_SCREEN_Y_HEADER,
-	                    miscText[38 + playersIndex], large_font, centered, 15, -3, false, 2);
+	                    "Saved Games", large_font, centered, 15, -3, false, 2);
 
 	for (size_t i = 0; i < LOAD_SCREEN_MENU_ITEMS; ++i)
 	{
@@ -665,17 +804,13 @@ static void draw_load_screen(size_t playersIndex, size_t selectedIndex, bool res
 			continue;
 		}
 
-		const JE_SaveFileType *const saveFile = &saveFiles[playersIndex * 11 + i];
-		const bool disabled = saveFile->level == 0;
+		const size_t saveFileIndex = pageIndex * 11 + i;
+		if (saveFileIndex >= saved_game_count(savedGames))
+			continue;
+
+		const SavedGame *const saveFile = &savedGames[saveFileIndex];
 		char buffer[22];
 
-		if (disabled)
-		{
-			JE_textShade(VGAScreen, LOAD_SCREEN_X_ITEM, y, miscText[2], 13, selected ? 6 : 0, FULL_SHADE);
-			snprintf(buffer, sizeof buffer, "%s -----", miscTextB[2]);
-			JE_textShade(VGAScreen, LOAD_SCREEN_X_LAST_LEVEL, y, buffer, 5, selected ? 6 : 0, FULL_SHADE);
-		}
-		else
 		{
 			JE_textShade(VGAScreen, LOAD_SCREEN_X_ITEM, y, saveFile->name, 13, selected ? 6 : 2, FULL_SHADE);
 			snprintf(buffer, sizeof buffer, "%s %s", miscTextB[2], saveFile->levelName);
@@ -685,8 +820,8 @@ static void draw_load_screen(size_t playersIndex, size_t selectedIndex, bool res
 		}
 	}
 
-	const bool leftControlVisible = playersIndex > 0;
-	const bool rightControlVisible = playersIndex < 1;
+	const bool leftControlVisible = pageIndex > 0;
+	const bool rightControlVisible = (pageIndex + 1) * 11 < saved_game_count(savedGames);
 	if (leftControlVisible)
 		blit_sprite2x2(VGAScreen, LOAD_SCREEN_X_LEFT_CONTROL, LOAD_SCREEN_Y_CONTROLS, shopSpriteSheet, 279);
 	if (rightControlVisible)
@@ -731,11 +866,13 @@ typedef struct
 	bool done;
 } LoadScreenInput;
 
-static LoadScreenInput read_load_screen_input(size_t playersIndex, size_t *selectedIndex, bool mouseMoved)
+static LoadScreenInput read_load_screen_input(const SavedGame *savedGames, size_t pageIndex, size_t *selectedIndex, bool mouseMoved)
 {
 	LoadScreenInput input = { false, false, false, false };
-	const bool leftControlVisible = playersIndex > 0;
-	const bool rightControlVisible = playersIndex < 1;
+	const size_t savedCount = saved_game_count(savedGames);
+	const size_t pageSavedCount = savedCount > pageIndex * 11 ? savedCount - pageIndex * 11 : 0;
+	const bool leftControlVisible = pageIndex > 0;
+	const bool rightControlVisible = (pageIndex + 1) * 11 < savedCount;
 
 	if (mouseMoved || newmouse)
 	{
@@ -807,14 +944,33 @@ static LoadScreenInput read_load_screen_input(size_t playersIndex, size_t *selec
 			break;
 		case SDL_SCANCODE_UP:
 			JE_playSampleNum(S_CURSOR);
-			*selectedIndex = *selectedIndex == 0 ? LOAD_SCREEN_MENU_ITEMS - 1 : *selectedIndex - 1;
+			if (pageSavedCount > 0)
+			{
+				*selectedIndex = *selectedIndex == 0 ? LOAD_SCREEN_MENU_ITEMS - 1 : *selectedIndex - 1;
+				if (*selectedIndex != LOAD_SCREEN_MENU_ITEMS - 1 && *selectedIndex >= pageSavedCount)
+					*selectedIndex = pageSavedCount - 1;
+			}
+			else
+			{
+				*selectedIndex = LOAD_SCREEN_MENU_ITEMS - 1;
+			}
 			break;
 		case SDL_SCANCODE_DOWN:
 			JE_playSampleNum(S_CURSOR);
-			*selectedIndex = *selectedIndex == LOAD_SCREEN_MENU_ITEMS - 1 ? 0 : *selectedIndex + 1;
+			if (pageSavedCount > 0)
+			{
+				*selectedIndex = *selectedIndex == LOAD_SCREEN_MENU_ITEMS - 1 ? 0 : *selectedIndex + 1;
+				if (*selectedIndex >= pageSavedCount)
+					*selectedIndex = LOAD_SCREEN_MENU_ITEMS - 1;
+			}
+			else
+			{
+				*selectedIndex = LOAD_SCREEN_MENU_ITEMS - 1;
+			}
 			break;
 		case SDL_SCANCODE_SPACE:
 		case SDL_SCANCODE_RETURN:
+		case SDL_SCANCODE_KP_ENTER:
 			input.action = true;
 			break;
 		case SDL_SCANCODE_ESCAPE:
@@ -836,16 +992,18 @@ typedef enum
 	LOAD_SCREEN_LOADED,
 } LoadScreenResult;
 
-static LoadScreenResult handle_load_screen_action(size_t *playersIndex, size_t selectedIndex,
-                                                  LoadScreenInput input)
+static LoadScreenResult handle_load_screen_action(const SavedGame *savedGames, size_t *pageIndex,
+                                                  size_t selectedIndex, LoadScreenInput input)
 {
 	if (input.leftAction)
 	{
-		*playersIndex = *playersIndex == 0 ? 1 : 0;
+		if (*pageIndex > 0)
+			--*pageIndex;
 	}
 	else if (input.rightAction)
 	{
-		*playersIndex = *playersIndex == 1 ? 0 : 1;
+		if ((*pageIndex + 1) * 11 < saved_game_count(savedGames))
+			++*pageIndex;
 	}
 	else if (input.action)
 	{
@@ -855,8 +1013,8 @@ static LoadScreenResult handle_load_screen_action(size_t *playersIndex, size_t s
 			return LOAD_SCREEN_EXIT;
 		}
 
-		const size_t saveFileIndex = *playersIndex * 11 + selectedIndex;
-		if (saveFiles[saveFileIndex].level == 0)
+		const size_t saveFileIndex = *pageIndex * 11 + selectedIndex;
+		if (saveFileIndex >= saved_game_count(savedGames))
 		{
 			JE_playSampleNum(S_CLINK);
 		}
@@ -864,7 +1022,7 @@ static LoadScreenResult handle_load_screen_action(size_t *playersIndex, size_t s
 		{
 			JE_playSampleNum(S_SELECT);
 			performSave = false;
-			JE_operation(saveFileIndex + 1);
+			loadGameOperation(savedGames[saveFileIndex].name);
 			fade_black(15);
 			return LOAD_SCREEN_LOADED;
 		}
@@ -883,20 +1041,25 @@ bool JE_loadScreen(void)
 
 	bool restart = true;
 
-	size_t playersIndex = 0;
+	size_t pageIndex = 0;
 	size_t selectedIndex = 0;
+
+	SavedGame *savedGames = build_save_game_list(0);
+	if (saved_game_count(savedGames) == 0)
+		selectedIndex = LOAD_SCREEN_MENU_ITEMS - 1;
 
 	for (; ; )
 	{
-		draw_load_screen(playersIndex, selectedIndex, restart);
+		draw_load_screen(savedGames, pageIndex, selectedIndex, restart);
 		if (restart)
 			restart = false;
 
 		const bool mouseMoved = wait_for_load_screen_input();
-		LoadScreenInput input = read_load_screen_input(playersIndex, &selectedIndex, mouseMoved);
-		const LoadScreenResult result = handle_load_screen_action(&playersIndex, selectedIndex, input);
+		LoadScreenInput input = read_load_screen_input(savedGames, pageIndex, &selectedIndex, mouseMoved);
+		const LoadScreenResult result = handle_load_screen_action(savedGames, &pageIndex, selectedIndex, input);
 		if (result != LOAD_SCREEN_CONTINUE)
 		{
+			free(savedGames);
 			if (result == LOAD_SCREEN_EXIT)
 				fade_black(15);
 			return result == LOAD_SCREEN_LOADED ? gameLoaded : false;
@@ -978,14 +1141,14 @@ void JE_nextEpisode(void)
 		// randomly give player the SuperCarrot
 		if ((mt_rand() % 6) == 0)
 		{
-			player[0].items.ship = 2;                      // SuperCarrot
-			player[0].items.weapon[FRONT_WEAPON].id = 23;  // Banana Blast
-			player[0].items.weapon[REAR_WEAPON].id = 24;   // Banana Blast Rear
+			player[0].items.ship = ITEM_INDEX_STORE[ITEM_SHIP_SUPERCARROT]; // SuperCarrot
+			player[0].items.weapon[FRONT_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONFRONT_BANANABLAST]; // Banana Blast
+			player[0].items.weapon[REAR_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONREAR_BANANABLAST];  // Banana Blast Rear
 
 			for (uint i = 0; i < COUNTOF(player[0].items.weapon); ++i)
 				player[0].items.weapon[i].power = 1;
 
-			player[1].items.weapon[REAR_WEAPON].id = 24;   // Banana Blast Rear
+			player[1].items.weapon[REAR_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONREAR_BANANABLAST]; // Banana Blast Rear
 
 			player[0].last_items = player[0].items;
 		}
@@ -1027,21 +1190,21 @@ void JE_initPlayerData(void)
 {
 	/* JE: New Game Items/Data */
 
-	player[0].items.ship = 1;                     // USP Talon
-	player[0].items.weapon[FRONT_WEAPON].id = 1;  // Pulse Cannon
-	player[0].items.weapon[REAR_WEAPON].id = 0;   // None
-	player[0].items.shield = 4;                   // Gencore High Energy Shield
-	player[0].items.generator = 2;                // Advanced MR-12
+	player[0].items.ship = ITEM_INDEX_STORE[ITEM_SHIP_USPTALON]; // USP Talon
+	player[0].items.weapon[FRONT_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONFRONT_PULSECANNON]; // Pulse Cannon
+	player[0].items.weapon[REAR_WEAPON].id = 0;                         // None
+	player[0].items.shield = ITEM_INDEX_STORE[ITEM_SHIELD_GENCOREHIGHENERGY]; // Gencore High Energy Shield
+	player[0].items.generator = ITEM_INDEX_STORE[ITEM_GENERATOR_ADVANCEDMR12]; // Advanced MR-12
 	for (uint i = 0; i < COUNTOF(player[0].items.sidekick); ++i)
-		player[0].items.sidekick[i] = 0;          // None
-	player[0].items.special = 0;                  // None
+		player[0].items.sidekick[i] = 0;                                // None
+	player[0].items.special = 0;                                        // None
 
 	player[0].last_items = player[0].items;
 
 	player[1].items = player[0].items;
-	player[1].items.weapon[REAR_WEAPON].id = 15;  // Vulcan Cannon
-	player[1].items.sidekick_level = 101;         // 101, 102, 103
-	player[1].items.sidekick_series = 0;          // None
+	player[1].items.weapon[REAR_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONREAR_VULCANCANNON]; // Vulcan Cannon
+	player[1].items.sidekick_level = 101;                               // 101, 102, 103
+	player[1].items.sidekick_series = 0;                                // None
 
 	gameHasRepeated = false;
 	onePlayerAction = false;
@@ -1258,6 +1421,7 @@ void JE_highScoreScreen(void)
 			}
 			case SDL_SCANCODE_SPACE:
 			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
 			case SDL_SCANCODE_ESCAPE:
 			{
 				JE_playSampleNum(S_SPRING);
@@ -1653,6 +1817,7 @@ static void read_ingame_setup_keyboard(size_t *selectedIndex, size_t menuItemsCo
 		break;
 	case SDL_SCANCODE_SPACE:
 	case SDL_SCANCODE_RETURN:
+	case SDL_SCANCODE_KP_ENTER:
 		action->activate = true;
 		break;
 	case SDL_SCANCODE_ESCAPE:
@@ -2065,6 +2230,7 @@ void JE_highScoreCheck(void)
 								cancel = true;
 								break;
 							case SDL_SCANCODE_RETURN:
+							case SDL_SCANCODE_KP_ENTER:
 								quit = true;
 								break;
 							default:
@@ -2196,12 +2362,20 @@ void adjust_difficulty(void)
 
 bool load_next_demo(void)
 {
-	if (++demo_num > 5)
-		demo_num = 1;
-
+	demo_num++;
 	char demo_filename[9];
 	snprintf(demo_filename, sizeof(demo_filename), "demo.%d", demo_num);
-	demo_file = dir_fopen_die(data_dir(), demo_filename, "rb"); // TODO: only play demos from existing file (instead of dying)
+	if (dir_file_exists(data_dir(), demo_filename) == false) {
+		demo_num = 1;
+		snprintf(demo_filename, sizeof(demo_filename), "demo.%d", demo_num);
+	}
+	demo_file = dir_fopen(data_dir(), demo_filename, "rb");
+
+	if (demo_file == NULL) {
+		play_demo = false;
+		mainLevel = 0;
+		return false;
+	}
 
 	difficultyLevel = DIFFICULTY_NORMAL;
 	bonusLevelCurrent = false;
@@ -2209,30 +2383,50 @@ bool load_next_demo(void)
 	Uint8 temp;
 	fread_u8_die(&temp, 1, demo_file);
 	JE_initEpisode(temp);
+	bool original_tyrian_demo = (temp > 0 && temp < 5 ? true : false);
 
-	fread_die(levelName, 1, 10, demo_file);
-	levelName[10] = '\0';
+	if (original_tyrian_demo) {
+		fread_die(levelName, 1, 10, demo_file);
+		levelName[10] = '\0';
 
-	fread_u8_die(&lvlFileNum, 1, demo_file);
+		fread_u8_die(&lvlFileNum, 1, demo_file);
 
-	fread_u8_die(&player[0].items.weapon[FRONT_WEAPON].id,  1, demo_file);
-	fread_u8_die(&player[0].items.weapon[REAR_WEAPON].id,   1, demo_file);
-	fread_u8_die(&player[0].items.super_arcade_mode,        1, demo_file);
-	fread_u8_die(&player[0].items.sidekick[LEFT_SIDEKICK],  1, demo_file);
-	fread_u8_die(&player[0].items.sidekick[RIGHT_SIDEKICK], 1, demo_file);
-	fread_u8_die(&player[0].items.generator,                1, demo_file);
 
-	fread_u8_die(&player[0].items.sidekick_level,           1, demo_file); // could probably ignore
-	fread_u8_die(&player[0].items.sidekick_series,          1, demo_file); // could probably ignore
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_WeaponFront;
+		player[0].items.weapon[FRONT_WEAPON].id = item_idx_from_jebyte(&tempItemType, &temp);
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_WeaponRear;
+		player[0].items.weapon[REAR_WEAPON].id = item_idx_from_jebyte(&tempItemType, &temp);
+		fread_u8_die(&player[0].items.super_arcade_mode, 1, demo_file);
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_SidekickLeft;
+		player[0].items.sidekick[LEFT_SIDEKICK] = item_idx_from_jebyte(&tempItemType, &temp);
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_SidekickRight;
+		player[0].items.sidekick[RIGHT_SIDEKICK] = item_idx_from_jebyte(&tempItemType, &temp);
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_Generator;
+		player[0].items.generator = item_idx_from_jebyte(&tempItemType, &temp);
 
-	fread_u8_die(&initial_episode_num,                      1, demo_file); // could probably ignore
+		fread_u8_die(&player[0].items.sidekick_level, 1, demo_file); // could probably ignore
+		fread_u8_die(&player[0].items.sidekick_series, 1, demo_file); // could probably ignore
 
-	fread_u8_die(&player[0].items.shield,                   1, demo_file);
-	fread_u8_die(&player[0].items.special,                  1, demo_file);
-	fread_u8_die(&player[0].items.ship,                     1, demo_file);
+		fread_u8_die(&initial_episode_num, 1, demo_file); // could probably ignore
 
-	for (uint i = 0; i < 2; ++i)
-		fread_u8_die(&player[0].items.weapon[i].power,      1, demo_file);
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_Shield;
+		player[0].items.shield = item_idx_from_jebyte(&tempItemType, &temp);
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_Special;
+		player[0].items.special = item_idx_from_jebyte(&tempItemType, &temp);
+		fread_u8_die(&temp, 1, demo_file);
+		tempItemType = ItemType_Ship;
+		player[0].items.ship = item_idx_from_jebyte(&tempItemType, &temp);
+
+		for (uint i = 0; i < 2; ++i)
+			fread_u8_die(&player[0].items.weapon[i].power, 1, demo_file);
+	}
 
 	Uint8 unused[3];
 	fread_u8_die(unused, 3, demo_file);
@@ -2756,161 +2950,6 @@ void JE_handleChat(void)
 	// STUB(); Annoying piece of crap =P
 }
 
-bool str_pop_int(char *str, int *val)
-{
-	bool success = false;
-
-	char buf[256];
-	assert(strlen(str) < sizeof(buf));
-
-	// grab the value from str
-	char *end;
-	*val = strtol(str, &end, 10);
-
-	if (end != str)
-	{
-		success = true;
-
-		// shift the rest to the beginning
-		strcpy(buf, end);
-		strcpy(str, buf);
-	}
-
-	return success;
-}
-
-void JE_operation(JE_byte slot)
-{
-	JE_byte flash;
-	char stemp[21];
-	char tempStr[51];
-
-	if (!performSave)
-	{
-		if (saveFiles[slot-1].level > 0)
-		{
-			gameJustLoaded = true;
-			JE_loadGame(slot);
-			gameLoaded = true;
-		}
-	}
-	else if (slot % 11 != 0)
-	{
-		strcpy(stemp, "              ");
-		memcpy(stemp, saveFiles[slot-1].name, strlen(saveFiles[slot-1].name));
-		temp = strlen(stemp);
-		while (stemp[temp-1] == ' ' && --temp);
-
-		flash = 8 * 16 + 10;
-
-		wait_noinput(false, true, false);
-
-		JE_barShade(VGAScreen, 65, 55, 255, 155);
-
-		bool quit = false;
-		while (!quit)
-		{
-			service_SDL_events(true);
-
-			blit_sprite(VGAScreen, 50, 50, OPTION_SHAPES, 35);  // message box
-
-			JE_textShade(VGAScreen, 60, 55, miscText[1-1], 11, 4, DARKEN);
-			JE_textShade(VGAScreen, 70, 70, levelName, 11, 4, DARKEN);
-
-			do
-			{
-				flash = (flash == 8 * 16 + 10) ? 8 * 16 + 2 : 8 * 16 + 10;
-				temp3 = (temp3 == 6) ? 2 : 6;
-
-				strcpy(tempStr, miscText[2-1]);
-				strncat(tempStr, stemp, temp);
-				JE_outText(VGAScreen, 65, 89, tempStr, 8, 3);
-				tempW = 65 + JE_textWidth(tempStr, TINY_FONT);
-				JE_barShade(VGAScreen, tempW + 2, 90, tempW + 6, 95);
-				fill_rectangle_xy(VGAScreen, tempW + 1, 89, tempW + 5, 94, flash);
-
-				int text_x = 54 + 45 - (JE_textWidth(miscText[9], FONT_SHAPES) / 2);
-				JE_outTextAdjust(VGAScreen, text_x, 128, miscText[9], 15, -5, FONT_SHAPES, true);
-
-				text_x = 149 + 45 - (JE_textWidth(miscText[10], FONT_SHAPES) / 2);
-				JE_outTextAdjust(VGAScreen, text_x, 128, miscText[10], 15, -5, FONT_SHAPES, true);
-
-				for (int i = 0; i < 14; i++)
-				{
-					setDelay(1);
-
-					push_joysticks_as_keyboard();
-					service_wait_delay();
-
-					JE_mouseStart();
-					JE_showVGA();
-					JE_mouseReplace();
-
-					if (newkey || newmouse || new_text)
-						break;
-				}
-			} while (!newkey && !newmouse && !new_text);
-
-			if (mouseButton > 0)
-			{
-				if (lastmouse_x > 56 && lastmouse_x < 142 && lastmouse_y > 123 && lastmouse_y < 149)
-				{
-					quit = true;
-					JE_saveGame(slot, stemp);
-					JE_playSampleNum(S_SELECT);
-				}
-				else if (lastmouse_x > 151 && lastmouse_x < 237 && lastmouse_y > 123 && lastmouse_y < 149)
-				{
-					quit = true;
-					JE_playSampleNum(S_SPRING);
-				}
-			}
-			else if (new_text)
-			{
-				for (size_t ti = 0U; last_text[ti] != '\0'; ++ti)
-				{
-					const char c = (unsigned char)last_text[ti] <= 127U ? toupper(last_text[ti]) : 0;
-					if ((c == ' ' || font_ascii[(unsigned char)c] != -1) &&
-					    temp < 14)
-					{
-						JE_playSampleNum(S_CURSOR);
-						stemp[temp] = c;
-						temp += 1;
-					}
-				}
-			}
-			else if (newkey)
-			{
-				switch (lastkey_scan)
-				{
-					case SDL_SCANCODE_BACKSPACE:
-					case SDL_SCANCODE_DELETE:
-						if (temp)
-						{
-							temp--;
-							stemp[temp] = ' ';
-							JE_playSampleNum(S_CLICK);
-						}
-						break;
-					case SDL_SCANCODE_ESCAPE:
-						quit = true;
-						JE_playSampleNum(S_SPRING);
-						break;
-					case SDL_SCANCODE_RETURN:
-						quit = true;
-						JE_saveGame(slot, stemp);
-						JE_playSampleNum(S_SELECT);
-						break;
-					default:
-						break;
-				}
-			}
-		}
-	}
-
-	wait_noinput(false, true, false);
-}
-
 void JE_inGameDisplays(void)
 {
 	char stemp[21];
@@ -2997,6 +3036,7 @@ void JE_mainKeyboardInput(void)
 			{
 				if (keysactive[x])
 				{
+					// TODO: Kane - Work out how to handle shipedit custom ships with item indexes.
 					int z = x - SDL_SCANCODE_1 + 1;
 					player[0].items.ship = 90 + z;                     /*Ships*/
 					z = (z - 1) * 15;
@@ -3101,10 +3141,10 @@ void JE_mainKeyboardInput(void)
 		}
 		else
 		{
-			player[0].items.ship = 12;                     // Nort Ship
-			player[0].items.special = 13;                  // Astral Zone
-			player[0].items.weapon[FRONT_WEAPON].id = 36;  // NortShip Super Pulse
-			player[0].items.weapon[REAR_WEAPON].id = 37;   // NortShip Spreader
+			player[0].items.ship = ITEM_INDEX_STORE[ITEM_SHIP_NORTSHIP]; // Nort Ship
+			player[0].items.special = ITEM_INDEX_STORE[ITEM_SPECIAL_ASTRALZONE]; // Astral Zone
+			player[0].items.weapon[FRONT_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONFRONT_NORTSHIPSUPERPULSE]; // NortShip Super Pulse
+			player[0].items.weapon[REAR_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONREAR_NORTSHIPSPREADER]; // NortShip Spreader
 			shipGr = 1;
 		}
 	}
@@ -3863,11 +3903,11 @@ static void update_player_movement(Player *this_player,
 
 			// turret direction marker/shield
 			shotMultiPos[SHOT_MISC] = 0;
-			b = player_shot_create(0, SHOT_MISC, this_player->x + 1 + roundf(sinf(linkGunDirec + 0.2f) * 26), this_player->y + roundf(cosf(linkGunDirec + 0.2f) * 26), *mouseX_, *mouseY_, 148, playerNum_);
+			b = player_shot_create(0, SHOT_MISC, this_player->x + 1 + roundf(sinf(linkGunDirec + 0.2f) * 26), this_player->y + roundf(cosf(linkGunDirec + 0.2f) * 26), *mouseX_, *mouseY_, ITEM_INDEX_STORE[ITEM_SHOT_148], playerNum_);
 			shotMultiPos[SHOT_MISC] = 0;
-			b = player_shot_create(0, SHOT_MISC, this_player->x + 1 + roundf(sinf(linkGunDirec - 0.2f) * 26), this_player->y + roundf(cosf(linkGunDirec - 0.2f) * 26), *mouseX_, *mouseY_, 148, playerNum_);
+			b = player_shot_create(0, SHOT_MISC, this_player->x + 1 + roundf(sinf(linkGunDirec - 0.2f) * 26), this_player->y + roundf(cosf(linkGunDirec - 0.2f) * 26), *mouseX_, *mouseY_, ITEM_INDEX_STORE[ITEM_SHOT_148], playerNum_);
 			shotMultiPos[SHOT_MISC] = 0;
-			b = player_shot_create(0, SHOT_MISC, this_player->x + 1 + roundf(sinf(linkGunDirec) * 26), this_player->y + roundf(cosf(linkGunDirec) * 26), *mouseX_, *mouseY_, 147, playerNum_);
+			b = player_shot_create(0, SHOT_MISC, this_player->x + 1 + roundf(sinf(linkGunDirec) * 26), this_player->y + roundf(cosf(linkGunDirec) * 26), *mouseX_, *mouseY_, ITEM_INDEX_STORE[ITEM_SHOT_147], playerNum_);
 
 			if (shotRepeat[SHOT_REAR] > 0)
 			{
@@ -3897,14 +3937,20 @@ static void change_player_weapon_mode(Player *this_player)
 			{
 				shotMultiPos[SHOT_SPECIAL] = 0;
 				shotMultiPos[SHOT_SPECIAL2] = 0;
-				if (player[0].items.special == SASpecialWeapon[superArcadeMode-1])
+				tempItemType = ItemType_Special;
+				tempI = (int)SASpecialWeapon[superArcadeMode - 1];
+				get_item_index_from_int(&tempItemType, &tempI, &tempI2);
+				const int saSpecial = tempI2;
+				if (player[0].items.special == saSpecial)
 				{
-					player[0].items.special = SASpecialWeaponB[superArcadeMode-1];
+					tempI = (int)SASpecialWeaponB[superArcadeMode - 1];
+					get_item_index_from_int(&tempItemType, &tempI, &tempI2);
+					player[0].items.special = tempI2;
 					this_player->weapon_mode = 2;
 				}
 				else
 				{
-					player[0].items.special = SASpecialWeapon[superArcadeMode-1];
+					player[0].items.special = saSpecial;
 					this_player->weapon_mode = 1;
 				}
 			}
@@ -3990,7 +4036,7 @@ static void update_super_charge_weapon(Player *this_player, JE_byte playerNum_, 
 	else if (button[1-1] && (!twoPlayerLinked || chargeLevel > 0))
 	{
 		shotMultiPos[SHOT_P2_CHARGE] = 0;
-		b = player_shot_create(16, SHOT_P2_CHARGE, this_player->x, this_player->y, mouseX, mouseY,
+		b = player_shot_create(ITEM_INDEX_STORE[ITEM_WEAPONFRONT_MISCELLANEOUS], SHOT_P2_CHARGE, this_player->x, this_player->y, mouseX, mouseY,
 		                       weaponPort[player[1].items.weapon[REAR_WEAPON].id].chargegunweapons[chargeLevel > 0 ? chargeLevel - 1 : 0], playerNum_);
 
 		if (chargeLevel > 0)
@@ -4657,8 +4703,12 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 		shotMultiPos[SHOT_FRONT] = 0;
 		shotRepeat[SHOT_FRONT] = 10;
 		tempW = SAWeapon[superArcadeMode-1][evalue - 30000-1];
+		tempI2 = 0;
+		tempI = (int)tempW;
+		tempItemType = ItemType_WeaponFront;
+		get_item_index_from_int(&tempItemType, &tempI, &tempI2);
 
-		if (tempW == player[0].items.weapon[FRONT_WEAPON].id)
+		if (tempI2 == player[0].items.weapon[FRONT_WEAPON].id)
 		{
 			this_player->cash += 1000;
 			power_up_weapon(this_player, FRONT_WEAPON);
@@ -4668,7 +4718,7 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 			handle_got_purple_ball(this_player);
 		}
 
-		player[0].items.weapon[FRONT_WEAPON].id = tempW;
+		player[0].items.weapon[FRONT_WEAPON].id = tempI2;
 		this_player->cash += 200;
 		soundQueue[7] = S_POWERUP;
 		enemyAvail[z] = 1;
@@ -4678,7 +4728,10 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 		if (playerNum_ == 1)
 		{
 			this_player->cash += 250;
-			player[0].items.special = evalue - 32100;
+			tempI = evalue - 32100;
+			tempItemType = ItemType_Special;
+			get_item_index_from_int(&tempItemType, &tempI, &tempI2);
+			player[0].items.special = tempI2;
 			shotMultiPos[SHOT_SPECIAL] = 0;
 			shotRepeat[SHOT_SPECIAL] = 10;
 			shotMultiPos[SHOT_SPECIAL2] = 0;
@@ -4718,7 +4771,10 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 
 			uint temp = player[1].items.sidekick_level - 100 - 1;
 			for (uint i = 0; i < COUNTOF(player[1].items.sidekick); ++i)
-				player[1].items.sidekick[i] = optionSelect[player[1].items.sidekick_series][temp][i];
+			{
+				tempItemType = i == 0 ? ItemType_SidekickLeft : ItemType_SidekickRight;
+				player[1].items.sidekick[i] = item_idx_from_jebyte(&tempItemType, &optionSelect[player[1].items.sidekick_series][temp][i]);
+			}
 
 			shotMultiPos[SHOT_LEFT_SIDEKICK] = 0;
 			shotMultiPos[SHOT_RIGHT_SIDEKICK] = 0;
@@ -4731,8 +4787,12 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 			sprintf(tempStr, "%s %s", miscText[64-1], options[evalue - 32000].name);
 			JE_drawTextWindow(tempStr);
 
+			tempI = evalue - 32000;
 			for (uint i = 0; i < COUNTOF(player[0].items.sidekick); ++i)
-				player[0].items.sidekick[i] = evalue - 32000;
+			{
+				tempItemType = i == 0 ? ItemType_SidekickLeft : ItemType_SidekickRight;
+				player[0].items.sidekick[i] = item_idx_from_int(&tempItemType, &tempI);
+			}
 			shotMultiPos[SHOT_LEFT_SIDEKICK] = 0;
 			shotMultiPos[SHOT_RIGHT_SIDEKICK] = 0;
 
@@ -4752,7 +4812,9 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 			else
 				sprintf(tempStr, "%s %s", miscText[44-1], weaponPort[evalue - 31000].name);
 			JE_drawTextWindow(tempStr);
-			player[1].items.weapon[REAR_WEAPON].id = evalue - 31000;
+			tempI = evalue - 31000;
+			tempItemType = ItemType_WeaponRear;
+			player[1].items.weapon[REAR_WEAPON].id = item_idx_from_int(&tempItemType, &tempI);
 			shotMultiPos[SHOT_REAR] = 0;
 			enemyAvail[z] = 1;
 			soundQueue[7] = S_POWERUP;
@@ -4761,7 +4823,9 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 		{
 			sprintf(tempStr, "%s %s", miscText[64-1], weaponPort[evalue - 31000].name);
 			JE_drawTextWindow(tempStr);
-			player[0].items.weapon[REAR_WEAPON].id = evalue - 31000;
+			tempI = evalue - 31000;
+			tempItemType = ItemType_WeaponRear;
+			player[0].items.weapon[REAR_WEAPON].id = item_idx_from_int(&tempItemType, &tempI);
 			shotMultiPos[SHOT_REAR] = 0;
 			enemyAvail[z] = 1;
 			soundQueue[7] = S_POWERUP;
@@ -4779,7 +4843,9 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 			else
 				sprintf(tempStr, "%s %s", miscText[43-1], weaponPort[evalue - 30000].name);
 			JE_drawTextWindow(tempStr);
-			player[0].items.weapon[FRONT_WEAPON].id = evalue - 30000;
+			tempI = evalue - 30000;
+			tempItemType = ItemType_WeaponFront;
+			player[0].items.weapon[FRONT_WEAPON].id = item_idx_from_int(&tempItemType, &tempI);
 			shotMultiPos[SHOT_FRONT] = 0;
 			enemyAvail[z] = 1;
 			soundQueue[7] = S_POWERUP;
@@ -4788,7 +4854,9 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 		{
 			sprintf(tempStr, "%s %s", miscText[64-1], weaponPort[evalue - 30000].name);
 			JE_drawTextWindow(tempStr);
-			player[0].items.weapon[FRONT_WEAPON].id = evalue - 30000;
+			tempI = evalue - 30000;
+			tempItemType = ItemType_WeaponFront;
+			player[0].items.weapon[FRONT_WEAPON].id = item_idx_from_int(&tempItemType, &tempI);
 			shotMultiPos[SHOT_FRONT] = 0;
 			enemyAvail[z] = 1;
 			soundQueue[7] = S_POWERUP;
@@ -4796,7 +4864,9 @@ static void collect_arcade_pickup(Player *this_player, JE_byte playerNum_, int z
 
 		if (enemyAvail[z] == 1)
 		{
-			player[0].items.special = specialArcadeWeapon[evalue - 30000-1];
+			tempI = (int)specialArcadeWeapon[evalue - 30000 - 1];
+			tempItemType = ItemType_Special;
+			player[0].items.special = item_idx_from_int(&tempItemType, &tempI);
 			if (player[0].items.special > 0)
 			{
 				shotMultiPos[SHOT_SPECIAL] = 0;
@@ -4894,9 +4964,9 @@ static void collect_score_item(Player *this_player, JE_byte playerNum_, int z, i
 	}
 	else if (evalue == -5)
 	{
-		player[0].items.weapon[FRONT_WEAPON].id = 25;
-		player[0].items.weapon[REAR_WEAPON].id = 26;
-		player[1].items.weapon[REAR_WEAPON].id = 26;
+		player[0].items.weapon[FRONT_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONFRONT_HOTDOG];
+		player[0].items.weapon[REAR_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONREAR_HOTDOG];
+		player[1].items.weapon[REAR_WEAPON].id = ITEM_INDEX_STORE[ITEM_WEAPONREAR_HOTDOG];
 		player[0].last_items = player[0].items;
 
 		for (uint i = 0; i < COUNTOF(player); ++i)

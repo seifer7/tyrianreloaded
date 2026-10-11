@@ -79,6 +79,7 @@ static JE_word yLoc;
 static JE_shortint yChg;
 static int newPal, curPal, oldPal;
 static JE_boolean quikSave;
+static JE_integer saveGamePageIndex;
 static JE_byte oldMenu;
 static JE_boolean backFromHelp;
 static JE_integer lastDirection;
@@ -161,33 +162,37 @@ static void draw_item_screen_load_save(void)
 	/* load/save menu */
 	if (curMenu == MENU_LOAD_SAVE)
 	{
-		int min, max;
+		SavedGame *savedGames = build_save_game_list(twoPlayerMode ? 2 : 1);
 
-		if (twoPlayerMode)
-		{
-			min = 13;
-			max = 24;
-		}
-		else
-		{
-			min = 2;
-			max = 13;
-		}
+		const int min = 2, max = 13;
 
 		for (int x = min; x <= max; x++)
 		{
+			const SavedGame *saved_game = NULL;
+			bool isSaveFile = true;
+			int tempY = 38 + (x - min)*11;
+
 			/* Highlight if current selection */
 			temp2 = (x - min + 2 == curSel[curMenu]) ? 15 : 28;
 
-			/* Write save game slot */
-			if (x == max)
-				strcpy(tempStr, miscText[6-1]);
-			else if (saveFiles[x-2].level == 0)
-				strcpy(tempStr, miscText[3-1]);
+			const int saveGameIndex = (saveGamePageIndex * 10) + x - min - (performSave ? 1 : 0);
+			if (saveGameIndex >= 0 && saveGameIndex < savedGames->count)
+				saved_game = &savedGames[saveGameIndex];
 			else
-				strcpy(tempStr, saveFiles[x-2].name);
+				isSaveFile = false;
 
-			int tempY = 38 + (x - min)*11;
+			/* Write save game slot */
+			if (performSave && x == min)
+			{
+				isSaveFile = false;
+				strcpy(tempStr, "Create New Save");
+			}
+			else if (x == max)
+				strcpy(tempStr, miscText[6-1]); // Return to previous menu
+			else if (!isSaveFile)
+				strcpy(tempStr, "");
+			else
+				strcpy(tempStr, saved_game->name);
 
 			JE_textShade(VGAScreen, 163, tempY, tempStr, temp2 / 16, temp2 % 16 - 8, DARKEN);
 
@@ -196,17 +201,17 @@ static void draw_item_screen_load_save(void)
 				/* Highlight if current selection */
 				temp2 = (x - min + 2 == curSel[curMenu]) ? 252 : 250;
 
-				if (saveFiles[x-2].level == 0)
+				if (!isSaveFile)
 				{
-					strcpy(tempStr, "-----"); /* Empty save slot */
+					strcpy(tempStr, ""); /* Empty save slot */
 				}
 				else
 				{
 					char buf[20];
 
-					strcpy(tempStr, saveFiles[x-2].levelName);
+					strcpy(tempStr, saved_game->levelName);
 
-					snprintf(buf, sizeof buf, "%s%d", miscTextB[1-1], saveFiles[x-2].episode);
+					snprintf(buf, sizeof buf, "%s%d", miscTextB[1-1], saved_game->episode);
 					JE_textShade(VGAScreen, 297, tempY, buf, temp2 / 16, temp2 % 16 - 8, DARKEN);
 				}
 
@@ -215,6 +220,8 @@ static void draw_item_screen_load_save(void)
 
 			JE_drawMenuHeader();
 		}
+
+		free(savedGames);
 	}
 }
 
@@ -360,6 +367,18 @@ static void draw_item_screen_upgrade_menu(void)
 			/* Nothing else can be upgraded / downgraded */
 			leftPower = false;
 			rightPower = false;
+		}
+
+		if (curSel[MENU_UPGRADES] == 7 || curSel[MENU_UPGRADES] == 8)
+		{
+			const uint side = curSel[MENU_UPGRADES] == 7 ? LEFT_SIDEKICK : RIGHT_SIDEKICK;
+			const JE_OptionType *const option = &options[player[0].items.sidekick[side]];
+
+			player[0].sidekick[side].charge_ticks = 20;
+			player[0].sidekick[side].charge = 0;
+			player[0].sidekick[side].style = option->tr;
+			player[0].sidekick[side].animation_enabled = option->ani > 1;
+			player[0].sidekick[side].animation_frame = 0;
 		}
 
 		/* submenu title  e.g., "Left Sidekick" */
@@ -968,6 +987,21 @@ static void handle_item_screen_key(int temp_weapon_power[7])
 {
 	switch (lastkey_scan)
 	{
+	case SDL_SCANCODE_EQUALS:
+	case SDL_SCANCODE_MINUS:
+		// debug: adjust the current weapon's shot pattern
+		if (curMenu == MENU_UPGRADE_SUB && (curSel[MENU_UPGRADES] == 3 || curSel[MENU_UPGRADES] == 4))
+		{
+			const uint weaponType = curSel[MENU_UPGRADES] == 3 ? FRONT_WEAPON : REAR_WEAPON;
+			const uint tempPwr = player[0].items.weapon[weaponType].power - 1;
+			JE_word *const op = &weaponPort[player[0].items.weapon[weaponType].id].op[0][tempPwr];
+			if (lastkey_scan == SDL_SCANCODE_EQUALS)
+				++*op;
+			else
+				--*op;
+		}
+		break;
+
 	case SDL_SCANCODE_SLASH:
 		// if in rear weapon upgrade screen
 		if (curMenu == MENU_UPGRADE_SUB && curSel[MENU_UPGRADES] == 4)
@@ -980,6 +1014,7 @@ static void handle_item_screen_key(int temp_weapon_power[7])
 
 	case SDL_SCANCODE_SPACE:
 	case SDL_SCANCODE_RETURN:
+	case SDL_SCANCODE_KP_ENTER:
 		activate_item_screen_selection(temp_weapon_power);
 		break;
 
@@ -1237,8 +1272,15 @@ static void initialize_item_screen(void)
 
 		if (slot == itemAvailMax[itemAvailMap[i]-1])
 		{
-			itemAvail[itemAvailMap[i]-1][slot] = item;
-			itemAvailMax[itemAvailMap[i]-1]++;
+			if (itemAvailMax[itemAvailMap[i] - 1] > 4) { // Until we have a scrollable shop menu, we can't display this many items!
+				itemAvail[itemAvailMap[i] - 1][4] = item;
+				itemAvail[itemAvailMap[i] - 1][5] = '\0';
+				itemAvailMax[itemAvailMap[i] - 1] = 5;
+			}
+			else {
+				itemAvail[itemAvailMap[i] - 1][slot] = item;
+				itemAvailMax[itemAvailMap[i] - 1]++;
+			}
 		}
 	}
 
@@ -1278,6 +1320,7 @@ static void open_quick_save_menu(bool save)
 	quikSave = true;
 	oldMenu = curMenu;
 	curMenu = MENU_LOAD_SAVE;
+	saveGamePageIndex = 0;
 	performSave = save;
 	newPal = 1;
 	oldPal = curPal;
@@ -1599,88 +1642,59 @@ void JE_itemScreen(void)
 
 void draw_ship_illustration(void)
 {
-	// full of evil hardcoding
-
 	// ship
 	{
 		assert(player[0].items.ship > 0);
 
-		const int sprite_id = (player[0].items.ship < COUNTOF(ships))  // shipedit ships get a default
-		                      ? ships[player[0].items.ship].bigshipgraphic - 1
-		                      : 31;
+		JE_ShipType *ship;
+		if (strcmp(ships[player[0].items.ship].id, "") != 0) {
+			ship = &ships[player[0].items.ship];
+		}
+		else {
+			int defaultShipIndex = 0;
+			tempItemType = ItemType_Ship;
+			get_item_index(&tempItemType, "1", &defaultShipIndex);
+			ship = &ships[defaultShipIndex];
+		}
 
-		const int ship_x[6] = { 31, 0, 0, 0, 35, 31 },
-		          ship_y[6] = { 36, 0, 0, 0, 33, 35 };
+		const int sprite_id = ship->bigshipgraphic - 1;
 
-		const int x = ship_x[sprite_id - 27],
-		          y = ship_y[sprite_id - 27];
+		const int x = ship->bigshipgraphx,
+			y = ship->bigshipgraphy;
 
 		blit_sprite(VGAScreenSeg, x, y, OPTION_SHAPES, sprite_id);
 	}
 
 	// generator
 	{
-		assert(player[0].items.generator > 0 && player[0].items.generator < 7);
+		assert(player[0].items.generator > 0);
 
-		const int sprite_id = (player[0].items.generator == 1)  // generator 1 and generator 2 have the same sprite
-		                      ? player[0].items.generator + 15
-		                      : player[0].items.generator + 14;
+		const int sprite_id = powerSys[player[0].items.generator].bigshipgraphic;
 
-		const int generator_x[5] = { 62, 64, 67, 66, 63 },
-		          generator_y[5] = { 84, 85, 86, 84, 97 };
-		const int x = generator_x[sprite_id - 16],
-		          y = generator_y[sprite_id - 16];
+		const int x = powerSys[player[0].items.generator].bigshipgraphx,
+			y = powerSys[player[0].items.generator].bigshipgraphy;
 
 		blit_sprite(VGAScreenSeg, x, y, WEAPON_SHAPES, sprite_id);
 	}
 
-	const int weapon_sprites[43] =
-	{
-		-1,  0,  1,  2,  3,  4,  5,  6,  7,  8,
-		 9, 10, 11, 21,  5, 13, -1, 14, 15,  0,
-		14,  9,  8,  2, 15,  0, 13,  0,  8,  8,
-		11,  1,  0,  0,  0,  0,  0,  0,  0,  0,
-		 0,  2,  1
-	};
-
 	// front weapon
 	if (player[0].items.weapon[FRONT_WEAPON].id > 0)
 	{
-		const int front_weapon_xy_list[43] =
-		{
-			 -1,  4,  9,  3,  8,  2,  5, 10,  1, -1,
-			 -1, -1, -1,  7,  8, -1, -1,  0, -1,  4,
-			  0, -1, -1,  3, -1,  4, -1,  4, -1, -1,
-			 -1,  9,  0,  0,  0,  0,  0,  0,  0,  0,
-			  0,  3,  9
-		};
+		const int weapon_sprite = weaponPort[player[0].items.weapon[FRONT_WEAPON].id].bigshipgraphic;
+		const int x = weaponPort[player[0].items.weapon[FRONT_WEAPON].id].bigshipgraphfrntx,
+		          y = weaponPort[player[0].items.weapon[FRONT_WEAPON].id].bigshipgraphfrnty;
 
-		const int front_weapon_x[12] = { 59, 66, 66, 54, 61, 51, 58, 51, 61, 52, 53, 58 };
-		const int front_weapon_y[12] = { 38, 53, 41, 36, 48, 35, 41, 35, 53, 41, 39, 31 };
-		const int x = front_weapon_x[front_weapon_xy_list[player[0].items.weapon[FRONT_WEAPON].id]],
-		          y = front_weapon_y[front_weapon_xy_list[player[0].items.weapon[FRONT_WEAPON].id]];
-
-		blit_sprite(VGAScreenSeg, x, y, WEAPON_SHAPES, weapon_sprites[player[0].items.weapon[FRONT_WEAPON].id]);  // ship illustration: front weapon
+		blit_sprite(VGAScreenSeg, x, y, WEAPON_SHAPES, weapon_sprite);  // ship illustration: front weapon
 	}
 
 	// rear weapon
 	if (player[0].items.weapon[REAR_WEAPON].id > 0)
 	{
-		const int rear_weapon_xy_list[43] =
-		{
-			-1, -1, -1, -1, -1, -1, -1, -1, -1,  0,
-			 1,  2,  3, -1,  4,  5, -1, -1,  6, -1,
-			-1,  1,  0, -1,  6, -1,  5, -1,  0,  0,
-			 3,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-			 0, -1, -1
-		};
+		const int weapon_sprite = weaponPort[player[0].items.weapon[REAR_WEAPON].id].bigshipgraphic;
+		const int x = weaponPort[player[0].items.weapon[REAR_WEAPON].id].bigshipgraphrearx,
+		          y = weaponPort[player[0].items.weapon[REAR_WEAPON].id].bigshipgraphreary;
 
-		const int rear_weapon_x[7] = { 41, 27,  49,  43, 51, 39, 41 };
-		const int rear_weapon_y[7] = { 92, 92, 113, 102, 97, 96, 76 };
-		const int x = rear_weapon_x[rear_weapon_xy_list[player[0].items.weapon[REAR_WEAPON].id]],
-		          y = rear_weapon_y[rear_weapon_xy_list[player[0].items.weapon[REAR_WEAPON].id]];
-
-		blit_sprite(VGAScreenSeg, x, y, WEAPON_SHAPES, weapon_sprites[player[0].items.weapon[REAR_WEAPON].id]);
+		blit_sprite(VGAScreenSeg, x, y, WEAPON_SHAPES, weapon_sprite);
 	}
 
 	// sidekicks
@@ -2387,6 +2401,7 @@ JE_boolean JE_quitRequest(void)
 					JE_playSampleNum(S_CURSOR);
 					break;
 				case SDL_SCANCODE_RETURN:
+				case SDL_SCANCODE_KP_ENTER:
 				case SDL_SCANCODE_SPACE:
 					done = true;
 					break;
@@ -2786,6 +2801,7 @@ static void handle_options_menu_selection(JE_byte selection)
 		curMenu = MENU_LOAD_SAVE;
 		performSave = selection == 3;
 		quikSave = false;
+		saveGamePageIndex = 0;
 		break;
 	case 6:
 		curMenu = MENU_JOYSTICK_CONFIG;
@@ -2828,15 +2844,36 @@ static void handle_upgrade_submenu_selection(void)
 
 static void handle_load_save_menu_selection(JE_word selection)
 {
-	if (selection != 13)
-		JE_operation(selection - 1 + (twoPlayerMode ? 11 : 0));
-
-	if (selection == 13 || quikSave)
+	if (selection == 13)
 	{
 		curMenu = quikSave ? oldMenu : MENU_OPTIONS;
 		if (quikSave)
 			newPal = oldPal;
+		return;
 	}
+
+	if (performSave && selection == 2)
+	{
+		saveGameNamePopup(true);
+		return;
+	}
+
+	SavedGame *savedGames = build_save_game_list(twoPlayerMode ? 2 : 1);
+	const int saveGameIndex = (saveGamePageIndex * 10) + selection - 2 - (performSave ? 1 : 0);
+	if (saveGameIndex >= 0 && saveGameIndex < savedGames->count)
+	{
+		if (performSave)
+			saveGameOperation(savedGames[saveGameIndex].name);
+		else
+			loadGameOperation(savedGames[saveGameIndex].name);
+	}
+
+	if (quikSave)
+	{
+		curMenu = oldMenu;
+		newPal = oldPal;
+	}
+	free(savedGames);
 }
 
 static void handle_data_cube_menu_selection(JE_word selection)
@@ -2938,37 +2975,19 @@ void JE_drawShipSpecs(SDL_Surface * screen, SDL_Surface * temp_screen)
 	JE_outText(screen, JE_fontCenter(miscText[4], TINY_FONT), 190, miscText[4], 12, 2);
 
 	//now draw the green ship over that.
-	//This hardcoded stuff is for positioning our little ship graphic
-	if (player[0].items.ship > 90)
-	{
-		temp_index = 32;
-	}
-	else if (player[0].items.ship > 0)
+	if (player[0].items.ship > 0)
 	{
 		temp_index = ships[player[0].items.ship].bigshipgraphic;
+		temp_x = ships[player[0].items.ship].bigshipgraphx;
+		temp_y = ships[player[0].items.ship].bigshipgraphy;
 	}
 	else
 	{
 		temp_index = ships[old_items[0].ship].bigshipgraphic;
+		temp_x = ships[old_items[0].ship].bigshipgraphx;
+		temp_y = ships[old_items[0].ship].bigshipgraphy;
 	}
 
-	switch (temp_index)
-	{
-		case 32:
-			temp_x = 35;
-			temp_y = 33;
-			break;
-		case 28:
-			temp_x = 31;
-			temp_y = 36;
-			break;
-		case 33:
-			temp_x = 31;
-			temp_y = 35;
-			break;
-		default:
-			assert(0);
-	}
 	temp_x -= 30;
 
 	//draw the ship into our temp buffer.
@@ -3062,6 +3081,13 @@ void JE_weaponSimUpdate(void)
 
 		sprintf(buf, "POWER: %d", temp);
 		JE_outText(VGAScreen, 58, 137, buf, 15, 4);
+
+		if ((curSel[MENU_UPGRADES] == 3 || curSel[MENU_UPGRADES] == 4)) {
+			int weaponType = (curSel[MENU_UPGRADES] == 3 ? FRONT_WEAPON : REAR_WEAPON);
+			char *wepval = weapons[weaponPort[player[0].items.weapon[weaponType].id].op[0][temp-1]].id;
+			sprintf(buf, "Shot: %s", wepval);
+			JE_outText(VGAScreen, 58, 127, buf, 15, 4);
+		}
 	}
 	else
 	{
@@ -3146,6 +3172,41 @@ void JE_weaponViewFrame(void)
 	}
 
 	simulate_player_shots();
+
+	// Draw sidekicks overtop of shots
+	for (uint i = 0; i < COUNTOF(player[0].sidekick); ++i)
+	{
+		if (player[0].items.sidekick[i] == 0) continue;
+		JE_OptionType* this_option = &options[player[0].items.sidekick[i]];
+
+		if (this_option->option > 0)
+		{
+			if (player[0].sidekick[i].animation_enabled)
+			{
+				if (++player[0].sidekick[i].animation_frame >= this_option->ani)
+				{
+					player[0].sidekick[i].animation_frame = 0;
+				}
+			}
+
+			const int x = player[0].sidekick[i].x,
+				y = player[0].sidekick[i].y;
+			const uint sprite = this_option->gr[player[0].sidekick[i].charge][player[0].sidekick[i].animation_frame];
+
+			if (player[0].sidekick[i].style == 1 || player[0].sidekick[i].style == 2)
+				blit_sprite2x2(VGAScreen, x - 6, y, spriteSheet10, sprite);
+			else
+				blit_sprite2(VGAScreen, x, y, spriteSheet9, sprite);
+		}
+		if (this_option->pwr > 0) {
+			if (--player[0].sidekick[i].charge_ticks == 0)
+			{
+				if (player[0].sidekick[i].charge < this_option->pwr)
+					++player[0].sidekick[i].charge;
+				player[0].sidekick[i].charge_ticks = 20;
+			}
+		}
+	}
 
 	blit_sprite(VGAScreenSeg, 0, 0, OPTION_SHAPES, 12); // upgrade interface
 

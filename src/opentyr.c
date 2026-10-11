@@ -56,8 +56,31 @@
 #include <string.h>
 #include <time.h>
 
-const char *opentyrian_str = "OpenTyrian";
+const char *opentyrian_str = "Tyrian Reloaded";
 const char *opentyrian_version = OPENTYRIAN_VERSION;
+
+bool str_pop_int(char *str, int *val)
+{
+	bool success = false;
+
+	char buf[256];
+	assert(strlen(str) < sizeof(buf));
+
+	// grab the value from str
+	char *end;
+	*val = strtol(str, &end, 10);
+
+	if (end != str)
+	{
+		success = true;
+
+		// shift the rest to the beginning
+		strcpy(buf, end);
+		strcpy(str, buf);
+	}
+
+	return success;
+}
 
 bool str_pop_str(char *str, char *val, size_t val_size)
 {
@@ -78,6 +101,22 @@ bool str_pop_str(char *str, char *val, size_t val_size)
 	end += strspn(end, " \t");
 	memmove(str, end, strlen(end) + 1);
 	return true;
+}
+
+static size_t getShopContentsPickerItemsCount(void)
+{
+	return 3;
+}
+
+static const char *getShopContentsPickerItem(size_t i, char *buffer, size_t bufferSize)
+{
+	(void)buffer, (void)bufferSize;
+
+	if (i == 1)
+		return "Mixed";
+	if (i == 2)
+		return "Random";
+	return "Mission";
 }
 
 static size_t getDisplayPickerItemsCount(void)
@@ -126,6 +165,8 @@ typedef enum
 	MENU_ITEM_SOUND,
 	MENU_ITEM_JUKEBOX,
 	MENU_ITEM_DESTRUCT,
+	MENU_ITEM_GAMEPLAY,
+	MENU_ITEM_SHOP_CONTENTS,
 	MENU_ITEM_DISPLAY,
 	MENU_ITEM_SCALER,
 	MENU_ITEM_SCALING_MODE,
@@ -139,6 +180,7 @@ typedef enum
 	MENU_SETUP,
 	MENU_GRAPHICS,
 	MENU_SOUND,
+	MENU_GAMEPLAY,
 } MenuId;
 
 typedef struct
@@ -183,6 +225,7 @@ static const Menu menus[] = {
 			{ MENU_ITEM_SOUND, "Sound...", "Change the sound settings." },
 			{ MENU_ITEM_JUKEBOX, "Jukebox", "Listen to the music of Tyrian." },
 			// { MENU_ITEM_DESTRUCT, "Destruct", "Play a bonus mini-game." },
+			{ MENU_ITEM_GAMEPLAY, "Gameplay...", "Change gameplay settings." },
 			{ MENU_ITEM_DONE, "Done", "Return to the main menu." },
 			{ -1 }
 		},
@@ -202,6 +245,14 @@ static const Menu menus[] = {
 		.items = {
 			{ MENU_ITEM_MUSIC_VOLUME, "Music Volume", "Change volume with the left/right arrow keys." },
 			{ MENU_ITEM_SOUND_VOLUME, "Sound Volume", "Change volume with the left/right arrow keys." },
+			{ MENU_ITEM_DONE, "Done", "Return to the previous menu." },
+			{ -1 }
+		},
+	},
+	[MENU_GAMEPLAY] = {
+		.header = "Gameplay",
+		.items = {
+			{ MENU_ITEM_SHOP_CONTENTS, "Shop Contents:", "Change how the Upgrade shop is filled.", getShopContentsPickerItemsCount, getShopContentsPickerItem },
 			{ MENU_ITEM_DONE, "Done", "Return to the previous menu." },
 			{ -1 }
 		},
@@ -273,6 +324,9 @@ static int draw_setup_menu(MenuId currentMenu, const size_t selectedMenuItemInde
 			break;
 		case MENU_ITEM_SCALING_MODE:
 			draw_font_hv_shadow(VGAScreen, xMenuItemValue, y, scaling_mode_names[scaling_mode], normal_font, left_aligned, 15, -3 + (selected ? 2 : 0) + (disabled ? -4 : 0), false, 2);
+			break;
+		case MENU_ITEM_SHOP_CONTENTS:
+			draw_font_hv_shadow(VGAScreen, xMenuItemValue, y, getShopContentsPickerItem((size_t)shopContentSetting, buffer, 100), normal_font, left_aligned, 15, -3 + (selected ? 2 : 0) + (disabled ? -4 : 0), false, 2);
 			break;
 		case MENU_ITEM_MUSIC_VOLUME:
 			JE_barDrawShadow(VGAScreen, xMenuItemValue, y, 1, music_disabled ? 170 : 174, (tyrMusicVolume + 4) / 8, 2, 10);
@@ -358,6 +412,7 @@ static SetupInput collect_setup_menu_input(const SetupMenuState *state, const Me
 						{
 							switch (menuItems[i].id)
 							{
+							case MENU_ITEM_SHOP_CONTENTS:
 							case MENU_ITEM_DISPLAY:
 							case MENU_ITEM_SCALER:
 							case MENU_ITEM_SCALING_MODE:
@@ -419,7 +474,8 @@ static SetupInput collect_setup_menu_input(const SetupMenuState *state, const Me
 			}
 			break;
 		case SDL_SCANCODE_SPACE:
-		case SDL_SCANCODE_RETURN: input.action = SETUP_INPUT_ACTIVATE; break;
+		case SDL_SCANCODE_RETURN:
+		case SDL_SCANCODE_KP_ENTER: input.action = SETUP_INPUT_ACTIVATE; break;
 		case SDL_SCANCODE_ESCAPE: input.action = SETUP_INPUT_BACK; break;
 		default: break;
 		}
@@ -465,7 +521,8 @@ static SetupInput collect_setup_picker_input(const MenuItem *item, int yPicker, 
 		case SDL_SCANCODE_UP: input.action = SETUP_INPUT_PREVIOUS; break;
 		case SDL_SCANCODE_DOWN: input.action = SETUP_INPUT_NEXT; break;
 		case SDL_SCANCODE_SPACE:
-		case SDL_SCANCODE_RETURN: input.action = SETUP_INPUT_ACTIVATE; break;
+		case SDL_SCANCODE_RETURN:
+		case SDL_SCANCODE_KP_ENTER: input.action = SETUP_INPUT_ACTIVATE; break;
 		case SDL_SCANCODE_ESCAPE: input.action = SETUP_INPUT_BACK; break;
 		default: break;
 		}
@@ -513,6 +570,11 @@ static void apply_setup_picker_action(SetupMenuState *state, const MenuItem *ite
 		}
 		else if (item->id == MENU_ITEM_SCALING_MODE)
 			scaling_mode = state->pickerSelectedIndex;
+		else if (item->id == MENU_ITEM_SHOP_CONTENTS)
+		{
+			shopContentSetting = (int)state->pickerSelectedIndex;
+			JE_saveConfiguration();
+		}
 		state->currentPicker = MENU_ITEM_NONE;
 		break;
 	default:
@@ -535,6 +597,12 @@ static void apply_setup_menu_activation(SetupMenuState *state, MenuItemId itemId
 		state->currentMenu = itemId == MENU_ITEM_GRAPHICS ? MENU_GRAPHICS : MENU_SOUND;
 		state->selectedMenuItemIndexes[state->currentMenu] = 0;
 		break;
+	case MENU_ITEM_GAMEPLAY:
+		JE_playSampleNum(S_SELECT);
+		state->parents[MENU_GAMEPLAY] = state->currentMenu;
+		state->currentMenu = MENU_GAMEPLAY;
+		state->selectedMenuItemIndexes[state->currentMenu] = 0;
+		break;
 	case MENU_ITEM_JUKEBOX:
 		JE_playSampleNum(S_SELECT);
 		fade_black(10);
@@ -554,6 +622,11 @@ static void apply_setup_menu_activation(SetupMenuState *state, MenuItemId itemId
 		state->currentPicker = itemId;
 		state->pickerSelectedIndex = itemId == MENU_ITEM_DISPLAY ? (size_t)(fullscreen_display + 1)
 			: itemId == MENU_ITEM_SCALER ? scaler : scaling_mode;
+		break;
+	case MENU_ITEM_SHOP_CONTENTS:
+		JE_playSampleNum(S_CLICK);
+		state->currentPicker = itemId;
+		state->pickerSelectedIndex = shopContentSetting >= 0 && shopContentSetting < 3 ? (size_t)shopContentSetting : 0;
 		break;
 	case MENU_ITEM_MUSIC_VOLUME:
 		JE_playSampleNum(S_CLICK);

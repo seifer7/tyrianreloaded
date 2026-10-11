@@ -419,6 +419,8 @@ bool saveGameOperation(const char* name) {
 	char filename[60];
 	snprintf(filename, sizeof(filename), "saves\\%s.tyrsav", name);
 	FILE* outF = dir_fopen(get_user_directory(), filename, "wb");
+	if (outF == NULL)
+		return false;
 	fwrite(magicBytes, sizeof(char), sizeof(magicBytes), outF);
 	fwrite_u16_die(&saveFormatVersion, outF);
 	fwrite_u16_die(&compatSaveFormatVersion, outF);
@@ -810,7 +812,7 @@ SavedGame* build_save_game_list(JE_byte players) {
 	int saveNum = 0;
 	tinydir_dir dir;
 	tinydir_open_sorted(&dir, TINYDIR_STRING("./saves"));
-	SavedGame* output_saved_games = calloc(dir.n_files, sizeof(SavedGame));
+	SavedGame* output_saved_games = calloc(dir.n_files > 0 ? dir.n_files : 1, sizeof(SavedGame));
 
 	for (size_t i = 0; i < dir.n_files; i++)
 	{
