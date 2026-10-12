@@ -28,6 +28,27 @@ public sealed class PlayerItems
     public byte SidekickLevel { get; set; }
     public byte SuperArcadeMode { get; set; }
 
+    public byte[] ToLegacyItems(byte initialEpisode)
+        => [Weapons[0].Id, Weapons[1].Id, SuperArcadeMode, Sidekicks[0], Sidekicks[1], Generator,
+            SidekickLevel, SidekickSeries, initialEpisode, Shield, Special, Ship];
+
+    public byte LoadLegacyItems(ReadOnlySpan<byte> items)
+    {
+        if (items.Length != 12) throw new ArgumentException("Legacy player items require exactly 12 bytes.", nameof(items));
+        Weapons[0].Id = items[0];
+        Weapons[1].Id = items[1];
+        SuperArcadeMode = items[2];
+        Sidekicks[0] = items[3];
+        Sidekicks[1] = items[4];
+        Generator = items[5];
+        SidekickLevel = items[6];
+        SidekickSeries = items[7];
+        Shield = items[9];
+        Special = items[10];
+        Ship = items[11];
+        return items[8];
+    }
+
     public PlayerItems Copy()
     {
         var copy = new PlayerItems

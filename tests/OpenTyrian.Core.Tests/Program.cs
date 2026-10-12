@@ -12,7 +12,30 @@ Run("size buffer bounds and recovery", TestSizeBufferBoundsAndRecovery);
 Run("size buffer copy failures", TestSizeBufferCopyFailures);
 Run("size buffer seek modes", TestSizeBufferSeekModes);
 Run("argument parser compatibility", ArgumentParserTests.Run);
+Run("game launch options, legacy switches, and network argument validation", () => GameOptionsTests.Run());
+Run("joystick assignment codes, analog controls, repeat timing, and configuration", () => JoystickTests.Run());
+Run("gameplay, episode, and difficulty menu interaction and presentation", () => SelectionMenuTests.Run());
+Run("shadowed HUD gauges and any-button input polling", () => UiControlTests.Run());
+Run("legacy save encryption, item layouts, and binary slot archives", () => LegacySaveTests.Run());
+Run("processor detail settings and native game-speed timing", () => RuntimeSettingsTests.Run());
+Run("game text configuration defaults, keyboard bindings, and persistence", () => GameConfigurationTests.Run());
+Run("complete legacy configuration startup and save persistence", () => SettingsStoreTests.Run());
+Run("versioned save metadata, native paths, sorting, and player filters", () => SaveMetadataTests.Run());
+Run("versioned save item payloads, state restoration, and persistence", () => VersionedSaveTests.Run());
 Run("animation run/skip/copy decoding", AnimationDecoderTests.Run);
+Run("animation playback frames, palette, input interruption, and PIT timing", () => AnimationPlayerTests.Run());
+Run("jukebox star patterns, depth rendering, keyboard controls, and seeded RNG", () => JukeboxStarfieldTests.Run());
+Run("jukebox music/sample controls, fades, presentation, and quit flows", () => JukeboxTests.Run());
+Run("HQ2x/HQ3x/HQ4x patterns, YUV thresholds, interpolation and pitch", () => HqVideoScalerTests.Run());
+Run("network control queues, retry timing, delayed states and XOR recovery", () => NetworkSessionTests.Run());
+Run("gameplay network payloads, delayed requests, NortShip and desync diagnostics", () => LevelNetworkTests.Run());
+Run("pause controls, modifier filtering, volumes and network acknowledgment", () => GamePauseTests.Run());
+Run("player death explosions, arcade respawn, lives and continuous death", () => PlayerLifecycleTests.Run());
+Run("player linking, inertia, warp trails, turret shots and sidekick positions", () => PlayerMovementTests.Run());
+Run("special weapons, shield/armor costs, repulsion, flares and HUD", () => PlayerSpecialWeaponsTests.Run());
+Run("player keyboard, mouse, joystick, demo and network input collection", () => PlayerInputTests.Run());
+Run("demo selection, original/compact headers, item IDs and recording bytes", () => DemoSessionTests.Run());
+Run("enemy collision damage, linked destruction and shared armor pickups", () => EnemyCollisionTests.Run());
 Run("binary file format compatibility", BinaryFileTests.Run);
 Run("configuration model and text format", ConfigurationTests.Run);
 Run("encrypted text and animation page loading", AssetReaderTests.Run);
@@ -49,9 +72,80 @@ Run("mouse cursor capture, clipping, filtering, and pixel restoration", () => Mo
 Run("background tiles, filters, scrolling, and starfield", () => BackgroundTests.Run());
 for (var index = 0; index < args.Length; index += 2)
 {
-    if (index + 1 == args.Length || (args[index] != "--native-reference" && args[index] != "--native-extractor" && args[index] != "--native-background" && args[index] != "--native-items" && args[index] != "--native-help" && args[index] != "--native-shots" && args[index] != "--native-effects" && args[index] != "--native-combat" && args[index] != "--native-enemies" && args[index] != "--native-attacks" && args[index] != "--native-events" && args[index] != "--native-dispatch" && args[index] != "--native-level-map" && args[index] != "--native-boss-bars" && args[index] != "--native-level-state" && args[index] != "--native-sounds" && args[index] != "--native-mixer" && args[index] != "--native-music" && args[index] != "--native-lds" && args[index] != "--native-input" && args[index] != "--native-mouse"))
+    if (args[index] == "--native-sdl-net" && index + 1 < args.Length)
     {
-        Console.Error.WriteLine("Usage: OpenTyrian.Core.Tests [--native-reference PATH] [--native-extractor PATH] [--native-background PATH] [--native-items PATH] [--native-help PATH] [--native-shots PATH] [--native-effects PATH] [--native-combat PATH] [--native-enemies PATH] [--native-attacks PATH] [--native-events PATH] [--native-dispatch PATH] [--native-level-map PATH] [--native-boss-bars PATH] [--native-level-state PATH] [--native-sounds PATH] [--native-mixer PATH] [--native-music PATH]         [--native-lds PATH]         [--native-input PATH] [--native-mouse PATH]");
+        Run("real SDL2_net UDP bytes, channels, lifecycle and managed state integration", () => SdlNetTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-network" && index + 1 < args.Length)
+    {
+        Run("native network packet/state/XOR and sequence-wrap compatibility", () => NetworkSessionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-network" && index + 1 < args.Length)
+    {
+        Run("native gameplay network state and request compatibility", () => LevelNetworkTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-pause" && index + 1 < args.Length)
+    {
+        Run("native game pause loop compatibility", () => GamePauseTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-player-lifecycle" && index + 1 < args.Length)
+    {
+        Run("native player death and respawn compatibility", () => PlayerLifecycleTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-player-movement" && index + 1 < args.Length)
+    {
+        Run("native player movement, linking, trails and sidekick compatibility", () => PlayerMovementTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-player-special" && index + 1 < args.Length)
+    {
+        Run("native special weapon effects, costs, flares and HUD compatibility", () => PlayerSpecialWeaponsTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-player-input" && index + 1 < args.Length)
+    {
+        Run("native player input collection, demo bytes and network payload compatibility", () => PlayerInputTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-demo" && index + 1 < args.Length)
+    {
+        Run("native demo selection, header loading and recording compatibility", () => DemoSessionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-enemy-collision" && index + 1 < args.Length)
+    {
+        Run("native player/enemy collision damage, linked destruction and armor compatibility", () => EnemyCollisionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-hq" && index + 1 < args.Length)
+    {
+        Run("native exact HQ2x/HQ3x/HQ4x output compatibility", () => HqVideoScalerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-jukebox" && index + 1 < args.Length)
+    {
+        Run("native complete jukebox music, input and presentation flow compatibility", () => JukeboxTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-jukebox-stars" && index + 1 < args.Length)
+    {
+        Run("native jukebox star patterns, pixels, state and RNG compatibility", () => JukeboxStarfieldTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-animation" && index + 1 < args.Length)
+    {
+        Run("native animation playback frames and ordered host compatibility", () => AnimationPlayerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (index + 1 == args.Length || (args[index] != "--native-reference" && args[index] != "--native-extractor" && args[index] != "--native-background" && args[index] != "--native-items" && args[index] != "--native-help" && args[index] != "--native-shots" && args[index] != "--native-effects" && args[index] != "--native-combat" && args[index] != "--native-enemies" && args[index] != "--native-attacks" && args[index] != "--native-events" && args[index] != "--native-dispatch" && args[index] != "--native-level-map" && args[index] != "--native-boss-bars" && args[index] != "--native-level-state" && args[index] != "--native-sounds" && args[index] != "--native-mixer" && args[index] != "--native-music" && args[index] != "--native-lds" && args[index] != "--native-input" && args[index] != "--native-mouse" && args[index] != "--native-sdl-audio" && args[index] != "--native-game-options" && args[index] != "--native-sdl-video" && args[index] != "--native-sdl-input" && args[index] != "--native-joystick" && args[index] != "--native-selection-menus" && args[index] != "--native-ui-controls" && args[index] != "--native-legacy-saves" && args[index] != "--native-runtime-settings" && args[index] != "--native-game-config" && args[index] != "--native-settings-store" && args[index] != "--native-save-metadata" && args[index] != "--native-versioned-saves"))
+    {
+        Console.Error.WriteLine("Usage: OpenTyrian.Core.Tests [--native-reference PATH] [--native-extractor PATH] [--native-background PATH] [--native-items PATH] [--native-help PATH] [--native-shots PATH] [--native-effects PATH] [--native-combat PATH] [--native-enemies PATH] [--native-attacks PATH] [--native-events PATH] [--native-dispatch PATH] [--native-level-map PATH] [--native-boss-bars PATH] [--native-level-state PATH] [--native-sounds PATH] [--native-mixer PATH] [--native-music PATH]         [--native-lds PATH]         [--native-input PATH]         [--native-mouse PATH]         [--native-sdl-audio PATH]         [--native-game-options PATH]         [--native-sdl-video PATH]         [--native-sdl-input PATH] [--native-joystick PATH] [--native-selection-menus PATH] [--native-ui-controls PATH] [--native-legacy-saves PATH] [--native-runtime-settings PATH] [--native-game-config PATH] [--native-settings-store PATH] [--native-save-metadata PATH] [--native-versioned-saves PATH]");
+        Console.Error.WriteLine("Additional references: [--native-animation PATH] [--native-jukebox-stars PATH] [--native-jukebox PATH] [--native-hq PATH] [--native-network PATH] [--native-sdl-net PATH] [--native-level-network PATH] [--native-pause PATH] [--native-player-lifecycle PATH] [--native-player-movement PATH] [--native-player-special PATH] [--native-player-input PATH] [--native-demo PATH] [--native-enemy-collision PATH]");
         return 1;
     }
 
@@ -135,6 +229,58 @@ for (var index = 0; index < args.Length; index += 2)
     else if (args[index] == "--native-mouse")
     {
         Run("native mouse cursor blitting and restoration compatibility", () => MouseCursorTests.Run(executable));
+    }
+    else if (args[index] == "--native-sdl-audio")
+    {
+        Run("real SDL sample conversion and sound bank/mixer integration", () => SdlAudioTests.Run(executable));
+    }
+    else if (args[index] == "--native-game-options")
+    {
+        Run("native game launch options and diagnostic compatibility", () => GameOptionsTests.Run(executable));
+    }
+    else if (args[index] == "--native-sdl-video")
+    {
+        Run("real SDL window, texture, indexed frame, and fullscreen compatibility", () => SdlVideoTests.Run(executable));
+    }
+    else if (args[index] == "--native-sdl-input")
+    {
+        Run("real SDL event queue ABI and managed input/video integration", () => SdlInputTests.Run(executable));
+    }
+    else if (args[index] == "--native-joystick")
+    {
+        Run("native joystick controls, repeat, assignment, and configuration compatibility", () => JoystickTests.Run(executable));
+    }
+    else if (args[index] == "--native-selection-menus")
+    {
+        Run("native selection menu interaction, state, and presentation compatibility", () => SelectionMenuTests.Run(executable));
+    }
+    else if (args[index] == "--native-ui-controls")
+    {
+        Run("native shadowed HUD gauge and any-button input compatibility", () => UiControlTests.Run(executable));
+    }
+    else if (args[index] == "--native-legacy-saves")
+    {
+        Run("native legacy save cipher, archive, and item layout compatibility", () => LegacySaveTests.Run(executable));
+    }
+    else if (args[index] == "--native-runtime-settings")
+    {
+        Run("native processor settings and game-speed/PIT compatibility", () => RuntimeSettingsTests.Run(executable));
+    }
+    else if (args[index] == "--native-game-config")
+    {
+        Run("native game configuration text/state and SDL keyboard-name compatibility", () => GameConfigurationTests.Run(executable));
+    }
+    else if (args[index] == "--native-settings-store")
+    {
+        Run("native complete legacy configuration startup and save compatibility", () => SettingsStoreTests.Run(executable));
+    }
+    else if (args[index] == "--native-save-metadata")
+    {
+        Run("native save metadata, tinydir order, and player filter compatibility", () => SaveMetadataTests.Run(executable));
+    }
+    else if (args[index] == "--native-versioned-saves")
+    {
+        Run("native versioned save bytes and full restored-state compatibility", () => VersionedSaveTests.Run(executable));
     }
     else
     {

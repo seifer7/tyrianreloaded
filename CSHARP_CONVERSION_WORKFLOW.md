@@ -254,6 +254,203 @@ It uses the unchanged real native clipped sprite renderer and synthetic
 compressed shapes, and checks both drawn and restored pixel buffers.
 The native filtered-start no-poll behavior and 24x28 capture's scanline
 crossing are preserved. No runtime game assets are used.
+
+Real SDL2 audio conversion now implements the sound-bank conversion boundary;
+192 byte-hash/length comparisons cover six device rates, zero through 65535
+input samples, signed extrema, silence, and alternating/ramp input. Native CVT
+ABI assertions validate the managed prefix offsets and buffer storage sizes.
+The same check exercises all 38 bank entries through the mixer and actual
+SDL dummy-driver callbacks (paused creation, start/pause/resume/close, rooted
+delegate under GC, callback/factory failure propagation and device reopening).
+Keep physical audio off during this check:
+
+```sh
+cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) tests/native/sdl_audio_reference.c $(sdl2-config --libs) -o /tmp/sdl_audio_reference
+SDL_AUDIODRIVER=dummy dotnet run --project tests/OpenTyrian.Core.Tests -- --native-sdl-audio /tmp/sdl_audio_reference
+```
+
+On Windows, compile with the installed SDL2 include/lib paths and `SDL2.lib`,
+keep `SDL2.dll` beside the oracle, set `$env:SDL_AUDIODRIVER='dummy'`, and use
+`SDL2_LIBRARY_PATH` to point the managed process at that same absolute DLL.
+The device is deliberately created paused so the host can load music/samples
+first. Managed callback exceptions cannot cross SDL's native thread: they
+silence output and retain their exception/stack for `ThrowIfFaulted` and
+start/pause/dispose. A game host must check faults every frame and stop/close
+the device before releasing LDS/OPL state. Hardware, FM waveform generation,
+and complete game-host audio lifetime remain release gates.
+
+The game entrypoint now runs the complete native option parser behavior before
+the explicit unplayable-game exit. The option oracle compares 51 argument lists,
+complete launch/network state, permuted/uppercased legacy arguments, exact help/
+diagnostics, and exit codes. Numeric prefixes match native `atoi`/`sscanf`;
+undefined native signed-overflow inputs instead produce the relevant option
+diagnostic. Options are owned per parse and do not mutate caller arguments.
+
+```sh
+python3 -B tests/native/build_game_options_reference.py --output /tmp/game_options_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/game_options_reference.c src/arg_parse.c -o /tmp/game_options_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-game-options /tmp/game_options_reference
+python3 -B tests/native/build_sdl_video_reference.py --output /tmp/sdl_video_reference.c
+cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) /tmp/sdl_video_reference.c $(sdl2-config --libs) -o /tmp/sdl_video_reference
+cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) tests/native/sdl_input_reference.c $(sdl2-config --libs) -o /tmp/sdl_input_reference
+SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software dotnet run --project tests/OpenTyrian.Core.Tests -- --native-sdl-video /tmp/sdl_video_reference --native-sdl-input /tmp/sdl_input_reference
+```
+
+Real SDL video parity compares 48 framebuffer/window/viewport/fullscreen states
+against unchanged native video and all nearest/Scale/HQ scaler functions.
+All four layout modes, factors 1..4, minimum resize sizes, display
+clamping, fullscreen toggle and indexed clear pass. Managed surfaces replace software SDL
+surfaces; RGB888 palette mapping is managed and verified through framebuffer
+bytes. Native handle/subsystem cleanup is deterministic and reopen is tested.
+Real SDL input parity verifies 640 queued native-union events and actual managed
+key/text state, resize and Alt+Enter fullscreen effects, quit callbacks, SDL
+timing, and required joystick/network services. Ignored SDL-owned drop/extended
+text pointers are freed rather than leaked. SDL video/event pumping follows
+SDL's main-thread requirement. Physical display/input/audio/controllers,
+network gameplay integration, FM synthesis, and whole-game flows remain release gates.
+
+Joystick conversion now covers all native module functions. Its scripted
+oracle compares 22 code/partial-scan cases, 484 assignment comparisons, 640
+defaults, 4,608 state snapshots, 1,536 analog/reduction results, 32 exact native
+configuration outputs, and eight assignment-capture scenarios. Integer state,
+repeat wrap/strict comparison, key order and configuration are exact; angle
+rounding allows 1e-6 radians between platform math libraries. Undefined native
+overflow/divide-by-zero/code-number inputs throw; valid negative thresholds
+and native six-character code truncation are preserved.
+
+```sh
+python3 -B tests/native/build_joystick_reference.py --output /tmp/joystick_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/joystick_reference.c src/config_file.c -lm -o /tmp/joystick_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-joystick /tmp/joystick_reference
+```
+
+The `--native-sdl-input` group also attaches a real SDL virtual joystick and
+verifies enumeration/capabilities, axes/buttons/hats, menu events, config
+save/reopen, ignored-input gates, teardown and post-close guards. No original
+assets or physical-controller actions are required. SDL subsystem-init errors
+throw instead of silently disabling requested joystick support; individual
+open failures produce warnings and neutral indexed state. Host platform
+integration is functional, but physical-controller checks and playable-game
+use remain release gates.
+Selection menu parity compares 120 gameplay/episode/difficulty scenarios with
+unchanged native functions: complete draw arguments/frame hashes, navigation,
+wrapping, mouse bounds/priority, disabled entries, cancellation, Shift-G/Shift-]
+and held/sequential LORD unlocks, native difficulty values and ordered sounds,
+fades, waits, keep-alives and state commits. The SDL input group also runs the
+concrete managed presentation with real event queues, live SDL modifiers,
+PIT-timed palette fades and renderer output. Menu entrypoints accept required
+host services rather than substituting unported networking or episode loading.
+Whole title/new-game callers remain pending.
+
+Shadowed-gauge parity compares 256 complete surface/warning traces, including
+pitch, edges, unsigned zero-dimension wrap, color truncation and the native
+`12 / resolution * partial` division order. Zero resolution throws because
+native division by zero is undefined. Sixteen button cases verify joystick
+poll/event ordering, held mouse versus new mouse, new keys and the native
+keyboard-clear no-op.
+
+```sh
+python3 -B tests/native/build_selection_menus_reference.py --output /tmp/selection_menus_reference.c
+cc -std=c99 -Wall -Wextra /tmp/selection_menus_reference.c -o /tmp/selection_menus_reference
+python3 -B tests/native/build_ui_controls_reference.py --output /tmp/ui_controls_reference.c
+cc -std=c99 -Wall -Wextra /tmp/ui_controls_reference.c -o /tmp/ui_controls_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-selection-menus /tmp/selection_menus_reference --native-ui-controls /tmp/ui_controls_reference
+```
+
+Legacy save parity covers 32 encrypted/decoded 2,502-byte buffers, 256 twelve-
+byte item mappings, 16 complete 22-slot archives, 12 C-string XOR cases and 176
+game-state save/load cases across every slot and eight modes. Required save
+and episode host callbacks are exercised, including real temporary-file
+persistence. Save/load retains fixed-width signedness, platform-width unsigned
+cash conversion, raw fourteen-byte names, Pascal strings, old sidekick
+normalization and completed-episode transitions.
+
+The legacy editor-level writer stores high then low bytes while the reader
+interprets low then high; preserve this observed quirk. The four weak native
+checksums are preserved, including a verified collision. Invalid checksums
+produce exact native diagnostics and throw instead of terminating the process.
+Decryption does not reproduce native uninitialized stack bytes beyond the
+payload. Malformed Pascal lengths, truncated files and names exceeding their
+native fields throw instead of reproducing out-of-bounds memory writes.
+The legacy archive codec extracts verified serialization regions from the
+configuration functions. Complete configuration composition is now verified
+separately; newer `.tyrsav` game-state save/load has its own reference gate below.
+
+Processor-detail and speed parity adds 432 states and exact native PIT target
+comparisons. Unknown processor/game-speed values preserve defined native
+defaults/prior fast-play values; invalid fast-play throws instead of the
+native assertion/fall-through.
+
+```sh
+python3 -B tests/native/build_legacy_saves_reference.py --output /tmp/legacy_saves_reference.c
+cc -std=c99 -Wall -Wextra /tmp/legacy_saves_reference.c -o /tmp/legacy_saves_reference
+python3 -B tests/native/build_runtime_settings_reference.py --output /tmp/runtime_settings_reference.c
+cc -std=c99 -Wall -Wextra /tmp/runtime_settings_reference.c -o /tmp/runtime_settings_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-legacy-saves /tmp/legacy_saves_reference --native-runtime-settings /tmp/runtime_settings_reference
+```
+
+Text configuration parity adds 32 complete parsed-state/serialized-text cases
+linked to the unchanged native configuration implementation and actual SDL
+keyboard-name APIs. Unknown keys/settings, all scaler/layout names, retained
+joystick sections and unknown-binding removal preserve native behavior.
+Real file checks cover missing defaults, roundtrip persistence, durable flush
+and locked-file/invalid-directory errors. Missing config paths are diagnosed
+and return false; other I/O failures propagate instead of silently returning
+false. Unix-created directories use user read/write/execute permissions.
+All stored HQ choices now render through the verified managed kernels.
+Complete legacy configuration parity compares eight startup/save scenarios
+against the unchanged full native functions: exact 28-byte DOS fields, missing/
+invalid-size defaults, both existing and generated save archives, seeded
+high-score/name RNG ordering, processor background overrides and bounded volume
+callbacks. Real-file roundtrips and locked-file failures are covered. Invalid
+binary input is disposed rather than retaining the native leaked stream;
+save failures throw rather than returning success after silently skipped writes.
+User-directory resolution caches the native Windows/Unix environment precedence.
+Paths exceeding the native 499-byte UTF-8 buffer throw instead of truncating.
+
+New-format metadata parity uses real files and the unchanged native reader/
+list builder with actual tinydir sorting: six version/mode/name headers and four
+player filters. Managed checks reject every truncated header and diagnose skipped
+corrupt/unsupported files. Unlike native empty-metadata success on unsupported
+versions, those files are explicitly rejected. Latin-1 basenames are required;
+separator/NUL filenames are rejected instead of allowing traversal or undefined
+string reads. Native path behavior is deliberately retained: lookup uses the
+literal `saves\` prefix and 59-byte path limit, while listing uses `./saves`.
+These existing paths disagree on Unix and with some non-current user directories;
+fixing that baseline bug requires a documented compatibility decision before
+whole-game integration. Managed streams are closed instead of leaking native
+metadata handles.
+
+Versioned save parity compares 57 complete file bytes and restored game/player
+states across 64 fixtures, preserving current/previous equipment, byte powers,
+mode flags, cube counts, level names, completed-episode transitions and loaded
+flags. The other seven cases trigger the native writer's XOR/strlen defect:
+the terminal marker encrypts to NUL, so native output silently loses its marker.
+Managed writing rejects those cases before changing an existing file. IDs that
+introduce earlier cipher NULs are rejected for the same reason. Full native
+loader code is unchanged in the oracle, but its allocator fixture appends one
+zero byte because native allocates an unterminated string and reads beyond it;
+these checks do not validate undefined heap reads. Managed parsing is bounded
+to the native 1023-byte payload, player count, ten-character fields and terminal
+marker. Missing item IDs and signed-int numeric overflow throw instead of
+invalid indices, native buffer overruns or undefined atoi overflow. Malformed
+loads are validated before mutating live state, and unsupported versions are not
+reported as successful empty loads. Real-file persistence, metadata integration
+and locked files are covered; the eventual save/menu host must report failures.
+
+```sh
+python3 -B tests/native/build_game_config_reference.py --output /tmp/game_config_reference.c
+cc -std=c99 -Wall -Wextra -I src $(sdl2-config --cflags) /tmp/game_config_reference.c src/config_file.c $(sdl2-config --libs) -o /tmp/game_config_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-game-config /tmp/game_config_reference
+python3 -B tests/native/build_settings_store_reference.py --output /tmp/settings_store_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/settings_store_reference.c src/mtrand.c -o /tmp/settings_store_reference
+python3 -B tests/native/build_save_metadata_reference.py --output /tmp/save_metadata_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/save_metadata_reference.c -o /tmp/save_metadata_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-settings-store /tmp/settings_store_reference --native-save-metadata /tmp/save_metadata_reference
+python3 -B tests/native/build_versioned_saves_reference.py --output /tmp/versioned_saves_reference.c
+cc -std=c99 -Wall -Wextra /tmp/versioned_saves_reference.c -o /tmp/versioned_saves_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-versioned-saves /tmp/versioned_saves_reference
+```
 The attack oracle adds 192 enemy update frames, 16 hostile shot boundary cases,
 90 weapon-special cases, and 128 aimed-shot cases, comparing full enemy/shot/
 explosion/player-velocity/sound/draw/RNG traces. It records player damage at the
@@ -262,7 +459,221 @@ cover that dependency. Missing turret shot IDs throw rather than reusing stale
 native lookup scratch state. Level events and whole-game callers remain pending.
 SDL surfaces/events and whole-game behavior remain outside these oracle checks.
 
+Animation playback compares 72 complete native traces using a two-page synthetic
+LPF file, six starting positions, four speeds and three input-interruption
+positions. Every palette color, frame hash and ordered delay/presentation/event/
+network/wait call is compared, excluding the final first-frame loop delta.
+Managed tests additionally verify exact PIT timing, single-record animations,
+owned/borrowed streams, missing/malformed pages and failed rendering/presentation.
+Those failures propagate instead of silently aborting playback. A real SDL
+integration check presents decoded frames and palettes, posts a keyboard event
+after the third frame and verifies immediate interruption before keep-alive/wait.
+Whole-game ending callers and original-asset playback remain release gates.
+
+```sh
+python3 -B tests/native/build_animation_reference.py --output /tmp/animation_reference.c
+cc -std=c99 -Wall -Wextra /tmp/animation_reference.c -o /tmp/animation_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-animation /tmp/animation_reference
+```
+
+Jukebox starfield parity covers all 15 patterns, 21 complete scenes, 840
+rendered frames and 10,080 direct star generations, comparing full star/pixel
+hashes, exact float bits, signed/byte/word wrapping, controls and RNG state.
+The complete jukebox oracle compares 32 music/sample/control/fade/quit traces
+and the original 41 music/38 sound titles. Managed checks additionally exercise
+concrete palette/font/star presentation, music archive/controller/PCM/sample
+routing, disabled audio, and volume restoration after failed presentation.
+Real dummy SDL integration drives keyboard exit, 16 presented/mixed frames,
+PIT waits and the final black palette. Native star initialization is persistent
+across jukebox runs; the empty `JE_wackyCol` stub has no managed counterpart.
+Whole-game title-menu wiring, FM waveform output and original-asset presentation
+remain outstanding.
+
+```sh
+python3 -B tests/native/build_jukebox_stars_reference.py --output /tmp/jukebox_stars_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/jukebox_stars_reference.c src/mtrand.c -lm -o /tmp/jukebox_stars_reference
+python3 -B tests/native/build_jukebox_reference.py --output /tmp/jukebox_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/jukebox_reference.c src/mtrand.c -o /tmp/jukebox_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-jukebox-stars /tmp/jukebox_stars_reference --native-jukebox /tmp/jukebox_reference
+```
+
 ## 4. Verify parity continuously
+
+Network parity compares nine complete acknowledged-control/retry/state/XOR
+traces across delays 1..7, including packet loss, exact recovered payloads,
+retransmission, resets and 65,542 control sequence transitions. A further
+32 unchanged native connect traces cover duplicates, version/delay/player
+conflicts, episode intersections, 20-byte player-name truncation and Escape.
+Actual SDL2_net tests compare 128 loopback datagrams and echoes byte-for-byte,
+then connect two concurrent peers and exchange acknowledged controls and delayed
+states. Ports are ephemeral and peers are strictly local; no remote network or
+whole-game multiplayer parity is claimed.
+Native promoted sync subtraction and reconstructed XOR packet headers are
+preserved. Malformed packet sizes/names throw before queue publication; UDP
+failures propagate rather than returning a success-shaped result or spinning.
+Waits support cancellation. Disconnects/negotiation errors raise typed termination
+exceptions for the host, replacing native process exit. The shutdown continuation
+now preserves error normalization, picture 2, centered small-font text, three
+ten-step fades, optional sync/timeout, nonzero-error button confirmation and
+transport release before game halt code 5. Thirty-two unchanged native traces
+cover every message, invalid-code fallback, timeout, already-synced and actual
+acknowledgment paths; 32 request-mask cases preserve the peer-menu flag.
+Actual SDL frames, picture decoding, font pixels, palette endpoints, keyboard
+acknowledgment and actual SDL2_net disposal are exercised. Cancellation/rendering
+errors release the transport in a finally block and propagate without reporting
+a normal halt. Shared gameplay globals and main/menu/gameplay synchronization
+callers remain pending.
+The gameplay network update now composes the actual session and level/combat/
+player/item state, with 5,120 complete native traces and paired SDL2_net gameplay
+frames. All local/remote request pairs use the native XOR rule; equal simultaneous
+requests cancel. Menu ownership, halt, skip countdown and NortShip item changes
+are retained. Diagnostics deliberately preserve native overlapping coordinate
+offsets rather than silently correcting them. A location mismatch throws before
+request actions instead of relying on a debug-only assertion. Setup exceptions
+clear peer-menu context and propagate. The top-level loop and menu implementation
+remain pending.
+Pause parity covers twelve complete native traces: normal/super pause, Ctrl/
+Alt modifier filtering, mouse confirmation, network handshake and remote resume.
+The real SDL path checks pause-font pixels and queued input; paired SDL2_net
+peers exercise acknowledged pause/resume. PIT targets preserve the native float
+calculation. Failures/cancellation restore volume and relative mouse state;
+input release waits support cancellation with unchanged normal service ordering.
+
+Player lifecycle parity covers 8,192 native death/respawn/continuous-death cases,
+including exact HUD pixels, RNG, explosions, sounds and arcade/Galaga rules.
+The player movement oracle compares 4,096 full linking/inertia/history/warp/
+attachment traces with actual typed items and native projectile creation.
+It also covers front/rear weapons, literal-index superbombs, charge weapons,
+sidekick firing, limited/unlimited ammo refill, animation and charge timers.
+Charge/ammo HUD pixels are hashed across the complete frame using unchanged
+native rectangle/gauge routines; sprite calls and external effects are traced.
+Native unsigned charge-timer underflow is preserved. Invalid managed
+power/mode/charge/animation/ammo values throw explicit errors rather than
+accessing outside native tables. The top-level player loop remains pending.
+Mode-switching parity additionally compares the request/readiness latch,
+rear/special multiposition resets, normal configuration wraparound, all seven
+arcade special pairs through native ID lookup, and single/two-player pattern
+indicator sprite calls. The enclosing loop still owns readiness-latch release.
+Ship parity adds 2,048 unchanged native traces spanning clamping/banking,
+network Y bounds, shadows/super-wild outlines, invulnerability, DragonWing
+sidekick positions and actual NortSpark projectiles at raw shot index 671.
+RNG consumption follows the supported native toolchains' Y-before-X argument
+evaluation. The concrete compressed-sheet adapter checks copy/blend/shadow pixels
+and preserves padded rows; no original assets are used.
+Special-command recognition compares 42,432 complete progress/execution states
+across all 26 keyboard combos, normal/SuperTyrian ship maps, both players,
+release/diagonal/repeat/wrong-direction input, and ignored higher ship indices.
+Native normal ship index 14 has no table row; managed code reports it explicitly.
+The linking API now invokes the real recognizer even when movement is disabled.
+Special-weapon parity adds 12,288 complete traces: standalone completion,
+per-frame updates and full native-ordered attack integration. It compares
+shield/all/half/armor costs and affordability, repulsor/attractor velocity
+changes including signed overflow, all flare/filter/astral/Zinglon/spray/
+invulnerability/repair/sidekick effects, held fire, waits/cooldowns and RNG.
+Actual native/managed projectiles include raw shot 707; full main/HUD hashes
+include padded rows. Sidekick spawning runs real native initialization, icons,
+gauges and option-level indicators rather than a no-op callback. Managed
+concrete sprite adapters check readiness, icons and rear-pattern buttons.
+Enclosing individual and paired player frames are now library-integrated.
+Another 4,096 individual scenarios and 4,096 paired scenarios (two consecutive
+updates each) compare unchanged native player/death/command/movement/render/
+attack routines, full projectiles, HUD/frame hashes and RNG. They cover respawn
+retry and mode changes, shared special coordinates, demo text, local/remote
+delayed network input, reset gates, previous-map/parallax state and signed warp
+overflow. The frame oracle supplies bounded keyboard/demo input and network
+packet fixtures; actual native input and network queues are independently
+compared by their existing selectors. Frame explosion requests are deferred
+for state comparison; explosion animation remains covered by the lifecycle
+oracle. Asset-dependent sprites use traced calls and separately verified
+concrete adapters. Full level/game-loop and playable-host integration is pending.
+Player input collection compares 16,384 complete native traces with actual
+joystick polling/axis reduction/angles and native mouse distance scaling.
+It verifies input-device selection, local/remote network ownership, keyboard/
+mouse/analog/digital controls, short narrowing, acceleration/clamping, inversion,
+menu/pause requests and exact prepared packet bytes/reset. Demo recording checks
+big-endian wait/key records and ushort wait wrap. Actual binary key playback
+adds 8,192 native replay frames and 8,192 collector-integrated replay frames,
+checking zero-wait records, countdown, all key/button bits, partial/EOF state,
+stream positions and EOF/level-end ordering. Managed reads also exercise
+fragmented streams. Demo headers/loading and recording are library-integrated;
+the full level/game loop remains pending. Invalid bindings/local owner/buttons/prepared
+state and missing replay services produce explicit errors.
+
+`--native-demo` compares 15 load attempts and 64 recording headers/filenames
+against unchanged native demo routines and numeric item-ID lookup. It covers
+original and compact headers, demo number byte wrap, missing-next fallback,
+missing-first failure, episode initialization, optional/partial wait bytes,
+high-bit/NUL names, all item fields and input resets. Managed checks exercise
+actual episode archive initialization, every mandatory header truncation,
+invalid item IDs and exhausted recording slots. Missing files use the standard
+open warning; new recordings use atomic creation to preserve concurrently
+created files, and all 256 occupied slots raise an explicit error instead of
+the native infinite search. Streams are owned/disposed by `DemoSession`, then
+supplied to `PlayerFrame` for actual input playback/recording.
+
+```sh
+python3 -B tests/native/build_demo_reference.py --output /tmp/demo_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/demo_reference.c src/mtrand.c -o /tmp/demo_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-demo /tmp/demo_reference
+```
+
+`--native-enemy-collision` compares 8,192 player/enemy collision damage,
+linked destruction and armor pickup scenarios at pitches 320/327. It uses
+unchanged native player damage, HUD and explosion setup, comparing both
+players, all 100 enemies, 200 explosions, 20 repeating explosions, sounds,
+HUD hashes and RNG. Coverage includes armor 255, capped damage, signed
+velocity impulses, collision-specific link rules, ground/large effects,
+pickup rounding and armor caps. Pickup dispatch and the enclosing player
+collision loop remain pending.
+
+```sh
+python3 -B tests/native/build_enemy_collision_reference.py --output /tmp/enemy_collision_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/enemy_collision_reference.c src/mtrand.c -lm -o /tmp/enemy_collision_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-enemy-collision /tmp/enemy_collision_reference
+```
+
+```sh
+python3 -B tests/native/build_network_reference.py --output /tmp/network_reference.c
+cc -std=c99 -Wall -Wextra /tmp/network_reference.c -o /tmp/network_reference
+cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) tests/native/sdl_net_reference.c $(sdl2-config --libs) -lSDL2_net -o /tmp/sdl_net_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-network /tmp/network_reference --native-sdl-net /tmp/sdl_net_reference
+python3 -B tests/native/build_level_network_reference.py --output /tmp/level_network_reference.c
+cc -std=c99 -Wall -Wextra /tmp/level_network_reference.c -o /tmp/level_network_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-level-network /tmp/level_network_reference
+python3 -B tests/native/build_pause_reference.py --output /tmp/pause_reference.c
+cc -std=c99 -Wall -Wextra /tmp/pause_reference.c -o /tmp/pause_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-pause /tmp/pause_reference
+python3 -B tests/native/build_player_lifecycle_reference.py --output /tmp/player_lifecycle_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/player_lifecycle_reference.c src/mtrand.c -lm -o /tmp/player_lifecycle_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-player-lifecycle /tmp/player_lifecycle_reference
+python3 -B tests/native/build_player_movement_reference.py --output /tmp/player_movement_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/player_movement_reference.c src/mtrand.c -lm -o /tmp/player_movement_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-player-movement /tmp/player_movement_reference
+python3 -B tests/native/build_player_special_reference.py --output /tmp/player_special_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/player_special_reference.c src/mtrand.c -lm -o /tmp/player_special_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-player-special /tmp/player_special_reference
+python3 -B tests/native/build_player_input_reference.py --output /tmp/player_input_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/player_input_reference.c src/config_file.c -lm -o /tmp/player_input_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-player-input /tmp/player_input_reference
+```
+
+HQ scaler parity compares every output byte in 12,372 synthetic cases,
+including all 256 pattern seeds, varied color/threshold relationships and
+unsigned interpolation overflow, 1-pixel boundaries, source/destination padding,
+and complete 320x200 frames. Native HQ vertical neighbors intentionally use
+visible width rather than source pitch; this pre-existing behavior is preserved.
+The real SDL video oracle now compiles the complete unchanged nearest/Scale/HQ
+modules, comparing 48 rendered viewport/resize/fullscreen frames across all nine
+scalers. Managed pixel recipes are generated as readable switch statements,
+with strict grammar/case validation and reproducibility checks; no native game
+code is required by the managed executable.
+
+```sh
+python3 -B tools/generate_hq_kernels.py --check --output src-csharp/OpenTyrian.Core/HqPatternKernels.cs
+python3 -B tests/native/build_hq_scaler_reference.py --output /tmp/hq_scaler_reference.c
+cc -std=c99 -w /tmp/hq_scaler_reference.c -o /tmp/hq_scaler_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-hq /tmp/hq_scaler_reference
+```
 
 - Add focused tests for converted functions and data formats, especially
   integer-width behavior, binary parsing, save/config files, ordering rules,

@@ -79,6 +79,103 @@ jobs:
           cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/input_reference.c" -o "$RUNNER_TEMP/input_reference"
           python3 -B tests/native/build_mouse_reference.py --output "$RUNNER_TEMP/mouse_reference.c"
           cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/mouse_reference.c" -o "$RUNNER_TEMP/mouse_reference"
+          python3 -B tests/native/build_game_options_reference.py --output "$RUNNER_TEMP/game_options_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/game_options_reference.c" src/arg_parse.c -o "$RUNNER_TEMP/game_options_reference"
+          python3 -B tests/native/build_joystick_reference.py --output "$RUNNER_TEMP/joystick_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/joystick_reference.c" src/config_file.c -lm -o "$RUNNER_TEMP/joystick_reference"
+          python3 -B tests/native/build_selection_menus_reference.py --output "$RUNNER_TEMP/selection_menus_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/selection_menus_reference.c" -o "$RUNNER_TEMP/selection_menus_reference"
+          python3 -B tests/native/build_ui_controls_reference.py --output "$RUNNER_TEMP/ui_controls_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/ui_controls_reference.c" -o "$RUNNER_TEMP/ui_controls_reference"
+          python3 -B tests/native/build_legacy_saves_reference.py --output "$RUNNER_TEMP/legacy_saves_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/legacy_saves_reference.c" -o "$RUNNER_TEMP/legacy_saves_reference"
+          python3 -B tests/native/build_runtime_settings_reference.py --output "$RUNNER_TEMP/runtime_settings_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/runtime_settings_reference.c" -o "$RUNNER_TEMP/runtime_settings_reference"
+          python3 -B tests/native/build_settings_store_reference.py --output "$RUNNER_TEMP/settings_store_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/settings_store_reference.c" src/mtrand.c -o "$RUNNER_TEMP/settings_store_reference"
+          python3 -B tests/native/build_save_metadata_reference.py --output "$RUNNER_TEMP/save_metadata_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/save_metadata_reference.c" -o "$RUNNER_TEMP/save_metadata_reference"
+          python3 -B tests/native/build_versioned_saves_reference.py --output "$RUNNER_TEMP/versioned_saves_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/versioned_saves_reference.c" -o "$RUNNER_TEMP/versioned_saves_reference"
+          python3 -B tests/native/build_animation_reference.py --output "$RUNNER_TEMP/animation_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/animation_reference.c" -o "$RUNNER_TEMP/animation_reference"
+          python3 -B tests/native/build_jukebox_stars_reference.py --output "$RUNNER_TEMP/jukebox_stars_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/jukebox_stars_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/jukebox_stars_reference"
+          python3 -B tests/native/build_jukebox_reference.py --output "$RUNNER_TEMP/jukebox_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/jukebox_reference.c" src/mtrand.c -o "$RUNNER_TEMP/jukebox_reference"
+          python3 -B tools/generate_hq_kernels.py --check --output src-csharp/OpenTyrian.Core/HqPatternKernels.cs
+          python3 -B tests/native/build_hq_scaler_reference.py --output "$RUNNER_TEMP/hq_scaler_reference.c"
+          cc -std=c99 -w "$RUNNER_TEMP/hq_scaler_reference.c" -o "$RUNNER_TEMP/hq_scaler_reference"
+          python3 -B tests/native/build_network_reference.py --output "$RUNNER_TEMP/network_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/network_reference.c" -o "$RUNNER_TEMP/network_reference"
+          python3 -B tests/native/build_level_network_reference.py --output "$RUNNER_TEMP/level_network_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/level_network_reference.c" -o "$RUNNER_TEMP/level_network_reference"
+          python3 -B tests/native/build_pause_reference.py --output "$RUNNER_TEMP/pause_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/pause_reference.c" -o "$RUNNER_TEMP/pause_reference"
+          python3 -B tests/native/build_player_lifecycle_reference.py --output "$RUNNER_TEMP/player_lifecycle_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/player_lifecycle_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/player_lifecycle_reference"
+          python3 -B tests/native/build_player_movement_reference.py --output "$RUNNER_TEMP/player_movement_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/player_movement_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/player_movement_reference"
+          python3 -B tests/native/build_player_special_reference.py --output "$RUNNER_TEMP/player_special_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/player_special_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/player_special_reference"
+          python3 -B tests/native/build_player_input_reference.py --output "$RUNNER_TEMP/player_input_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/player_input_reference.c" src/config_file.c -lm -o "$RUNNER_TEMP/player_input_reference"
+          python3 -B tests/native/build_demo_reference.py --output "$RUNNER_TEMP/demo_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/demo_reference.c" src/mtrand.c -o "$RUNNER_TEMP/demo_reference"
+          python3 -B tests/native/build_enemy_collision_reference.py --output "$RUNNER_TEMP/enemy_collision_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/enemy_collision_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/enemy_collision_reference"
+      - name: Compare player death and respawn state, effects and HUD
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-player-lifecycle "$RUNNER_TEMP/player_lifecycle_reference" --native-player-movement "$RUNNER_TEMP/player_movement_reference" --native-player-special "$RUNNER_TEMP/player_special_reference" --native-player-input "$RUNNER_TEMP/player_input_reference" --native-demo "$RUNNER_TEMP/demo_reference" --native-enemy-collision "$RUNNER_TEMP/enemy_collision_reference"
+      - name: Compare native network packets, connection, shutdown and requests
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-network "$RUNNER_TEMP/network_reference" --native-level-network "$RUNNER_TEMP/level_network_reference" --native-pause "$RUNNER_TEMP/pause_reference"
+      - name: Compare exact native HQ scaler output
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-hq "$RUNNER_TEMP/hq_scaler_reference"
+      - name: Compare complete jukebox loop and starfield
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-jukebox-stars "$RUNNER_TEMP/jukebox_stars_reference" --native-jukebox "$RUNNER_TEMP/jukebox_reference"
+      - name: Compare complete native animation playback
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-animation "$RUNNER_TEMP/animation_reference"
+      - name: Compare selection menus and HUD/input controls
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-selection-menus "$RUNNER_TEMP/selection_menus_reference" --native-ui-controls "$RUNNER_TEMP/ui_controls_reference" --native-legacy-saves "$RUNNER_TEMP/legacy_saves_reference" --native-runtime-settings "$RUNNER_TEMP/runtime_settings_reference" --native-settings-store "$RUNNER_TEMP/settings_store_reference" --native-save-metadata "$RUNNER_TEMP/save_metadata_reference" --native-versioned-saves "$RUNNER_TEMP/versioned_saves_reference"
+      - name: Compare game launch option behavior
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-game-options "$RUNNER_TEMP/game_options_reference" --native-joystick "$RUNNER_TEMP/joystick_reference"
       - name: Compare native gameplay references
         if: runner.os == 'Linux'
         run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-background "$RUNNER_TEMP/background_reference" --native-items "$RUNNER_TEMP/items_reference" --native-help "$RUNNER_TEMP/help_reference" --native-shots "$RUNNER_TEMP/shots_reference" --native-effects "$RUNNER_TEMP/effects_reference" --native-combat "$RUNNER_TEMP/combat_reference" --native-enemies "$RUNNER_TEMP/enemy_reference" --native-attacks "$RUNNER_TEMP/attacks_reference" --native-events "$RUNNER_TEMP/events_reference" --native-dispatch "$RUNNER_TEMP/dispatch_reference" --native-level-map "$RUNNER_TEMP/level_map_reference" --native-boss-bars "$RUNNER_TEMP/boss_bar_reference" --native-level-state "$RUNNER_TEMP/level_state_reference" --native-sounds "$RUNNER_TEMP/sound_bank_reference" --native-mixer "$RUNNER_TEMP/audio_mixer_reference" --native-music "$RUNNER_TEMP/music_reference"         --native-lds "$RUNNER_TEMP/lds_reference" --native-input "$RUNNER_TEMP/input_reference" --native-mouse "$RUNNER_TEMP/mouse_reference"
+      - name: Install SDL2 development library
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y libsdl2-dev libsdl2-net-dev
+      - name: Compare real SDL2_net loopback and managed protocol integration
+        if: runner.os == 'Linux'
+        run: |
+          cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) tests/native/sdl_net_reference.c $(sdl2-config --libs) -lSDL2_net -o "$RUNNER_TEMP/sdl_net_reference"
+          dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-sdl-net "$RUNNER_TEMP/sdl_net_reference"
+      - name: Compare real SDL audio conversion and callback lifecycle
+        if: runner.os == 'Linux'
+        env:
+          SDL_AUDIODRIVER: dummy
+        run: |
+          cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) tests/native/sdl_audio_reference.c $(sdl2-config --libs) -o "$RUNNER_TEMP/sdl_audio_reference"
+          dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-sdl-audio "$RUNNER_TEMP/sdl_audio_reference"
+      - name: Compare game text configuration and SDL keyboard names
+        if: runner.os == 'Linux'
+        run: |
+          python3 -B tests/native/build_game_config_reference.py --output "$RUNNER_TEMP/game_config_reference.c"
+          cc -std=c99 -Wall -Wextra -I src $(sdl2-config --cflags) "$RUNNER_TEMP/game_config_reference.c" src/config_file.c $(sdl2-config --libs) -o "$RUNNER_TEMP/game_config_reference"
+          dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-game-config "$RUNNER_TEMP/game_config_reference"
+      - name: Compare real SDL video and event integration
+        if: runner.os == 'Linux'
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_RENDER_DRIVER: software
+        run: |
+          python3 -B tests/native/build_sdl_video_reference.py --output "$RUNNER_TEMP/sdl_video_reference.c"
+          cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) "$RUNNER_TEMP/sdl_video_reference.c" $(sdl2-config --libs) -o "$RUNNER_TEMP/sdl_video_reference"
+          cc -std=c99 -Wall -Wextra $(sdl2-config --cflags) tests/native/sdl_input_reference.c $(sdl2-config --libs) -o "$RUNNER_TEMP/sdl_input_reference"
+          dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-sdl-video "$RUNNER_TEMP/sdl_video_reference" --native-sdl-input "$RUNNER_TEMP/sdl_input_reference"

@@ -45,11 +45,15 @@ differences before replacing the native baseline.
 The C# projects target .NET 10, with no NuGet dependencies in the initial
 foundation. `OpenTyrian.slnx` contains the game host, core library, data
 extractor host, and dependency-free core regression harness. The game
-executable remains a scaffold and explicitly reports that gameplay has not yet
-been ported. The data extractor is functional, with native byte-output parity
-verified on synthetic asset records. The eventual platform layer will
-bind to SDL 2 and SDL2_net through the existing native libraries to preserve
-the current SDL-based capabilities without adding a package dependency.
+executable now parses native game options and provides compatible help/errors,
+but explicitly reports that playable game flows have not yet been ported.
+The data extractor is functional, with native byte-output parity verified on
+synthetic asset records. The platform layer now binds real SDL 2 audio,
+video, event and joystick services through the installed native library.
+SDL2_net transport, control/state queues and connection negotiation are now
+library-integrated; gameplay/menu synchronization remains pending.
+No package dependency or native game logic
+has been added to the managed build.
 
 Build the solution and run the core regression harness with:
 
@@ -80,9 +84,13 @@ conversion boundary, eight-channel fixed-point PCM mixing, music archive and
 song controls, and the complete LDS music sequencer with native OPL register
 effects, keyboard/mouse/text/focus events and input waits, native viewport
 coordinate mapping, and all five software mouse cursors with clipped/filter
-sprite rendering and pixel restoration. SDL event/device integration,
-conversion/device playback and FM waveform synthesis remain
-pending. These systems are integrated into the
+sprite rendering and pixel restoration. SDL2 sample conversion and real
+audio-device callback playback are integrated with the sound bank and mixer.
+Real SDL2 event queues and window/renderer/texture presentation are integrated
+with managed input, indexed palettes/scalers, fullscreen and viewport state.
+HQ2x/HQ3x/HQ4x now have managed kernels with exact native pixel parity and
+real SDL presentation across all nine scaler choices. FM waveform synthesis
+remains pending. These systems are integrated into the
 library and regression harness, not yet into playable game flows. Native
 differential checks compare parsing, RNG, configuration, backgrounds, typed
 items, help layouts, projectiles, effects, combat/HUD, enemy/collision/attack traces,
@@ -91,6 +99,104 @@ sound-bank data, PCM mixing, music controls, LDS register sequencing, input
 queues/host callbacks, viewport mapping, and cursor pixels
 against unchanged C implementations;
 see the conversion workflow for reference-harness build instructions.
+Animation playback now composes LPF loading, palette updates, delta-frame decoding,
+SDL presentation/input interruption, PIT waits and required network keep-alive.
+It retains native starting-frame and final-loop-delta behavior; malformed
+playback raises explicit errors while closing its owned stream.
+The full jukebox loop now combines all 15 animated star patterns, original
+music/sample title tables, keyboard/music/sample controls, automatic song fades,
+and mouse/key exit with palette fading. Its concrete font/palette/star renderer
+and music-controller/PCM/sample adapters are exercised through real SDL
+presentation/events; FM synthesis and the title-menu caller remain pending.
+
+The game host supports the native `--help`, modern/legacy options, and network
+argument validation. Actual launch remains an explicit incomplete-game error;
+parsing `--net` does not claim working multiplayer.
+The network library preserves native big-endian packets, acknowledgments,
+retry/keep-alive/timeouts, delayed state/XOR recovery and player/episode/name
+negotiation. Actual SDL2_net loopback exercises both peers and the protocol.
+Malformed packets and transport errors throw, and disconnects unwind with
+typed errors. The library now composes the native error screen, palette fades,
+acknowledgment wait, input confirmation and transport cleanup; main-host/menu/
+gameplay wiring remains pending. Use the installed
+`SDL2_net.dll`, `libSDL2_net-2.0.so.0`, or `libSDL2_net.dylib`, or set an absolute
+`SDL2_NET_LIBRARY_PATH`; the managed protocol uses native SDL2_net only for
+platform transport services.
+Gameplay state payloads and delayed request handling now run through
+`LevelEvents` and the real transport: pause/setup context, skip timing,
+NortShip upgrades and native desynchronization diagnostics are preserved.
+The top-level playable loop and its menu callbacks are still incomplete.
+Pause/resume now includes native text, audio attenuation, modifier filtering,
+mouse/joystick waits, PIT timing and acknowledged two-player synchronization.
+Player death/respawn now shares managed combat/effects/HUD state, including
+arcade lives, Galaga/episode armor rules, linked resets and continuous-death mode.
+Player inertia, position history, linking/turret shots, warp trails and all
+sidekick positioning styles are integrated with the managed gameplay libraries.
+Front/rear weapons and superbombs now use the actual projectile/item systems.
+Player-two charge weapons and sidekick ammo/refill/firing/animation preserve
+native cooldowns, charge arithmetic, sprite calls and HUD gauges.
+Weapon-mode switching preserves the readiness latch, rear-pattern indicators
+and all seven arcade special-weapon pairs using item IDs rather than raw indices.
+Ship rendering now preserves banking, shadows, invulnerability, movement bounds,
+DragonWing sidekick positions and NortShip spark projectiles/RNG.
+Street-fighter command recognition now preserves all 26 combos, normal and
+SuperTyrian mappings, per-player progress and execution state.
+Special weapons now preserve costs, repulsion/attraction, flares, Zinglon/astral
+effects, repair, invulnerability and sidekick spawning. The attack routine
+composes them in native order with main/charge/bomb/sidekick firing, and sidekick
+HUD drawing initializes ammo/refill/style/animation state. Player input collection now
+combines actual keyboard/mouse/joystick services, analog turret aiming, native
+movement/acceleration, menu/pause requests, demo-record bytes and network payloads.
+Binary demo key playback now preserves waits, key/button mapping, truncated/EOF
+state and collector/level-end ordering. Enclosing individual and paired player
+frames now compose input, death/respawn, movement, linking/commands, rendering and
+weapons in native order, including delayed network input, shared special-weapon
+coordinates and parallax scrolling. Demo loading/recording now preserves original
+and compact headers, native item-ID resolution, episode initialization,
+selection/wrap/fallback, binary recording headers and first-free filenames.
+The complete level/game loop and playable host remain pending.
+Player/enemy collision damage, linked enemy destruction and shared armor
+pickups now compose actual combat/HUD and explosion systems; collision pickup
+dispatch and the enclosing collision loop remain pending.
+Joystick ports include signed analog controls, dual bindings, repeat timing,
+menu key synthesis, native defaults/configuration and interactive assignment
+capture. The real SDL device adapter is verified with a synthetic virtual
+controller; physical-controller compatibility remains a release gate.
+Gameplay, episode and difficulty selection menus now have managed interaction
+and font/cursor/palette presentation, including the original hidden difficulty
+unlocks and disabled-entry behavior. Their SDL integration is exercised with
+synthetic fixtures; the title/new-game flows that call them are still pending.
+Shadowed HUD gauges and any-button polling preserve native rendering/input
+semantics, including partial-bar arithmetic and held mouse-button behavior.
+The original `tyrian.sav` archive, encryption/checksums and slot save/load
+state are now ported with synthetic byte-for-byte parity and real file
+persistence. The newer `.tyrsav` game-state save/load, metadata and sorted,
+player-filtered catalogs are also ported; save-menu wiring remains pending.
+Versioned saves retain ID-based item lookup, both players and previous equipment,
+native mode/episode rules, and compatible headers. Malformed files and native
+NUL-cipher truncations are explicitly rejected rather than corrupting game state.
+Processor-detail and game-speed controls now use the
+managed PIT timer with native-compatible settings and timing.
+Text `opentyrian.cfg` settings also have native-compatible defaults, SDL key
+names, and durable file load/save while retaining unrelated joystick sections.
+Legacy startup configuration now composes the exact 28-byte `tyrian.cfg`,
+text settings, volume controls, default high scores, and encrypted archive
+persistence. It remains library-integrated, not a playable startup flow.
+Save-menu integration remains outstanding.
+
+SDL audio checks use the real installed SDL2 runtime and a dummy device, not
+physical speakers. The platform loader uses `SDL2.dll`, `libSDL2-2.0.so.0`, or
+`libSDL2.dylib`; `SDL2_LIBRARY_PATH` may specify an absolute library filename.
+Audio devices start paused, allowing bank/music initialization before playback.
+The eventual host must check `SdlAudioDevice.ThrowIfFaulted()` each frame and
+dispose the device before releasing its music/synthesizer state.
+Video/input integration checks similarly require `SDL_VIDEODRIVER=dummy` and
+`SDL_RENDER_DRIVER=software`, so they create no visible windows. All nine
+nearest, Scale2x/Scale3x and HQ2x/HQ3x/HQ4x choices use the managed ports.
+HQ output preserves the original six-bit RGB mask and YUV thresholds, including
+the native width-based vertical-neighbor addressing on padded source surfaces.
+`tools\generate_hq_kernels.py` reproduces the readable managed HQ pattern tables;
+the game does not load or compile native game logic at runtime.
 
 ## C# data extractor
 

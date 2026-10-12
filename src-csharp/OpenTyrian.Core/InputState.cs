@@ -43,6 +43,7 @@ public sealed class InputState(IInputPlatform platform, VideoLayout layout) : ID
     public byte[] KeysActive { get; } = new byte[512];
     public bool[] MousePressed { get; } = new bool[3];
     public bool EscapePressed { get; set; }
+    public bool InputDetected { get; set; }
     public bool NewKey { get; set; }
     public bool NewMouse { get; set; }
     public bool NewText { get; set; }
@@ -79,6 +80,13 @@ public sealed class InputState(IInputPlatform platform, VideoLayout layout) : ID
 
     public void ClearKeyboard() { }
 
+    public bool AnyButton()
+    {
+        platform.PollJoysticks();
+        ServiceEvents(true);
+        return NewKey || MouseDown || JoystickDown;
+    }
+
     public void SetRelative(bool enabled)
     {
         platform.SetRelativeMouseMode(enabled && WindowHasFocus);
@@ -100,14 +108,16 @@ public sealed class InputState(IInputPlatform platform, VideoLayout layout) : ID
         return distance;
     }
 
-    public void WaitInput(bool keyboard, bool mouse, bool joystick) => Wait(keyboard, mouse, joystick, true);
-    public void WaitNoInput(bool keyboard, bool mouse, bool joystick) => Wait(keyboard, mouse, joystick, false);
+    public void WaitInput(bool keyboard, bool mouse, bool joystick, CancellationToken cancellation = default) => Wait(keyboard, mouse, joystick, true, cancellation);
+    public void WaitNoInput(bool keyboard, bool mouse, bool joystick, CancellationToken cancellation = default) => Wait(keyboard, mouse, joystick, false, cancellation);
 
-    private void Wait(bool keyboard, bool mouse, bool joystick, bool pressed)
+    private void Wait(bool keyboard, bool mouse, bool joystick, bool pressed, CancellationToken cancellation)
     {
+        cancellation.ThrowIfCancellationRequested();
         ServiceEvents(false);
         while (((keyboard && KeyDown) || (mouse && MouseDown) || (joystick && JoystickDown)) != pressed)
         {
+            cancellation.ThrowIfCancellationRequested();
             platform.Delay(10);
             if (pressed) platform.PushJoysticksAsKeyboard();
             else platform.PollJoysticks();

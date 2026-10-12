@@ -7,7 +7,7 @@
 
 namespace OpenTyrian.Core;
 
-public sealed class PlayerCombat
+public sealed partial class PlayerCombat
 {
     private readonly IReadOnlyList<PlayerState> _players;
     private readonly SceneEffects _effects;

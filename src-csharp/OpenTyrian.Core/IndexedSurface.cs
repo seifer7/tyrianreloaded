@@ -153,6 +153,30 @@ public sealed class IndexedSurface
         }
     }
 
+    public void ShadowedGauge(ushort x, ushort y, ushort resolution, ushort color, ushort amount,
+        ushort width, ushort height)
+    {
+        if (resolution == 0)
+            throw new ArgumentOutOfRangeException(nameof(resolution), "Gauge resolution must be positive.");
+        width = unchecked((ushort)(width - 1));
+        height = unchecked((ushort)(height - 1));
+        for (var segment = 1; segment <= amount / resolution; segment++)
+        {
+            ShadeRectangle(x + 2, y + 2, x + width + 2, y + height + 2);
+            FillRectangle(x, y, x + width, y + height, unchecked((byte)(color + 12)));
+            FillRectangle(x, y, x + width, y, unchecked((byte)(color + 13)));
+            Pixel(x, y, unchecked((byte)(color + 15)));
+            FillRectangle(x, y + height, x + width, y + height, unchecked((byte)(color + 11)));
+            x = unchecked((ushort)(x + width + 2));
+        }
+        amount = (ushort)(amount % resolution);
+        if (amount > 0)
+        {
+            ShadeRectangle(x + 2, y + 2, x + width + 2, y + height + 2);
+            FillRectangle(x, y, x + width, y + height, unchecked((byte)(color + 12 / resolution * amount)));
+        }
+    }
+
     private bool ValidRectangle(int left, int top, int right, int bottom)
     {
         return left >= 0 && top >= 0 && right >= left && bottom >= top && right < Pitch && bottom < Height;
