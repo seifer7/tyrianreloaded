@@ -2428,12 +2428,12 @@ static void load_level_shapes(FILE *level_f, JE_char shapeFile, JE_byte *ref[3][
 		else
 			fread_u8_die(shape, sizeof(shape), shpFile);
 
-#ifdef DO_DECYRPT
+#ifdef DO_DECRYPT
 		if (!shapeBlank)
 		{
 			char filename[60];
-			snprintf(filename, sizeof(filename), "data\\shapes\\%c_%d.pcx", shapeFile, z);
-			FILE *outF = dir_fopen(get_user_directory(), filename, "wb");
+			snprintf(filename, sizeof(filename), "data/shapes/%c_%d.pcx", shapeFile, z);
+			FILE *outF = dir_fopen_die(".", filename, "wb");
 			if (outF != NULL)
 			{
 				write_pcx_header(outF, 24, 28);
@@ -2524,7 +2524,7 @@ static void load_level_map_layer(FILE *level_f, JE_byte *shapeRefs[128], void *m
 	}
 }
 
-#ifdef DO_DECYRPT
+#ifdef DO_DECRYPT
 static void dump_level_main_map(FILE *dumpFile, const char *header, JE_byte *const *map, int width)
 {
 	fputs(header, dumpFile);
@@ -2875,10 +2875,10 @@ static void load_selected_level_map(JE_byte *ref[3][128])
 	load_level_shapes(level_f, char_shapeFile, ref);
 
 	FILE *dumpFile = NULL;
-#ifdef DO_DECYRPT
+#ifdef DO_DECRYPT
 	char filename[60];
-	snprintf(filename, sizeof(filename), "data\\levels\\og_%d_%d.txt", episodeNum, lvlFileNum);
-	dumpFile = dir_fopen(get_user_directory(), filename, "w");
+	snprintf(filename, sizeof(filename), "data/levels/og_%d_%d.txt", episodeNum, lvlFileNum);
+	dumpFile = dir_fopen_die(".", filename, "w");
 	if (dumpFile != NULL)
 		fputs("*MAP 1*\n", dumpFile);
 #endif
@@ -2889,7 +2889,7 @@ static void load_selected_level_map(JE_byte *ref[3][128])
 	if (dumpFile != NULL)
 		fputs("\n\n\n\n*MAP 3*\n", dumpFile);
 	load_level_map_layer(level_f, ref[2], &megaData3.mainmap[0][0], 15, 600, dumpFile);
-#ifdef DO_DECYRPT
+#ifdef DO_DECRYPT
 	if (dumpFile != NULL)
 	{
 		dump_level_main_map(dumpFile, "\n\n\n\n*MAINMAP 1*\n", &megaData1.mainmap[0][0], 14);

@@ -30,6 +30,12 @@
 #include "opentyr.h"
 #include "mtrand.h"
 
+#include <errno.h>
+#include <sys/stat.h>
+#ifdef TARGET_WIN32
+#include <direct.h>
+#endif
+
 /* MAIN Weapons Data */
 JE_WeaponPortType *weaponPort;
 JE_WeaponPortTypeOld oldWeaponPort[PORT_NUM + 1];
@@ -867,50 +873,88 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 	free(buffer);
 }
 
+#ifdef DO_DECRYPT
+static void prepare_extracted_data_directories(void)
+{
+	const char *const directories[] = {
+		"data", "data/shots", "data/enemy", "data/items",
+		"data/items/ship", "data/items/weapon", "data/items/generator",
+		"data/items/shield", "data/items/sidekick", "data/items/special",
+		"data/shapes", "data/levels"
+	};
+	for (uint i = 0; i < COUNTOF(directories); ++i)
+	{
+#ifdef TARGET_WIN32
+		const int result = _mkdir(directories[i]);
+#else
+		const int result = mkdir(directories[i], 0700);
+#endif
+		if (result != 0 && errno != EEXIST)
+		{
+			fprintf(stderr, "error: failed to create '%s': %s\n", directories[i], strerror(errno));
+			SDL_Quit();
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+#endif
+
 void load_items(void) {
+#ifdef DO_DECRYPT
+	prepare_extracted_data_directories();
+	JE_initEpisode(1);
+#endif
 	for (int item_type = 0; item_type < ItemType_Count; item_type++) {
 		if (item_type == ItemType_WeaponRear) continue;
 		if (item_type == ItemType_SidekickRight) continue;
 		tinydir_dir dir;
 
 		size_t numItems = 0;
+		const char *itemDirectory;
 		char itemFileExt[7] = "";
 		switch (item_type) {
 			case ItemType_Shot:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/shots"));
+				itemDirectory = "./data/shots";
 				strcpy(itemFileExt, "tyrsht");
 				break;
 			case ItemType_Ship:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/items/ship"));
+				itemDirectory = "./data/items/ship";
 				strcpy(itemFileExt, "tyrshp");
 				break;
 			case ItemType_WeaponFront:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/items/weapon"));
+				itemDirectory = "./data/items/weapon";
 				strcpy(itemFileExt, "tyrwep");
 				break;
 			case ItemType_Generator:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/items/generator"));
+				itemDirectory = "./data/items/generator";
 				strcpy(itemFileExt, "tyrgen");
 				break;
 			case ItemType_Shield:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/items/shield"));
+				itemDirectory = "./data/items/shield";
 				strcpy(itemFileExt, "tyrshd");
 				break;
 			case ItemType_SidekickLeft:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/items/sidekick"));
+				itemDirectory = "./data/items/sidekick";
 				strcpy(itemFileExt, "tyrsid");
 				break;
 			case ItemType_Special:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/items/special"));
+				itemDirectory = "./data/items/special";
 				strcpy(itemFileExt, "tyrspc");
 				break;
 			case ItemType_Enemy:
-				tinydir_open_sorted(&dir, TINYDIR_STRING("./data/enemy"));
+				itemDirectory = "./data/enemy";
 				strcpy(itemFileExt, "tyremy");
 				break;
 			default:
 				continue;
 			break;
+		}
+
+		if (tinydir_open_sorted(&dir, itemDirectory) == -1)
+		{
+			fprintf(stderr, "error: cannot read '%s': %s; enable DO_DECRYPT to generate item data.\n", itemDirectory, strerror(errno));
+			SDL_Quit();
+			exit(EXIT_FAILURE);
 		}
 
 		for (size_t i = 0; i < dir.n_files; i++)
@@ -923,6 +967,13 @@ void load_items(void) {
 			if (file.is_dir) continue;
 			if (_tinydir_strcmp(itemFileExt, file.extension) != 0) continue;
 			numItems++;
+		}
+
+		if (numItems == 0)
+		{
+			fprintf(stderr, "error: no .%s files in '%s'; enable DO_DECRYPT to generate item data.\n", itemFileExt, dir.path);
+			SDL_Quit();
+			exit(EXIT_FAILURE);
 		}
 
 		switch (item_type) {
@@ -972,7 +1023,7 @@ void load_items(void) {
 			if (file.is_dir) continue;
 			if (_tinydir_strcmp(itemFileExt, file.extension) != 0) continue;
 
-			FILE* itemFile = fopen(file.path, "r");
+			FILE* itemFile = dir_fopen_die(".", file.path, "r");
 			read_item_file(itemFile, item_type);
 			fclose(itemFile);
 
@@ -1100,11 +1151,11 @@ void JE_loadItemDat(void)
 		fread_u8_die( &oldWeapons[i].trail,           1, f);
 		fread_u8_die( &oldWeapons[i].shipblastfilter, 1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\shots\\%d.tyrsht", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/shots/%d.tyrsht", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "drain=%d\n", oldWeapons[i].drain);
 			fprintf(outF, "shotrepeat=%d\n", oldWeapons[i].shotrepeat);
@@ -1213,7 +1264,7 @@ void JE_loadItemDat(void)
 		fread_u16_die(&oldWeaponPort[i].itemgraphic, 1, f);
 		fread_u16_die(&oldWeaponPort[i].poweruse,    1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		// Sprite number of bigship graphic used in game menu.
 		// Originally was hardcoded into the game menu ship graphic drawing function
 		int bigshipgraphic[43] = {
@@ -1297,9 +1348,9 @@ void JE_loadItemDat(void)
 		};
 
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\items\\weapon\\%d.tyrwep", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/items/weapon/%d.tyrwep", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldWeaponPort[i].name);
 			fprintf(outF, "opnum=%d\n", oldWeaponPort[i].opnum);
@@ -1353,11 +1404,11 @@ void JE_loadItemDat(void)
 		fread_u8_die( &oldSpecial[i].stype,       1, f);
 		fread_u16_die(&oldSpecial[i].wpn,         1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\items\\special\\%d.tyrspc", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/items/special/%d.tyrspc", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldSpecial[i].name);
 			fprintf(outF, "itemgraphic=%d\n", oldSpecial[i].itemgraphic);
@@ -1380,7 +1431,7 @@ void JE_loadItemDat(void)
 		fread_s8_die( &oldPowerSys[i].speed,       1, f);
 		fread_u16_die(&oldPowerSys[i].cost,        1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		// Sprite number of bigship graphic used in game menu.
 		// Originally was hardcoded into the game menu ship graphic drawing function
 		int bigshipgraphic[7] = {
@@ -1402,9 +1453,9 @@ void JE_loadItemDat(void)
 			5, // 7
 		};
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\items\\generator\\%d.tyrgen", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/items/generator/%d.tyrgen", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldPowerSys[i].name);
 			fprintf(outF, "itemgraphic=%d\n", oldPowerSys[i].itemgraphic);
@@ -1434,7 +1485,7 @@ void JE_loadItemDat(void)
 		fread_u16_die(&oldShips[i].cost,           1, f);
 		fread_u8_die( &oldShips[i].bigshipgraphic, 1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		// X and Y offsets of bigship graphic used in game menu.
 		// Originally was hardcoded into the game menu ship graphic drawing function
 		int bigshipgraphxy[14][2] = {
@@ -1452,9 +1503,9 @@ void JE_loadItemDat(void)
 		};
 
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\items\\ship\\%d.tyrshp", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/items/ship/%d.tyrshp", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldShips[i].name);
 			fprintf(outF, "shipgraphic=%d\n", oldShips[i].shipgraphic);
@@ -1492,7 +1543,7 @@ void JE_loadItemDat(void)
 		fread_bool_die(&oldOptions[i].stop,           f);
 		fread_u8_die(  &oldOptions[i].icongr,      1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		// 0 Both sides, 1 left only, 2 right only.
 		int positions[31] = {
 			0,
@@ -1514,9 +1565,9 @@ void JE_loadItemDat(void)
 			2, 4, 2, 6, 2
 		};
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\items\\sidekick\\%d.tyrsid", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/items/sidekick/%d.tyrsid", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldOptions[i].name);
 			fprintf(outF, "itemgraphic=%d\n", oldOptions[i].itemgraphic);
@@ -1599,7 +1650,7 @@ void JE_loadItemDat(void)
 		fread_u16_die(&oldShields[i].itemgraphic, 1, f);
 		fread_u16_die(&oldShields[i].cost,        1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		// Calculated by number of times item appeared in shop in episodes 1-4, divided by number of levels
 		int probabilities[31] = {
 			0,
@@ -1607,9 +1658,9 @@ void JE_loadItemDat(void)
 			35, 14, 26, 5, 1,
 		};
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\items\\shield\\%d.tyrshd", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/items/shield/%d.tyrshd", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldShields[i].name);
 			fprintf(outF, "tpwr=%d\n", oldShields[i].tpwr);
@@ -1653,11 +1704,11 @@ void JE_loadItemDat(void)
 		fread_s16_die(&oldEnemyDat[i].value,         1, f);
 		fread_u16_die(&oldEnemyDat[i].eenemydie,     1, f);
 
-		#ifdef DO_DECYRPT
+		#ifdef DO_DECRYPT
 		char filename[60];
-		snprintf(filename, sizeof(filename), "data\\enemy\\%d.tyremy", i);
-		if (!dir_file_exists(get_user_directory(), filename)) {
-			FILE* outF = dir_fopen(get_user_directory(), filename, "w");
+		snprintf(filename, sizeof(filename), "data/enemy/%d.tyremy", i);
+		if (!dir_file_exists(".", filename)) {
+			FILE* outF = dir_fopen_die(".", filename, "w");
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "ani=%d\n", oldEnemyDat[i].ani);
 			fputs("tur=", outF);

@@ -15,6 +15,18 @@ multiplayer.
 Tyrian 2.1 data files which have been released as freeware:
   https://camanis.net/tyrian/tyrian21.zip
 
+Place the original data files in data under the game's working directory
+(visualc\data when running from Visual Studio).
+
+With DO_DECRYPT enabled in src/opentyr.h, startup creates the data subfolders
+and extracts enemy, item and shot definitions before loading them. Existing
+definitions are not overwritten, so local edits are preserved. The original
+Tyrian data files are still required. Without DO_DECRYPT, the extracted
+definitions must already be present.
+
+Both data and visualc\data are ignored by Git; neither the original assets
+nor the generated definitions are committed.
+
 == Keyboard Controls ===========================================================
 
 alt-enter      -- toggle full-screen
