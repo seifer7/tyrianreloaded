@@ -234,7 +234,11 @@ bool get_item_index_from_int(const enum ITEM_TYPE* item_type, const int* id, int
 	return get_item_index(item_type, c, output);
 }
 
+static bool find_loading_item_index(enum ITEM_TYPE type, const char *id, int *output);
+
 bool get_item_index(const enum ITEM_TYPE* item_type, const char* id, int* output) {
+	if (loading_item_data && find_loading_item_index(*item_type, id, output))
+		return true;
 	int index = -1;
 	int i = -1;
 	bool end = false;
@@ -300,10 +304,10 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 		switch (item_type) {
 			case ItemType_Ship:
 				if (strcmp(key, "id") == 0) {
-					memcpy(ships[item_i].id, value, sizeof(ships[item_i].id)-1);
+					strncpy(ships[item_i].id, value, sizeof(ships[item_i].id)-1);
 				}
 				else if (strcmp(key, "name") == 0) {
-					memcpy(ships[item_i].name, value, sizeof(ships[item_i].name)-1);
+					strncpy(ships[item_i].name, value, sizeof(ships[item_i].name)-1);
 				}
 				else if (strcmp(key, "shipgraphic") == 0) {
 					ships[item_i].shipgraphic = atoi(value);
@@ -339,10 +343,10 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 			case ItemType_WeaponFront:
 			case ItemType_WeaponRear:
 				if (strcmp(key, "id") == 0) {
-					memcpy(weaponPort[item_i].id, value, sizeof(weaponPort[item_i].id) - 1);
+					strncpy(weaponPort[item_i].id, value, sizeof(weaponPort[item_i].id) - 1);
 				}
 				else if (strcmp(key, "name") == 0) {
-					memcpy(weaponPort[item_i].name, value, sizeof(weaponPort[item_i].name) - 1);
+					strncpy(weaponPort[item_i].name, value, sizeof(weaponPort[item_i].name) - 1);
 				}
 				else if (strcmp(key, "opnum") == 0) {
 					weaponPort[item_i].opnum = atoi(value);
@@ -389,7 +393,7 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 					weaponPort[item_i].bigshipgraphreary = atoi(value);
 				}
 				else if (strcmp(key, "linkgunweapon") == 0) {
-					memcpy(weaponPort[item_i].linkgunweaponId, value, sizeof(weaponPort[item_i].linkgunweaponId) - 1);
+					strncpy(weaponPort[item_i].linkgunweaponId, value, sizeof(weaponPort[item_i].linkgunweaponId) - 1);
 				}
 				else if (strcmp(key, "chargegunweapons") == 0) {
 					char tempC[11];
@@ -406,10 +410,10 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 				break;
 			case ItemType_Generator:
 				if (strcmp(key, "id") == 0) {
-					memcpy(powerSys[item_i].id, value, sizeof(powerSys[item_i].id)-1);
+					strncpy(powerSys[item_i].id, value, sizeof(powerSys[item_i].id)-1);
 				}
 				else if (strcmp(key, "name") == 0) {
-					memcpy(powerSys[item_i].name, value, sizeof(powerSys[item_i].name)-1);
+					strncpy(powerSys[item_i].name, value, sizeof(powerSys[item_i].name)-1);
 				}
 				else if (strcmp(key, "itemgraphic") == 0) {
 					powerSys[item_i].itemgraphic = atoi(value);
@@ -438,10 +442,10 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 			break;
 			case ItemType_Shield:
 				if (strcmp(key, "id") == 0) {
-					memcpy(shields[item_i].id, value, sizeof(shields[item_i].id)-1);
+					strncpy(shields[item_i].id, value, sizeof(shields[item_i].id)-1);
 				}
 				else if (strcmp(key, "name") == 0) {
-					memcpy(shields[item_i].name, value, sizeof(shields[item_i].name)-1);
+					strncpy(shields[item_i].name, value, sizeof(shields[item_i].name)-1);
 				}
 				else if (strcmp(key, "itemgraphic") == 0) {
 					shields[item_i].itemgraphic = atoi(value);
@@ -462,10 +466,10 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 			case ItemType_SidekickLeft:
 			case ItemType_SidekickRight:
 				if (strcmp(key, "id") == 0) {
-					memcpy(options[item_i].id, value, sizeof(options[item_i].id) - 1);
+					strncpy(options[item_i].id, value, sizeof(options[item_i].id) - 1);
 				}
 				else if (strcmp(key, "name") == 0) {
-					memcpy(options[item_i].name, value, sizeof(options[item_i].name) - 1);
+					strncpy(options[item_i].name, value, sizeof(options[item_i].name) - 1);
 				}
 				else if (strcmp(key, "itemgraphic") == 0) {
 					options[item_i].itemgraphic = atoi(value);
@@ -514,7 +518,7 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 						options[item_i].gr[4][j++] = temp;
 				}
 				else if (strcmp(key, "wport") == 0) {
-					memcpy(options[item_i].wportId, value, sizeof(options[item_i].wportId) - 1);
+					strncpy(options[item_i].wportId, value, sizeof(options[item_i].wportId) - 1);
 				}
 				else if (strcmp(key, "wpnum") == 0) {
 					enum ITEM_TYPE tempItemType = ItemType_Shot;
@@ -538,10 +542,10 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 				break;
 			case ItemType_Special:
 				if (strcmp(key, "id") == 0) {
-					memcpy(special[item_i].id, value, sizeof(special[item_i].id) - 1);
+					strncpy(special[item_i].id, value, sizeof(special[item_i].id) - 1);
 				}
 				else if (strcmp(key, "name") == 0) {
-					memcpy(special[item_i].name, value, sizeof(special[item_i].name) - 1);
+					strncpy(special[item_i].name, value, sizeof(special[item_i].name) - 1);
 				}
 				else if (strcmp(key, "itemgraphic") == 0) {
 					special[item_i].itemgraphic = atoi(value);
@@ -559,7 +563,7 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 				break;
 			case ItemType_Shot:
 				if (strcmp(key, "id") == 0) {
-					memcpy(weapons[item_i].id, value, sizeof(weapons[item_i].id) - 1);
+					strncpy(weapons[item_i].id, value, sizeof(weapons[item_i].id) - 1);
 				}
 				else if (strcmp(key, "drain") == 0) {
 					weapons[item_i].drain = atoi(value);
@@ -595,7 +599,7 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 					char tempC[11];
 					while (j < COUNTOF(weapons[item_i].chainIds) && str_pop_str(value, tempC, sizeof(tempC)))
 					{
-						memcpy(weapons[item_i].chainIds[j], tempC, sizeof(weapons[item_i].chainIds[j]));
+						strncpy(weapons[item_i].chainIds[j], tempC, sizeof(weapons[item_i].chainIds[j]));
 						j++;
 					}
 				}
@@ -660,7 +664,7 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 				break;
 			case ItemType_Enemy:
 				if (strcmp(key, "id") == 0) {
-					memcpy(enemyDat[item_i].id, value, sizeof(enemyDat[item_i].id) - 1);
+					strncpy(enemyDat[item_i].id, value, sizeof(enemyDat[item_i].id) - 1);
 				}
 				else if (strcmp(key, "ani") == 0) {
 					enemyDat[item_i].ani = atoi(value);
@@ -747,7 +751,7 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 					enemyDat[item_i].elaunchfreq = atoi(value);
 				}
 				else if (strcmp(key, "elaunchtype") == 0) {
-					memcpy(enemyDat[item_i].elaunchtypeId, value, sizeof(enemyDat[item_i].elaunchtypeId) - 1);
+					strncpy(enemyDat[item_i].elaunchtypeId, value, sizeof(enemyDat[item_i].elaunchtypeId) - 1);
 				}
 				else if (strcmp(key, "elaunchtypepos") == 0) {
 					enemyDat[item_i].elaunchtypepos = atoi(value);
@@ -759,7 +763,7 @@ static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char
 					enemyDat[item_i].value = atoi(value);
 				}
 				else if (strcmp(key, "eenemydie") == 0) {
-					memcpy(enemyDat[item_i].eenemydieId, value, sizeof(enemyDat[item_i].eenemydieId) - 1);
+					strncpy(enemyDat[item_i].eenemydieId, value, sizeof(enemyDat[item_i].eenemydieId) - 1);
 				}
 				else if (strcmp(key, "eshotwait") == 0) {
 					int j = 0, temp;
@@ -848,27 +852,41 @@ static FILE *open_extracted_category(const char *filename)
 }
 #endif
 
+// Fields point into the loaded file text, which stays resident until load_items() finishes.
 typedef struct
 {
-	char key[30];
-	char value[255];
+	const char *key;
+	char *value;
 	size_t line;
 } ItemField;
 
 typedef struct
 {
 	char id[11];
-	char path[_TINYDIR_PATH_MAX];
+	const char *path;
 	size_t line;
 	ItemField *fields;
 	size_t field_count;
+	size_t field_capacity;
 } ItemRecord;
 
 typedef struct
 {
 	ItemRecord *records;
 	size_t count;
+	size_t capacity;
+	size_t *slots; // open-addressed ID hash storing record index + 1 (0 = empty)
+	size_t slot_count;
 } ItemRecords;
+
+typedef struct
+{
+	ItemRecords types[ItemType_Count];
+	char **buffers;
+	size_t buffer_count;
+	char **paths;
+	size_t path_count;
+} ItemLoad;
 
 static const char *const base_item_files[] = {
 	"data/shots/shots.tyrr", "data/items/ships.tyrr",
@@ -885,24 +903,43 @@ static void *item_data_realloc(void *memory, size_t size)
 	return result;
 }
 
+// Locale-independent ASCII whitespace test; avoids CRT isspace() calls in the parsing hot path.
+static inline bool is_item_space(char c)
+{
+	return c == ' ' || (c >= '\t' && c <= '\r');
+}
+
 static char *trim_item_text(char *text)
 {
-	while (isspace((unsigned char)*text))
+	while (is_item_space(*text))
 		++text;
 	size_t length = strlen(text);
-	while (length > 0 && isspace((unsigned char)text[length - 1]))
+	while (length > 0 && is_item_space(text[length - 1]))
 		text[--length] = '\0';
 	return text;
 }
 
+static bool valid_item_id_span(const char *id, size_t length)
+{
+	if (length == 0 || length > 10)
+		return false;
+	for (size_t i = 0; i < length; ++i)
+	{
+		switch (id[i])
+		{
+		case ':': case '[': case ']': case '=': case '#': case ';':
+			return false;
+		default:
+			if (is_item_space(id[i]))
+				return false;
+		}
+	}
+	return true;
+}
+
 static bool valid_item_id(const char *id)
 {
-	if (strlen(id) == 0 || strlen(id) > 10)
-		return false;
-	for (const char *cursor = id; *cursor != '\0'; ++cursor)
-		if (isspace((unsigned char)*cursor) || strchr(":[]=#;", *cursor) != NULL)
-			return false;
-	return true;
+	return valid_item_id_span(id, strlen(id));
 }
 
 static enum ITEM_TYPE item_type_from_name(const char *name)
@@ -925,43 +962,166 @@ static enum ITEM_TYPE item_type_from_name(const char *name)
 	return result;
 }
 
+static size_t hash_item_id(const char *id)
+{
+	size_t hash = 2166136261u;
+	while (*id != '\0')
+		hash = (hash ^ (unsigned char)*id++) * 16777619u;
+	return hash;
+}
+
+static size_t *find_item_slot(const ItemRecords *items, const char *id)
+{
+	const size_t mask = items->slot_count - 1;
+	for (size_t i = hash_item_id(id) & mask;; i = (i + 1) & mask)
+	{
+		size_t *slot = &items->slots[i];
+		if (*slot == 0 || strcmp(items->records[*slot - 1].id, id) == 0)
+			return slot;
+	}
+}
+
+static void rebuild_item_slots(ItemRecords *items, size_t slot_count)
+{
+	free(items->slots);
+	items->slots = item_data_realloc(NULL, slot_count * sizeof(*items->slots));
+	memset(items->slots, 0, slot_count * sizeof(*items->slots));
+	items->slot_count = slot_count;
+	for (size_t i = 0; i < items->count; ++i)
+		*find_item_slot(items, items->records[i].id) = i + 1;
+}
+
+static ItemRecords *loading_item_records;
+
+static bool find_loading_item_index(enum ITEM_TYPE type, const char *id, int *output)
+{
+	if (loading_item_records == NULL)
+		return false;
+	if (type == ItemType_WeaponRear)
+		type = ItemType_WeaponFront;
+	else if (type == ItemType_SidekickRight)
+		type = ItemType_SidekickLeft;
+	if (type >= ItemType_Count || loading_item_records[type].slot_count == 0)
+		return false;
+	const size_t *slot = find_item_slot(&loading_item_records[type], id);
+	if (*slot == 0)
+		return false;
+	*output = (int)(*slot - 1);
+	return true;
+}
+
 static ItemRecord *replace_item_record(ItemRecords *items, const char *id, const char *path, size_t line)
 {
-	size_t index;
-	for (index = 0; index < items->count; ++index)
-		if (strcmp(items->records[index].id, id) == 0)
-			break;
-	if (index == items->count)
+	if ((items->count + 1) * 2 > items->slot_count)
+		rebuild_item_slots(items, items->slot_count != 0 ? items->slot_count * 2 : 256);
+	size_t *slot = find_item_slot(items, id);
+	if (*slot == 0)
 	{
-		items->records = item_data_realloc(items->records, (items->count + 1) * sizeof(*items->records));
-		memset(&items->records[items->count++], 0, sizeof(*items->records));
+		if (items->count == items->capacity)
+		{
+			items->capacity = items->capacity != 0 ? items->capacity * 2 : 128;
+			items->records = item_data_realloc(items->records, items->capacity * sizeof(*items->records));
+		}
+		ItemRecord *record = &items->records[items->count];
+		memset(record, 0, sizeof(*record));
+		strcpy(record->id, id);
+		*slot = ++items->count;
 	}
-	ItemRecord *record = &items->records[index];
-	free(record->fields);
-	memset(record, 0, sizeof(*record));
-	strcpy(record->id, id);
-	strcpy(record->path, path);
+	// A later definition replaces the whole object; reuse its field storage.
+	ItemRecord *record = &items->records[*slot - 1];
+	record->field_count = 0;
+	record->path = path;
 	record->line = line;
 	return record;
 }
 
+enum { ItemKey_Integer, ItemKey_Reference, ItemKey_Name };
+
+typedef struct
+{
+	const char *name;
+	unsigned char kind;
+} ItemKey;
+
+#define ITEM_INT(n) { n, ItemKey_Integer }
+#define ITEM_REF(n) { n, ItemKey_Reference }
+#define ITEM_NAME { "name", ItemKey_Name }
+static const ItemKey shot_item_keys[] = {
+	ITEM_REF("id"), ITEM_INT("drain"), ITEM_INT("shotrepeat"), ITEM_INT("multi"), ITEM_INT("weapani"),
+	ITEM_INT("max"), ITEM_INT("tx"), ITEM_INT("ty"), ITEM_INT("aim"), ITEM_INT("attack"), ITEM_REF("chain"),
+	ITEM_INT("iceticks"), ITEM_INT("infinite"), ITEM_INT("del"), ITEM_INT("sx"), ITEM_INT("sy"),
+	ITEM_INT("bx"), ITEM_INT("by"), ITEM_INT("sg"), ITEM_INT("acceleration"), ITEM_INT("accelerationx"),
+	ITEM_INT("circlesize"), ITEM_INT("sound"), ITEM_INT("trail"), ITEM_INT("shipblastfilter")
+};
+static const ItemKey ship_item_keys[] = {
+	ITEM_REF("id"), ITEM_NAME, ITEM_INT("shipgraphic"), ITEM_INT("itemgraphic"), ITEM_INT("ani"),
+	ITEM_INT("spd"), ITEM_INT("dmg"), ITEM_INT("cost"), ITEM_INT("bigshipgraphic"),
+	ITEM_INT("bigshipgraphx"), ITEM_INT("bigshipgraphy"), ITEM_INT("probability")
+};
+static const ItemKey weapon_item_keys[] = {
+	ITEM_REF("id"), ITEM_NAME, ITEM_INT("opnum"), ITEM_REF("op0"), ITEM_REF("op1"), ITEM_INT("cost"),
+	ITEM_INT("itemgraphic"), ITEM_INT("poweruse"), ITEM_INT("position"), ITEM_INT("bigshipgraphic"),
+	ITEM_INT("bigshipgraphfrntx"), ITEM_INT("bigshipgraphfrnty"), ITEM_INT("bigshipgraphrearx"),
+	ITEM_INT("bigshipgraphreary"), ITEM_REF("linkgunweapon"), ITEM_REF("chargegunweapons"),
+	ITEM_INT("probability")
+};
+static const ItemKey generator_item_keys[] = {
+	ITEM_REF("id"), ITEM_NAME, ITEM_INT("itemgraphic"), ITEM_INT("power"), ITEM_INT("speed"),
+	ITEM_INT("cost"), ITEM_INT("bigshipgraphic"), ITEM_INT("bigshipgraphx"), ITEM_INT("bigshipgraphy"),
+	ITEM_INT("probability")
+};
+static const ItemKey shield_item_keys[] = {
+	ITEM_REF("id"), ITEM_NAME, ITEM_INT("itemgraphic"), ITEM_INT("tpwr"), ITEM_INT("mpwr"),
+	ITEM_INT("cost"), ITEM_INT("probability")
+};
+static const ItemKey sidekick_item_keys[] = {
+	ITEM_REF("id"), ITEM_NAME, ITEM_INT("itemgraphic"), ITEM_INT("pwr"), ITEM_INT("cost"), ITEM_INT("tr"),
+	ITEM_INT("option"), ITEM_INT("opspd"), ITEM_INT("ani"), ITEM_INT("gr0"), ITEM_INT("gr1"),
+	ITEM_INT("gr2"), ITEM_INT("gr3"), ITEM_INT("gr4"), ITEM_REF("wport"), ITEM_REF("wpnum"),
+	ITEM_INT("ammo"), ITEM_INT("stop"), ITEM_INT("icongr"), ITEM_INT("position"), ITEM_INT("probability")
+};
+static const ItemKey special_item_keys[] = {
+	ITEM_REF("id"), ITEM_NAME, ITEM_INT("itemgraphic"), ITEM_INT("pwr"), ITEM_INT("stype"), ITEM_REF("wpn")
+};
+static const ItemKey enemy_item_keys[] = {
+	ITEM_REF("id"), ITEM_INT("ani"), ITEM_INT("tur"), ITEM_INT("freq"), ITEM_INT("xmove"),
+	ITEM_INT("ymove"), ITEM_INT("xaccel"), ITEM_INT("yaccel"), ITEM_INT("xcaccel"), ITEM_INT("ycaccel"),
+	ITEM_INT("startx"), ITEM_INT("starty"), ITEM_INT("startxc"), ITEM_INT("startyc"), ITEM_INT("armor"),
+	ITEM_INT("esize"), ITEM_INT("egraphic"), ITEM_INT("explosiontype"), ITEM_INT("animate"),
+	ITEM_INT("shapebank"), ITEM_INT("xrev"), ITEM_INT("yrev"), ITEM_INT("dgr"), ITEM_INT("dlevel"),
+	ITEM_INT("dani"), ITEM_INT("elaunchfreq"), ITEM_REF("elaunchtype"), ITEM_INT("elaunchtypepos"),
+	ITEM_INT("elaunchspecial"), ITEM_INT("value"), ITEM_REF("eenemydie"), ITEM_INT("eshotwait"),
+	ITEM_INT("enemyground")
+};
+#undef ITEM_INT
+#undef ITEM_REF
+#undef ITEM_NAME
+
 static void validate_item_field(enum ITEM_TYPE type, const char *key, const char *value)
 {
-	static const char *const keys[ItemType_Count] = {
-		[ItemType_Shot] = " id drain shotrepeat multi weapani max tx ty aim attack chain iceticks infinite del sx sy bx by sg acceleration accelerationx circlesize sound trail shipblastfilter ",
-		[ItemType_Ship] = " id name shipgraphic itemgraphic ani spd dmg cost bigshipgraphic bigshipgraphx bigshipgraphy probability ",
-		[ItemType_WeaponFront] = " id name opnum op0 op1 cost itemgraphic poweruse position bigshipgraphic bigshipgraphfrntx bigshipgraphfrnty bigshipgraphrearx bigshipgraphreary linkgunweapon chargegunweapons probability ",
-		[ItemType_Generator] = " id name itemgraphic power speed cost bigshipgraphic bigshipgraphx bigshipgraphy probability ",
-		[ItemType_Shield] = " id name itemgraphic tpwr mpwr cost probability ",
-		[ItemType_SidekickLeft] = " id name itemgraphic pwr cost tr option opspd ani gr0 gr1 gr2 gr3 gr4 wport wpnum ammo stop icongr position probability ",
-		[ItemType_Special] = " id name itemgraphic pwr stype wpn ",
-		[ItemType_Enemy] = " id ani tur freq xmove ymove xaccel yaccel xcaccel ycaccel startx starty startxc startyc armor esize egraphic explosiontype animate shapebank xrev yrev dgr dlevel dani elaunchfreq elaunchtype elaunchtypepos elaunchspecial value eenemydie eshotwait enemyground "
+	static const struct { const ItemKey *keys; size_t count; } tables[ItemType_Count] = {
+		[ItemType_Shot] = { shot_item_keys, COUNTOF(shot_item_keys) },
+		[ItemType_Ship] = { ship_item_keys, COUNTOF(ship_item_keys) },
+		[ItemType_WeaponFront] = { weapon_item_keys, COUNTOF(weapon_item_keys) },
+		[ItemType_Generator] = { generator_item_keys, COUNTOF(generator_item_keys) },
+		[ItemType_Shield] = { shield_item_keys, COUNTOF(shield_item_keys) },
+		[ItemType_SidekickLeft] = { sidekick_item_keys, COUNTOF(sidekick_item_keys) },
+		[ItemType_Special] = { special_item_keys, COUNTOF(special_item_keys) },
+		[ItemType_Enemy] = { enemy_item_keys, COUNTOF(enemy_item_keys) }
 	};
-	char token[34];
-	snprintf(token, sizeof(token), " %s ", key);
-	if (strstr(keys[type], token) == NULL)
+	const ItemKey *match = NULL;
+	for (size_t i = 0; i < tables[type].count; ++i)
+	{
+		const ItemKey *candidate = &tables[type].keys[i];
+		if (candidate->name[0] == key[0] && strcmp(candidate->name, key) == 0)
+		{
+			match = candidate;
+			break;
+		}
+	}
+	if (match == NULL)
 		item_data_error(loading_item_path, loading_item_line, "unknown field '%s'", key);
-	if (strcmp(key, "name") == 0)
+	if (match->kind == ItemKey_Name)
 	{
 		if (strlen(value) > 30)
 			item_data_error(loading_item_path, loading_item_line, "name exceeds 30 characters");
@@ -969,59 +1129,90 @@ static void validate_item_field(enum ITEM_TYPE type, const char *key, const char
 	}
 	if (*value == '\0')
 		item_data_error(loading_item_path, loading_item_line, "field '%s' requires a value", key);
-	const bool reference = strstr(" id op0 op1 chain linkgunweapon chargegunweapons wport wpnum wpn elaunchtype eenemydie ", token) != NULL;
 	const char *cursor = value;
-	while (*cursor != '\0')
+	for (;;)
 	{
-		while (isspace((unsigned char)*cursor))
+		while (is_item_space(*cursor))
 			++cursor;
 		if (*cursor == '\0')
 			break;
-		if (reference)
+		if (match->kind == ItemKey_Reference)
 		{
-			char id[11] = "";
 			size_t length = 0;
-			while (cursor[length] != '\0' && !isspace((unsigned char)cursor[length]))
+			while (cursor[length] != '\0' && !is_item_space(cursor[length]))
 				++length;
 			if (length > 10)
 				item_data_error(loading_item_path, loading_item_line, "reference ID exceeds 10 characters");
-			memcpy(id, cursor, length);
-			if (!valid_item_id(id))
-				item_data_error(loading_item_path, loading_item_line, "invalid reference ID '%s'", id);
+			if (!valid_item_id_span(cursor, length))
+				item_data_error(loading_item_path, loading_item_line, "invalid reference ID '%.*s'", (int)length, cursor);
 			cursor += length;
 		}
 		else
 		{
-			char *end;
-			errno = 0;
-			long number = strtol(cursor, &end, 10);
-			if (end == cursor || errno == ERANGE || number < INT_MIN || number > INT_MAX ||
-			    (*end != '\0' && !isspace((unsigned char)*end)))
+			// Same syntax strtol() accepts in base 10: optional sign, then decimal digits within int range.
+			bool negative = *cursor == '-';
+			if (*cursor == '-' || *cursor == '+')
+				++cursor;
+			if (*cursor < '0' || *cursor > '9')
 				item_data_error(loading_item_path, loading_item_line, "invalid integer in field '%s'", key);
-			cursor = end;
+			long long number = 0;
+			while (*cursor >= '0' && *cursor <= '9')
+			{
+				number = number * 10 + (*cursor++ - '0');
+				if (number > (long long)INT_MAX + 1)
+					item_data_error(loading_item_path, loading_item_line, "invalid integer in field '%s'", key);
+			}
+			if ((!negative && number > INT_MAX) || (*cursor != '\0' && !is_item_space(*cursor)))
+				item_data_error(loading_item_path, loading_item_line, "invalid integer in field '%s'", key);
 		}
 	}
 }
 
-static void load_item_bundle(const char *path, ItemRecords items[ItemType_Count])
+// Reads the whole file in one call; parsing then happens in place without per-line copies.
+static char *read_item_bundle_text(const char *path, size_t *size)
+{
+	FILE *file = fopen(path, "rb");
+	if (file == NULL)
+		item_data_error(path, 0, "cannot read extracted data file: %s", strerror(errno));
+	long length = -1;
+	if (fseek(file, 0, SEEK_END) == 0)
+		length = ftell(file);
+	if (length < 0 || fseek(file, 0, SEEK_SET) != 0)
+		item_data_error(path, 0, "failed to read definitions");
+	char *buffer = item_data_realloc(NULL, (size_t)length + 1);
+	if (fread(buffer, 1, (size_t)length, file) != (size_t)length)
+		item_data_error(path, 0, "failed to read definitions");
+	fclose(file);
+	buffer[length] = '\0';
+	if (memchr(buffer, '\0', (size_t)length) != NULL)
+		item_data_error(path, 0, "file contains a NUL byte");
+	*size = (size_t)length;
+	return buffer;
+}
+
+static void load_item_bundle(const char *path, ItemLoad *load)
 {
 	loading_item_path = path;
 	loading_item_line = 0;
-	FILE *file = fopen(path, "r");
-	if (file == NULL)
-		item_data_error(path, 0, "cannot read extracted data file: %s", strerror(errno));
-	char buffer[1024];
+	size_t size;
+	char *buffer = read_item_bundle_text(path, &size);
+	load->buffers = item_data_realloc(load->buffers, (load->buffer_count + 1) * sizeof(*load->buffers));
+	load->buffers[load->buffer_count++] = buffer;
+
+	char *cursor = buffer;
+	char *const end = buffer + size;
+	if (size >= 3 && memcmp(buffer, "\xEF\xBB\xBF", 3) == 0)
+		cursor += 3;
 	ItemRecord *record = NULL;
 	enum ITEM_TYPE type = ItemType_Count;
-	while (fgets(buffer, sizeof(buffer), file) != NULL)
+	while (cursor < end)
 	{
+		char *newline = memchr(cursor, '\n', (size_t)(end - cursor));
+		char *line_end = newline != NULL ? newline : end;
+		*line_end = '\0';
 		++loading_item_line;
-		if (strchr(buffer, '\n') == NULL && !feof(file))
-			item_data_error(path, loading_item_line, "line is too long");
-		char *start = buffer;
-		if (loading_item_line == 1 && strncmp(buffer, "\xEF\xBB\xBF", 3) == 0)
-			start += 3;
-		char *text = trim_item_text(start);
+		char *text = trim_item_text(cursor);
+		cursor = line_end + 1;
 		if (*text == '\0' || *text == '#' || *text == ';')
 			continue;
 		if (*text == '[')
@@ -1036,7 +1227,7 @@ static void load_item_bundle(const char *path, ItemRecords items[ItemType_Count]
 			if (!valid_item_id(id))
 				item_data_error(path, loading_item_line, "invalid object ID '%s'", id);
 			type = item_type_from_name(trim_item_text(text + 1));
-			record = replace_item_record(&items[type], id, path, loading_item_line);
+			record = replace_item_record(&load->types[type], id, path, loading_item_line);
 			continue;
 		}
 		if (record == NULL)
@@ -1047,21 +1238,21 @@ static void load_item_bundle(const char *path, ItemRecords items[ItemType_Count]
 		*equals = '\0';
 		char *key = trim_item_text(text);
 		char *value = trim_item_text(equals + 1);
-		if (strlen(key) >= sizeof(record->fields[0].key) || strlen(value) >= sizeof(record->fields[0].value))
+		if (strlen(key) >= 30 || strlen(value) >= 255)
 			item_data_error(path, loading_item_line, "field name or value is too long");
 		validate_item_field(type, key, value);
 		if (strcmp(key, "id") == 0 && strcmp(value, record->id) != 0)
 			item_data_error(path, loading_item_line, "id field does not match header ID '%s'", record->id);
-		record->fields = item_data_realloc(record->fields, (record->field_count + 1) * sizeof(*record->fields));
+		if (record->field_count == record->field_capacity)
+		{
+			record->field_capacity = record->field_capacity != 0 ? record->field_capacity * 2 : 32;
+			record->fields = item_data_realloc(record->fields, record->field_capacity * sizeof(*record->fields));
+		}
 		ItemField *field = &record->fields[record->field_count++];
-		memset(field, 0, sizeof(*field));
-		strcpy(field->key, key);
-		strcpy(field->value, value);
+		field->key = key;
+		field->value = value;
 		field->line = loading_item_line;
 	}
-	if (ferror(file))
-		item_data_error(path, loading_item_line, "failed to read definitions");
-	fclose(file);
 }
 
 static int compare_item_paths(const void *left, const void *right)
@@ -1072,7 +1263,7 @@ static int compare_item_paths(const void *left, const void *right)
 	return comparison != 0 ? comparison : strcmp(*a, *b);
 }
 
-static void load_additional_item_bundles(ItemRecords items[ItemType_Count])
+static void load_additional_item_bundles(ItemLoad *load)
 {
 	const char *const directories[] = { "data/items", "data/enemy", "data/shots" };
 	char **paths = NULL;
@@ -1108,20 +1299,20 @@ static void load_additional_item_bundles(ItemRecords items[ItemType_Count])
 	}
 	if (path_count > 1)
 		qsort(paths, path_count, sizeof(*paths), compare_item_paths);
+	// Records keep pointers to these paths for diagnostics, so free them with the load.
+	load->paths = paths;
+	load->path_count = path_count;
 	for (size_t i = 0; i < path_count; ++i)
-	{
-		load_item_bundle(paths[i], items);
-		free(paths[i]);
-	}
-	free(paths);
+		load_item_bundle(paths[i], load);
 }
 
 void load_items(void) {
 	loading_item_data = true;
-	ItemRecords items[ItemType_Count] = { 0 };
+	ItemLoad load = { 0 };
+	ItemRecords *items = load.types;
 	for (uint i = 0; i < COUNTOF(base_item_files); ++i)
-		load_item_bundle(base_item_files[i], items);
-	load_additional_item_bundles(items);
+		load_item_bundle(base_item_files[i], &load);
+	load_additional_item_bundles(&load);
 	loading_item_path = "data";
 	loading_item_line = 0;
 
@@ -1142,8 +1333,10 @@ void load_items(void) {
 			ItemRecord record = records->records[zero];
 			memmove(records->records + 1, records->records, zero * sizeof(*records->records));
 			records->records[0] = record;
+			rebuild_item_slots(records, records->slot_count);
 		}
 	}
+	loading_item_records = items;
 
 	// Install every ID before resolving fields, so bundles can reference later records.
 #define ALLOCATE_ITEMS(type, array) \
@@ -1267,7 +1460,15 @@ void load_items(void) {
 		for (size_t i = 0; i < items[type].count; ++i)
 			free(items[type].records[i].fields);
 		free(items[type].records);
+		free(items[type].slots);
 	}
+	for (size_t i = 0; i < load.buffer_count; ++i)
+		free(load.buffers[i]);
+	free(load.buffers);
+	for (size_t i = 0; i < load.path_count; ++i)
+		free(load.paths[i]);
+	free(load.paths);
+	loading_item_records = NULL;
 	loading_item_path = NULL;
 	loading_item_data = false;
 }

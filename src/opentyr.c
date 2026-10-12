@@ -61,25 +61,15 @@ const char *opentyrian_version = OPENTYRIAN_VERSION;
 
 bool str_pop_int(char *str, int *val)
 {
-	bool success = false;
-
-	char buf[256];
-	assert(strlen(str) < sizeof(buf));
-
 	// grab the value from str
 	char *end;
 	*val = strtol(str, &end, 10);
+	if (end == str)
+		return false;
 
-	if (end != str)
-	{
-		success = true;
-
-		// shift the rest to the beginning
-		strcpy(buf, end);
-		strcpy(str, buf);
-	}
-
-	return success;
+	// shift the rest to the beginning
+	memmove(str, end, strlen(end) + 1);
+	return true;
 }
 
 bool str_pop_str(char *str, char *val, size_t val_size)

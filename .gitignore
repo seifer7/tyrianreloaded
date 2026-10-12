@@ -29,6 +29,8 @@ SDL2_net.dll
 /opentyrian-*.pdb
 /opentyrian-*.iobj
 /opentyrian-*.ipdb
+/visualc/opentyrian-*.exe
+/visualc/opentyrian-*.pdb
 /visualc/.vs/
 /visualc/*.props
 /visualc/*.user
