@@ -16,8 +16,9 @@ static void print_usage(const char *program)
 	printf("Usage: %s [--data DIR]\n"
 	       "\n"
 	       "Extract enemy, item and shot definitions from Tyrian 2.1 assets.\n"
-	       "Output: data subfolders under the current working directory.\n"
-	       "Existing definitions are preserved. Shapes and levels are not extracted.\n"
+	       "Output: eight .tyrr category text files in data subfolders under the current working directory.\n"
+	       "Records use [type:id] headers followed by key=value fields.\n"
+	       "Existing category files are preserved. Shapes and levels are not extracted.\n"
 	       "\n"
 	       "  --data DIR   Original Tyrian asset directory (default: game data search)\n"
 	       "  --help       Show this help\n", program);
@@ -52,6 +53,6 @@ int main(int argc, char *argv[])
 	const char *const assetDirectory = custom_data_dir != NULL ? custom_data_dir : data_dir();
 	printf("Extracting Tyrian 2.1 definitions from '%s' into './data'...\n", assetDirectory);
 	extract_item_data(assetDirectory);
-	printf("Extraction complete: enemy, items and shots. Existing files were preserved.\n");
+	printf("Extraction complete: eight .tyrr category text files. Existing category files were preserved.\n");
 	return EXIT_SUCCESS;
 }

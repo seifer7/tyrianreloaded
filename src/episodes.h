@@ -357,8 +357,6 @@ extern int item_idx_from_jebyte(const enum ITEM_TYPE* item_type, const JE_byte* 
 extern int item_idx_from_int(const enum ITEM_TYPE* item_type, const int* id);
 extern bool get_item_index(const enum ITEM_TYPE* item_type, const char* id, int* output);
 extern bool get_item_index_from_int(const enum ITEM_TYPE* item_type, const int* id, int* output);
-extern void parse_value_pair(const char* buffer, size_t* index, char* key, char* value);
-void read_item_file(FILE* file, enum ITEM_TYPE item_type);
 void load_items(void);
 #ifdef DATA_EXTRACTOR
 void extract_item_data(const char *assetDirectory);

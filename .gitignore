@@ -16,8 +16,8 @@ tyrian.sav
 
 # Windows build output
 /opentyrian.exe
-/SDL2.dll
-/SDL2_net.dll
+SDL2.dll
+SDL2_net.dll
 
 # Windows runtime output
 /stderr.txt

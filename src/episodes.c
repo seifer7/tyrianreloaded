@@ -31,6 +31,9 @@
 #include "mtrand.h"
 
 #include <errno.h>
+#include <ctype.h>
+#include <limits.h>
+#include <stdarg.h>
 #include <sys/stat.h>
 #ifdef TARGET_WIN32
 #include <direct.h>
@@ -67,6 +70,21 @@ char       episode_file[13], cube_file[13];
 JE_longint episode1DataLoc;
 
 static bool loading_item_data;
+static const char *loading_item_path;
+static size_t loading_item_line;
+
+static void item_data_error(const char *path, size_t line, const char *format, ...)
+{
+	fprintf(stderr, "error: %s:%zu: ", path, line);
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fprintf(stderr, "\nRun the Data Extractor executable first to build the required extracted data files.\n"
+	                "If using mods, check the referenced definitions in your .tyrr files.\n");
+	SDL_Quit();
+	exit(EXIT_FAILURE);
+}
 
 /* Tells the game whether the level currently loaded is a bonus level. */
 JE_boolean bonusLevel;
@@ -270,136 +288,15 @@ bool get_item_index(const enum ITEM_TYPE* item_type, const char* id, int* output
 	}
 	if (loading_item_data)
 	{
-		fprintf(stderr, "error: required extracted item ID '%s' (type %d) is missing.\n"
-		                "Run the Data Extractor executable first to build the required extracted data files.\n",
-		        id, *item_type);
-		SDL_Quit();
-		exit(EXIT_FAILURE);
+		item_data_error(loading_item_path, loading_item_line,
+		                "required extracted item ID '%s' (type %d) is missing", id, *item_type);
 	}
 	return false;
 }
 
-void parse_value_pair(const char* buffer, size_t* index, char* key, char* value) {
-	size_t i = *index;
-	bool key_done = false;
-	size_t vi = 0;
-	size_t ki = 0;
-
-	for (; ; ++i) {
-		char c = buffer[i];
-		if(!key_done) key[ki++] = c;
-		if (key_done) value[vi++] = c;
-		if (c == '=') {
-			key_done = true;
-			key[ki-1] = '\0';
-		}
-		else if (c == '\0' || c == '\r' || c == '\n') {
-			value[vi-1] = '\0';
-			break;
-		}
-	}
-}
-
-void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
-	size_t item_i = 0;
-
-	switch (item_type) {
-	case ItemType_Ship:
-		item_i = ships[0].count++;
-		break;
-	case ItemType_WeaponFront:
-	case ItemType_WeaponRear:
-		item_i = weaponPort[0].count++;
-		break;
-	case ItemType_Generator:
-		item_i = powerSys[0].count++;
-		break;
-	case ItemType_Shield:
-		item_i = shields[0].count++;
-		break;
-	case ItemType_SidekickLeft:
-	case ItemType_SidekickRight:
-		item_i = options[0].count++;
-		break;
-	case ItemType_Special:
-		item_i = special[0].count++;
-		break;
-	case ItemType_Shot:
-		item_i = weapons[0].count++;
-		break;
-	case ItemType_Enemy:
-		item_i = enemyDat[0].count++;
-		break;
-	case ItemType_Count:
-		break;
-	}
-
-	size_t buffer_cap = 128;
-	char* buffer = malloc(buffer_cap * sizeof(char));
-	if (buffer == NULL) exit(1); // TODO: Error handling
-	size_t buffer_end = 1;
-	buffer[buffer_end - 1] = '\0';
-
-	for (size_t line = 0, next_line = 0; ; line = next_line)
-	{
-		char first_char = '\0';
-		/* find beginning of next line */
-		while (next_line < buffer_end)
-		{
-			char c = buffer[next_line];
-			if (first_char == '\0') first_char = buffer[next_line];
-
-			if (c == '\0' && next_line == buffer_end - 1)
-			{
-				if (line > 0)
-				{
-					/* shift to front */
-					memmove(&buffer[0], &buffer[line], buffer_end - line);
-					buffer_end -= line;
-					next_line -= line;
-					line = 0;
-				}
-				else if (buffer_end > 1)
-				{
-					/* need larger capacity */
-					buffer_cap *= 2;
-					char* new_buffer = realloc(buffer, buffer_cap * sizeof(char));
-					if (new_buffer == NULL) exit(1); // TODO: Error handling
-					buffer = new_buffer;
-				}
-
-				size_t read = fread(&buffer[buffer_end - 1], sizeof(char), buffer_cap - buffer_end, file);
-				if (read == 0)
-					break;
-
-				buffer_end += read;
-				buffer[buffer_end - 1] = '\0';
-			}
-			else
-			{
-				++next_line;
-
-				if (c == '\n' || c == '\r')
-				{
-					break;
-				}
-			}
-		}
-
-		/* if at end of file */
-		if (next_line == line)
-			break;
-
-		size_t i = line;
-
-		assert(i <= next_line);
-
-		char key[30] = "";
-		char value[255] = "";
+static void apply_item_field(enum ITEM_TYPE item_type, size_t item_i, const char *key, char value[255])
+{
 		char* tempptr;
-
-		parse_value_pair(buffer, &i, key, value);
-
 		switch (item_type) {
 			case ItemType_Ship:
 				if (strcmp(key, "id") == 0) {
@@ -877,10 +774,6 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 				break;
 		}
 	
-		first_char = '\0';
-	}
-
-	free(buffer);
 }
 
 #ifdef DATA_EXTRACTOR
@@ -889,9 +782,7 @@ static void read_legacy_item_data(FILE *f);
 static void prepare_extracted_data_directories(void)
 {
 	const char *const directories[] = {
-		"data", "data/shots", "data/enemy", "data/items",
-		"data/items/ship", "data/items/weapon", "data/items/generator",
-		"data/items/shield", "data/items/sidekick", "data/items/special"
+		"data", "data/shots", "data/enemy", "data/items"
 	};
 	for (uint i = 0; i < COUNTOF(directories); ++i)
 	{
@@ -925,199 +816,417 @@ void extract_item_data(const char *assetDirectory)
 
 static void close_extracted_file(FILE *f, const char *filename)
 {
+	char temporaryFilename[256];
+	snprintf(temporaryFilename, sizeof(temporaryFilename), "%s.tmp", filename);
 	bool failed = ferror(f) != 0;
 	if (fclose(f) != 0)
 		failed = true;
 	if (failed)
 	{
 		fprintf(stderr, "error: failed to write extracted data to '%s'.\n", filename);
-		if (remove(filename) != 0)
-			fprintf(stderr, "error: failed to remove incomplete output '%s': %s\n", filename, strerror(errno));
+		if (remove(temporaryFilename) != 0)
+			fprintf(stderr, "error: failed to remove incomplete output '%s': %s\n", temporaryFilename, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	if (rename(temporaryFilename, filename) != 0)
+	{
+		fprintf(stderr, "error: failed to finalize extracted category '%s': %s\n", filename, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
+
+static FILE *open_extracted_category(const char *filename)
+{
+	if (dir_file_exists(".", filename))
+	{
+		printf("Preserving existing category file '%s'.\n", filename);
+		return NULL;
+	}
+	char temporaryFilename[256];
+	snprintf(temporaryFilename, sizeof(temporaryFilename), "%s.tmp", filename);
+	return dir_fopen_die(".", temporaryFilename, "w");
+}
 #endif
+
+typedef struct
+{
+	char key[30];
+	char value[255];
+	size_t line;
+} ItemField;
+
+typedef struct
+{
+	char id[11];
+	char path[_TINYDIR_PATH_MAX];
+	size_t line;
+	ItemField *fields;
+	size_t field_count;
+} ItemRecord;
+
+typedef struct
+{
+	ItemRecord *records;
+	size_t count;
+} ItemRecords;
+
+static const char *const base_item_files[] = {
+	"data/shots/shots.tyrr", "data/items/ships.tyrr",
+	"data/items/weapons.tyrr", "data/items/generators.tyrr",
+	"data/items/shields.tyrr", "data/items/sidekicks.tyrr",
+	"data/items/specials.tyrr", "data/enemy/enemies.tyrr"
+};
+
+static void *item_data_realloc(void *memory, size_t size)
+{
+	void *result = realloc(memory, size);
+	if (result == NULL)
+		item_data_error(loading_item_path, loading_item_line, "out of memory loading item definitions");
+	return result;
+}
+
+static char *trim_item_text(char *text)
+{
+	while (isspace((unsigned char)*text))
+		++text;
+	size_t length = strlen(text);
+	while (length > 0 && isspace((unsigned char)text[length - 1]))
+		text[--length] = '\0';
+	return text;
+}
+
+static bool valid_item_id(const char *id)
+{
+	if (strlen(id) == 0 || strlen(id) > 10)
+		return false;
+	for (const char *cursor = id; *cursor != '\0'; ++cursor)
+		if (isspace((unsigned char)*cursor) || strchr(":[]=#;", *cursor) != NULL)
+			return false;
+	return true;
+}
+
+static enum ITEM_TYPE item_type_from_name(const char *name)
+{
+	static const char *const names[ItemType_Count] = {
+		[ItemType_Shot] = "shot", [ItemType_Ship] = "ship",
+		[ItemType_WeaponFront] = "weapon", [ItemType_Generator] = "generator",
+		[ItemType_Shield] = "shield", [ItemType_SidekickLeft] = "sidekick",
+		[ItemType_Special] = "special", [ItemType_Enemy] = "enemy"
+	};
+	enum ITEM_TYPE result = ItemType_Count;
+	for (int type = 0; type < ItemType_Count; ++type)
+		if (names[type] != NULL && strcmp(names[type], name) == 0)
+		{
+			result = type;
+			break;
+		}
+	if (result == ItemType_Count)
+		item_data_error(loading_item_path, loading_item_line, "unknown object type '%s'", name);
+	return result;
+}
+
+static ItemRecord *replace_item_record(ItemRecords *items, const char *id, const char *path, size_t line)
+{
+	size_t index;
+	for (index = 0; index < items->count; ++index)
+		if (strcmp(items->records[index].id, id) == 0)
+			break;
+	if (index == items->count)
+	{
+		items->records = item_data_realloc(items->records, (items->count + 1) * sizeof(*items->records));
+		memset(&items->records[items->count++], 0, sizeof(*items->records));
+	}
+	ItemRecord *record = &items->records[index];
+	free(record->fields);
+	memset(record, 0, sizeof(*record));
+	strcpy(record->id, id);
+	strcpy(record->path, path);
+	record->line = line;
+	return record;
+}
+
+static void validate_item_field(enum ITEM_TYPE type, const char *key, const char *value)
+{
+	static const char *const keys[ItemType_Count] = {
+		[ItemType_Shot] = " id drain shotrepeat multi weapani max tx ty aim attack chain iceticks infinite del sx sy bx by sg acceleration accelerationx circlesize sound trail shipblastfilter ",
+		[ItemType_Ship] = " id name shipgraphic itemgraphic ani spd dmg cost bigshipgraphic bigshipgraphx bigshipgraphy probability ",
+		[ItemType_WeaponFront] = " id name opnum op0 op1 cost itemgraphic poweruse position bigshipgraphic bigshipgraphfrntx bigshipgraphfrnty bigshipgraphrearx bigshipgraphreary linkgunweapon chargegunweapons probability ",
+		[ItemType_Generator] = " id name itemgraphic power speed cost bigshipgraphic bigshipgraphx bigshipgraphy probability ",
+		[ItemType_Shield] = " id name itemgraphic tpwr mpwr cost probability ",
+		[ItemType_SidekickLeft] = " id name itemgraphic pwr cost tr option opspd ani gr0 gr1 gr2 gr3 gr4 wport wpnum ammo stop icongr position probability ",
+		[ItemType_Special] = " id name itemgraphic pwr stype wpn ",
+		[ItemType_Enemy] = " id ani tur freq xmove ymove xaccel yaccel xcaccel ycaccel startx starty startxc startyc armor esize egraphic explosiontype animate shapebank xrev yrev dgr dlevel dani elaunchfreq elaunchtype elaunchtypepos elaunchspecial value eenemydie eshotwait enemyground "
+	};
+	char token[34];
+	snprintf(token, sizeof(token), " %s ", key);
+	if (strstr(keys[type], token) == NULL)
+		item_data_error(loading_item_path, loading_item_line, "unknown field '%s'", key);
+	if (strcmp(key, "name") == 0)
+	{
+		if (strlen(value) > 30)
+			item_data_error(loading_item_path, loading_item_line, "name exceeds 30 characters");
+		return;
+	}
+	if (*value == '\0')
+		item_data_error(loading_item_path, loading_item_line, "field '%s' requires a value", key);
+	const bool reference = strstr(" id op0 op1 chain linkgunweapon chargegunweapons wport wpnum wpn elaunchtype eenemydie ", token) != NULL;
+	const char *cursor = value;
+	while (*cursor != '\0')
+	{
+		while (isspace((unsigned char)*cursor))
+			++cursor;
+		if (*cursor == '\0')
+			break;
+		if (reference)
+		{
+			char id[11] = "";
+			size_t length = 0;
+			while (cursor[length] != '\0' && !isspace((unsigned char)cursor[length]))
+				++length;
+			if (length > 10)
+				item_data_error(loading_item_path, loading_item_line, "reference ID exceeds 10 characters");
+			memcpy(id, cursor, length);
+			if (!valid_item_id(id))
+				item_data_error(loading_item_path, loading_item_line, "invalid reference ID '%s'", id);
+			cursor += length;
+		}
+		else
+		{
+			char *end;
+			errno = 0;
+			long number = strtol(cursor, &end, 10);
+			if (end == cursor || errno == ERANGE || number < INT_MIN || number > INT_MAX ||
+			    (*end != '\0' && !isspace((unsigned char)*end)))
+				item_data_error(loading_item_path, loading_item_line, "invalid integer in field '%s'", key);
+			cursor = end;
+		}
+	}
+}
+
+static void load_item_bundle(const char *path, ItemRecords items[ItemType_Count])
+{
+	loading_item_path = path;
+	loading_item_line = 0;
+	FILE *file = fopen(path, "r");
+	if (file == NULL)
+		item_data_error(path, 0, "cannot read extracted data file: %s", strerror(errno));
+	char buffer[1024];
+	ItemRecord *record = NULL;
+	enum ITEM_TYPE type = ItemType_Count;
+	while (fgets(buffer, sizeof(buffer), file) != NULL)
+	{
+		++loading_item_line;
+		if (strchr(buffer, '\n') == NULL && !feof(file))
+			item_data_error(path, loading_item_line, "line is too long");
+		char *start = buffer;
+		if (loading_item_line == 1 && strncmp(buffer, "\xEF\xBB\xBF", 3) == 0)
+			start += 3;
+		char *text = trim_item_text(start);
+		if (*text == '\0' || *text == '#' || *text == ';')
+			continue;
+		if (*text == '[')
+		{
+			size_t length = strlen(text);
+			char *colon = strchr(text, ':');
+			if (colon == NULL || text[length - 1] != ']')
+				item_data_error(path, loading_item_line, "expected [type:id] header");
+			text[length - 1] = '\0';
+			*colon = '\0';
+			char *id = trim_item_text(colon + 1);
+			if (!valid_item_id(id))
+				item_data_error(path, loading_item_line, "invalid object ID '%s'", id);
+			type = item_type_from_name(trim_item_text(text + 1));
+			record = replace_item_record(&items[type], id, path, loading_item_line);
+			continue;
+		}
+		if (record == NULL)
+			item_data_error(path, loading_item_line, "field appears before an object header");
+		char *equals = strchr(text, '=');
+		if (equals == NULL)
+			item_data_error(path, loading_item_line, "expected key=value");
+		*equals = '\0';
+		char *key = trim_item_text(text);
+		char *value = trim_item_text(equals + 1);
+		if (strlen(key) >= sizeof(record->fields[0].key) || strlen(value) >= sizeof(record->fields[0].value))
+			item_data_error(path, loading_item_line, "field name or value is too long");
+		validate_item_field(type, key, value);
+		if (strcmp(key, "id") == 0 && strcmp(value, record->id) != 0)
+			item_data_error(path, loading_item_line, "id field does not match header ID '%s'", record->id);
+		record->fields = item_data_realloc(record->fields, (record->field_count + 1) * sizeof(*record->fields));
+		ItemField *field = &record->fields[record->field_count++];
+		memset(field, 0, sizeof(*field));
+		strcpy(field->key, key);
+		strcpy(field->value, value);
+		field->line = loading_item_line;
+	}
+	if (ferror(file))
+		item_data_error(path, loading_item_line, "failed to read definitions");
+	fclose(file);
+}
+
+static int compare_item_paths(const void *left, const void *right)
+{
+	const char *const *a = left;
+	const char *const *b = right;
+	int comparison = SDL_strcasecmp(*a, *b);
+	return comparison != 0 ? comparison : strcmp(*a, *b);
+}
+
+static void load_additional_item_bundles(ItemRecords items[ItemType_Count])
+{
+	const char *const directories[] = { "data/items", "data/enemy", "data/shots" };
+	char **paths = NULL;
+	size_t path_count = 0;
+	for (uint i = 0; i < COUNTOF(directories); ++i)
+	{
+		tinydir_dir dir;
+		loading_item_path = directories[i];
+		loading_item_line = 0;
+		if (tinydir_open_sorted(&dir, directories[i]) == -1)
+			item_data_error(directories[i], 0, "cannot enumerate .tyrr files: %s", strerror(errno));
+		for (size_t j = 0; j < dir.n_files; ++j)
+		{
+			tinydir_file file;
+			if (tinydir_readfile_n(&dir, &file, j) == -1)
+				item_data_error(directories[i], 0, "cannot read directory entry: %s", strerror(errno));
+			if (file.is_dir || SDL_strcasecmp(file.extension, "tyrr") != 0)
+				continue;
+			char path[_TINYDIR_PATH_MAX];
+			if (snprintf(path, sizeof(path), "%s/%s", directories[i], file.name) >= (int)sizeof(path))
+				item_data_error(directories[i], 0, "definition path is too long");
+			bool base_file = false;
+			for (uint k = 0; k < COUNTOF(base_item_files); ++k)
+				if (SDL_strcasecmp(path, base_item_files[k]) == 0)
+					base_file = true;
+			if (base_file)
+				continue;
+			paths = item_data_realloc(paths, (path_count + 1) * sizeof(*paths));
+			paths[path_count] = item_data_realloc(NULL, strlen(path) + 1);
+			strcpy(paths[path_count++], path);
+		}
+		tinydir_close(&dir);
+	}
+	if (path_count > 1)
+		qsort(paths, path_count, sizeof(*paths), compare_item_paths);
+	for (size_t i = 0; i < path_count; ++i)
+	{
+		load_item_bundle(paths[i], items);
+		free(paths[i]);
+	}
+	free(paths);
+}
 
 void load_items(void) {
 	loading_item_data = true;
-	for (int item_type = 0; item_type < ItemType_Count; item_type++) {
-		if (item_type == ItemType_WeaponRear) continue;
-		if (item_type == ItemType_SidekickRight) continue;
-		tinydir_dir dir;
+	ItemRecords items[ItemType_Count] = { 0 };
+	for (uint i = 0; i < COUNTOF(base_item_files); ++i)
+		load_item_bundle(base_item_files[i], items);
+	load_additional_item_bundles(items);
+	loading_item_path = "data";
+	loading_item_line = 0;
 
-		size_t numItems = 0;
-		const char *itemDirectory;
-		char itemFileExt[7] = "";
-		switch (item_type) {
-			case ItemType_Shot:
-				itemDirectory = "./data/shots";
-				strcpy(itemFileExt, "tyrsht");
-				break;
-			case ItemType_Ship:
-				itemDirectory = "./data/items/ship";
-				strcpy(itemFileExt, "tyrshp");
-				break;
-			case ItemType_WeaponFront:
-				itemDirectory = "./data/items/weapon";
-				strcpy(itemFileExt, "tyrwep");
-				break;
-			case ItemType_Generator:
-				itemDirectory = "./data/items/generator";
-				strcpy(itemFileExt, "tyrgen");
-				break;
-			case ItemType_Shield:
-				itemDirectory = "./data/items/shield";
-				strcpy(itemFileExt, "tyrshd");
-				break;
-			case ItemType_SidekickLeft:
-				itemDirectory = "./data/items/sidekick";
-				strcpy(itemFileExt, "tyrsid");
-				break;
-			case ItemType_Special:
-				itemDirectory = "./data/items/special";
-				strcpy(itemFileExt, "tyrspc");
-				break;
-			case ItemType_Enemy:
-				itemDirectory = "./data/enemy";
-				strcpy(itemFileExt, "tyremy");
-				break;
-			default:
-				continue;
-			break;
-		}
-
-		if (tinydir_open_sorted(&dir, itemDirectory) == -1)
-		{
-			fprintf(stderr, "error: cannot read '%s': %s.\n"
-			                "Run the Data Extractor executable first to build the required extracted data files.\n",
-			        itemDirectory, strerror(errno));
-			SDL_Quit();
-			exit(EXIT_FAILURE);
-		}
-
-		for (size_t i = 0; i < dir.n_files; i++)
-		{
-			tinydir_file file;
-			if (tinydir_readfile_n(&dir, &file, i) == -1)
-			{
-				continue; // Failed to get acces to item file
-			}
-			if (file.is_dir) continue;
-			if (_tinydir_strcmp(itemFileExt, file.extension) != 0) continue;
-			numItems++;
-		}
-
-		if (numItems == 0)
-		{
-			fprintf(stderr, "error: no .%s files in '%s'.\n"
-			                "Run the Data Extractor executable first to build the required extracted data files.\n",
-			        itemFileExt, dir.path);
-			SDL_Quit();
-			exit(EXIT_FAILURE);
-		}
-
-		switch (item_type) {
-		case ItemType_Shot:
-			weapons = calloc(max(numItems, 1), sizeof(*weapons));
-			//weapons[0].count = numItems;
-			break;
-		case ItemType_Ship:
-			ships = calloc(max(numItems, 1), sizeof(*ships));
-			//ships[0].count = numItems;
-			break;
-		case ItemType_WeaponFront:
-			weaponPort = calloc(max(numItems, 1), sizeof(*weaponPort));
-			//weaponPort[0].count = numItems;
-			break;
-		case ItemType_Generator:
-			powerSys = calloc(max(numItems, 1), sizeof(*powerSys));
-			//powerSys[0].count = numItems;
-			break;
-		case ItemType_Shield:
-			shields = calloc(max(numItems, 1), sizeof(*shields));
-			//shields[0].count = numItems;
-			break;
-		case ItemType_SidekickLeft:
-			options = calloc(max(numItems,1), sizeof(*options));
-			//options[0].count = numItems;
-			break;
-		case ItemType_Special:
-			special = calloc(max(numItems, 1), sizeof(*special));
-			//special[0].count = numItems;
-			break;
-		case ItemType_Enemy:
-			enemyDat = calloc(max(numItems, 1), sizeof(*enemyDat));
-			//enemyDat[0].count = numItems;
-			break;
-		default:
+	// The game reserves slot zero for each type's "0" object.
+	for (int type = 0; type < ItemType_Count; ++type)
+	{
+		ItemRecords *records = &items[type];
+		if (records->count == 0)
 			continue;
-			break;
+		size_t zero;
+		for (zero = 0; zero < records->count; ++zero)
+			if (strcmp(records->records[zero].id, "0") == 0)
+				break;
+		if (zero == records->count)
+			item_data_error("data", 0, "missing required object ID '0' for type %d", type);
+		if (zero != 0)
+		{
+			ItemRecord record = records->records[zero];
+			memmove(records->records + 1, records->records, zero * sizeof(*records->records));
+			records->records[0] = record;
 		}
+	}
 
-		for (size_t i = 0, s = 0; i < dir.n_files && s < numItems; i++) {
-			tinydir_file file;
-			if (tinydir_readfile_n(&dir, &file, i) == -1)
+	// Install every ID before resolving fields, so bundles can reference later records.
+#define ALLOCATE_ITEMS(type, array) \
+	do { \
+		size_t count = items[type].count; \
+		if (count == 0) item_data_error("data", 0, "no objects for type %d", type); \
+		free(array); \
+		array = calloc(count, sizeof(*array)); \
+		if (array == NULL) item_data_error("data", 0, "out of memory allocating item definitions"); \
+		for (size_t i = 0; i < count; ++i) strcpy(array[i].id, items[type].records[i].id); \
+		array[0].count = count; \
+	} while (0)
+	ALLOCATE_ITEMS(ItemType_Shot, weapons);
+	ALLOCATE_ITEMS(ItemType_Ship, ships);
+	ALLOCATE_ITEMS(ItemType_WeaponFront, weaponPort);
+	ALLOCATE_ITEMS(ItemType_Generator, powerSys);
+	ALLOCATE_ITEMS(ItemType_Shield, shields);
+	ALLOCATE_ITEMS(ItemType_SidekickLeft, options);
+	ALLOCATE_ITEMS(ItemType_Special, special);
+	ALLOCATE_ITEMS(ItemType_Enemy, enemyDat);
+#undef ALLOCATE_ITEMS
+	for (int type = 0; type < ItemType_Count; ++type)
+	{
+		for (size_t i = 0; i < items[type].count; ++i)
+		{
+			ItemRecord *record = &items[type].records[i];
+			loading_item_path = record->path;
+			for (size_t j = 0; j < record->field_count; ++j)
 			{
-				continue; // Failed to get acces to ship file
+				loading_item_line = record->fields[j].line;
+				apply_item_field(type, i, record->fields[j].key, record->fields[j].value);
 			}
-			if (file.is_dir) continue;
-			if (_tinydir_strcmp(itemFileExt, file.extension) != 0) continue;
-
-			FILE* itemFile = fopen(file.path, "r");
-			if (itemFile == NULL)
-			{
-				fprintf(stderr, "error: cannot read extracted data file '%s': %s.\n"
-				                "Run the Data Extractor executable first to build the required extracted data files.\n",
-				        file.path, strerror(errno));
-				SDL_Quit();
-				exit(EXIT_FAILURE);
-			}
-			read_item_file(itemFile, item_type);
-			fclose(itemFile);
-
-			s++;
 		}
-		tinydir_close(&dir);
 	}
 
 	tempItemType = ItemType_Shot;
 	for (size_t i = 0; i < weapons[0].count; i++) {
+		loading_item_path = items[ItemType_Shot].records[i].path;
+		loading_item_line = items[ItemType_Shot].records[i].line;
 		int chainlen = COUNTOF(weapons[0].chainIds);
 		for (int j = 0; j < chainlen; j++) {
-			if (strcmp(weapons[i].chainIds[j], "0") == 0) continue;
+			if (weapons[i].chainIds[j][0] == '\0' || strcmp(weapons[i].chainIds[j], "0") == 0) continue;
 			get_item_index(&tempItemType, weapons[i].chainIds[j], &weapons[i].chain[j]);
 		}
 	}
 
 	tempItemType = ItemType_Shot;
 	for (size_t i = 0; i < weaponPort[0].count; i++) {
-		if (strcmp(weaponPort[i].linkgunweaponId, "0") != 0)
+		loading_item_path = items[ItemType_WeaponFront].records[i].path;
+		loading_item_line = items[ItemType_WeaponFront].records[i].line;
+		if (weaponPort[i].linkgunweaponId[0] != '\0' && strcmp(weaponPort[i].linkgunweaponId, "0") != 0)
 			get_item_index(&tempItemType, weaponPort[i].linkgunweaponId, &weaponPort[i].linkgunweapon);
 
 		int chargegunweaponslen = COUNTOF(weaponPort->chargegunweapons);
 		for (int j = 0; j < chargegunweaponslen; j++) {
-			if (strcmp(weaponPort[i].chargegunweaponIds[j], "0") == 0) continue;
+			if (weaponPort[i].chargegunweaponIds[j][0] == '\0' || strcmp(weaponPort[i].chargegunweaponIds[j], "0") == 0) continue;
 			get_item_index(&tempItemType, weaponPort[i].chargegunweaponIds[j], &weaponPort[i].chargegunweapons[j]);
 		}
 	}
 
 	tempItemType = ItemType_WeaponFront;
 	for (size_t i = 0; i < options[0].count; i++) {
-		if (strcmp(options[i].wportId, "0") != 0) {
+		loading_item_path = items[ItemType_SidekickLeft].records[i].path;
+		loading_item_line = items[ItemType_SidekickLeft].records[i].line;
+		if (options[i].wportId[0] != '\0' && strcmp(options[i].wportId, "0") != 0) {
 			get_item_index(&tempItemType, options[i].wportId, &options[i].wport);
 		}
 	}
 
 	tempItemType = ItemType_Enemy;
 	for (size_t i = 0; i < enemyDat[0].count; i++) {
-		if (strcmp(enemyDat[i].eenemydieId, "0") != 0) {
+		loading_item_path = items[ItemType_Enemy].records[i].path;
+		loading_item_line = items[ItemType_Enemy].records[i].line;
+		if (enemyDat[i].eenemydieId[0] != '\0' && strcmp(enemyDat[i].eenemydieId, "0") != 0) {
 			get_item_index(&tempItemType, enemyDat[i].eenemydieId, &enemyDat[i].eenemydie);
 		}
-		if (strcmp(enemyDat[i].elaunchtypeId, "0") != 0) {
+		if (enemyDat[i].elaunchtypeId[0] != '\0' && strcmp(enemyDat[i].elaunchtypeId, "0") != 0) {
 			get_item_index(&tempItemType, enemyDat[i].elaunchtypeId, &enemyDat[i].elaunchtype);
 		}
 	}
 
+	loading_item_path = "data";
+	loading_item_line = 0;
 	tempItemType = ItemType_Generator;
 	ITEM_INDEX_STORE[ITEM_GENERATOR_ADVANCEDMR12] = item_idx(&tempItemType, "2");
 	tempItemType = ItemType_Shield;
@@ -1153,6 +1262,13 @@ void load_items(void) {
 	ITEM_INDEX_STORE[ITEM_ENEMY_ARMORSHIP] = item_idx(&tempItemType, "560");
 	ITEM_INDEX_STORE[ITEM_ENEMY_FRONTPOWERUP] = item_idx(&tempItemType, "533");
 	ITEM_INDEX_STORE[ITEM_ENEMY_REARPOWERUP] = item_idx(&tempItemType, "534");
+	for (int type = 0; type < ItemType_Count; ++type)
+	{
+		for (size_t i = 0; i < items[type].count; ++i)
+			free(items[type].records[i].fields);
+		free(items[type].records);
+	}
+	loading_item_path = NULL;
 	loading_item_data = false;
 }
 
@@ -1162,6 +1278,7 @@ static void read_legacy_item_data(FILE *f)
 	JE_word itemNum[7]; /* [1..7] */
 	fread_u16_die(itemNum, 7, f);
 
+	FILE *outF = open_extracted_category("data/shots/shots.tyrr");
 	for (int i = 0; i < WEAP_NUM + 1; ++i)
 	{
 		fread_u16_die(&oldWeapons[i].drain,           1, f);
@@ -1187,10 +1304,8 @@ static void read_legacy_item_data(FILE *f)
 		fread_u8_die( &oldWeapons[i].shipblastfilter, 1, f);
 
 		#ifdef DATA_EXTRACTOR
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/shots/%d.tyrsht", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[shot:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "drain=%d\n", oldWeapons[i].drain);
 			fprintf(outF, "shotrepeat=%d\n", oldWeapons[i].shotrepeat);
@@ -1281,11 +1396,14 @@ static void read_legacy_item_data(FILE *f)
 			fprintf(outF, "sound=%d\n", oldWeapons[i].sound);
 			fprintf(outF, "trail=%d\n", oldWeapons[i].trail);
 			fprintf(outF, "shipblastfilter=%d\n", oldWeapons[i].shipblastfilter);
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
+	if (outF != NULL)
+		close_extracted_file(outF, "data/shots/shots.tyrr");
 	
+	outF = open_extracted_category("data/items/weapons.tyrr");
 	for (int i = 0; i < PORT_NUM + 1; ++i)
 	{
 		Uint8 nameLen;
@@ -1382,10 +1500,8 @@ static void read_legacy_item_data(FILE *f)
 			  458,458,458,458,458,458,458,458,458,458,458,458
 		};
 
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/items/weapon/%d.tyrwep", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[weapon:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldWeaponPort[i].name);
 			fprintf(outF, "opnum=%d\n", oldWeaponPort[i].opnum);
@@ -1423,11 +1539,14 @@ static void read_legacy_item_data(FILE *f)
 			}
 			fputs("\n", outF);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
+	if (outF != NULL)
+		close_extracted_file(outF, "data/items/weapons.tyrr");
 
+	outF = open_extracted_category("data/items/specials.tyrr");
 	for (int i = 0; i < SPECIAL_NUM + 1; ++i)
 	{
 		Uint8 nameLen;
@@ -1440,21 +1559,22 @@ static void read_legacy_item_data(FILE *f)
 		fread_u16_die(&oldSpecial[i].wpn,         1, f);
 
 		#ifdef DATA_EXTRACTOR
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/items/special/%d.tyrspc", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[special:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldSpecial[i].name);
 			fprintf(outF, "itemgraphic=%d\n", oldSpecial[i].itemgraphic);
 			fprintf(outF, "pwr=%d\n", oldSpecial[i].pwr);
 			fprintf(outF, "stype=%d\n", oldSpecial[i].stype);
 			fprintf(outF, "wpn=%d\n", oldSpecial[i].wpn);
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
+	if (outF != NULL)
+		close_extracted_file(outF, "data/items/specials.tyrr");
 
+	outF = open_extracted_category("data/items/generators.tyrr");
 	for (int i = 0; i < POWER_NUM + 1; ++i)
 	{
 		Uint8 nameLen;
@@ -1487,10 +1607,8 @@ static void read_legacy_item_data(FILE *f)
 			61, 84, 86, 49, 25, // 5
 			5, // 7
 		};
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/items/generator/%d.tyrgen", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[generator:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldPowerSys[i].name);
 			fprintf(outF, "itemgraphic=%d\n", oldPowerSys[i].itemgraphic);
@@ -1501,11 +1619,14 @@ static void read_legacy_item_data(FILE *f)
 			fprintf(outF, "bigshipgraphx=%d\n", bigshipgraphxy[i][0]);
 			fprintf(outF, "bigshipgraphy=%d\n", bigshipgraphxy[i][1]);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
+	if (outF != NULL)
+		close_extracted_file(outF, "data/items/generators.tyrr");
 
+	outF = open_extracted_category("data/items/ships.tyrr");
 	for (int i = 0; i < SHIP_NUM + 1; ++i)
 	{
 		Uint8 nameLen;
@@ -1537,10 +1658,8 @@ static void read_legacy_item_data(FILE *f)
 			1, 1, 2
 		};
 
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/items/ship/%d.tyrshp", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[ship:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldShips[i].name);
 			fprintf(outF, "shipgraphic=%d\n", oldShips[i].shipgraphic);
@@ -1553,11 +1672,14 @@ static void read_legacy_item_data(FILE *f)
 			fprintf(outF, "bigshipgraphx=%d\n", bigshipgraphxy[i][0]);
 			fprintf(outF, "bigshipgraphy=%d\n", bigshipgraphxy[i][1]);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
+	if (outF != NULL)
+		close_extracted_file(outF, "data/items/ships.tyrr");
 
+	outF = open_extracted_category("data/items/sidekicks.tyrr");
 	for (int i = 0; i < OPTION_NUM + 1; ++i)
 	{
 		Uint8 nameLen;
@@ -1599,10 +1721,8 @@ static void read_legacy_item_data(FILE *f)
 			10, 2, 9, 1, 4,
 			2, 4, 2, 6, 2
 		};
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/items/sidekick/%d.tyrsid", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[sidekick:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldOptions[i].name);
 			fprintf(outF, "itemgraphic=%d\n", oldOptions[i].itemgraphic);
@@ -1669,11 +1789,14 @@ static void read_legacy_item_data(FILE *f)
 			fprintf(outF, "icongr=%d\n", oldOptions[i].icongr);
 			fprintf(outF, "position=%d\n", positions[i]);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
+	if (outF != NULL)
+		close_extracted_file(outF, "data/items/sidekicks.tyrr");
 
+	outF = open_extracted_category("data/items/shields.tyrr");
 	for (int i = 0; i < SHIELD_NUM + 1; ++i)
 	{
 		Uint8 nameLen;
@@ -1692,10 +1815,8 @@ static void read_legacy_item_data(FILE *f)
 			16, 40, 44, 68, 61,
 			35, 14, 26, 5, 1,
 		};
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/items/shield/%d.tyrshd", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[shield:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "name=%s\n", oldShields[i].name);
 			fprintf(outF, "tpwr=%d\n", oldShields[i].tpwr);
@@ -1703,11 +1824,14 @@ static void read_legacy_item_data(FILE *f)
 			fprintf(outF, "itemgraphic=%d\n", oldShields[i].itemgraphic);
 			fprintf(outF, "cost=%d\n", oldShields[i].cost);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
-	
+	if (outF != NULL)
+		close_extracted_file(outF, "data/items/shields.tyrr");
+
+	outF = open_extracted_category("data/enemy/enemies.tyrr");
 	for (int i = 0; i < ENEMY_NUM + 1; ++i)
 	{
 		fread_u8_die( &oldEnemyDat[i].ani,           1, f);
@@ -1740,10 +1864,8 @@ static void read_legacy_item_data(FILE *f)
 		fread_u16_die(&oldEnemyDat[i].eenemydie,     1, f);
 
 		#ifdef DATA_EXTRACTOR
-		char filename[60];
-		snprintf(filename, sizeof(filename), "data/enemy/%d.tyremy", i);
-		if (!dir_file_exists(".", filename)) {
-			FILE* outF = dir_fopen_die(".", filename, "w");
+		if (outF != NULL) {
+			fprintf(outF, "[enemy:%d]\n", i);
 			fprintf(outF, "id=%d\n", i);
 			fprintf(outF, "ani=%d\n", oldEnemyDat[i].ani);
 			fputs("tur=", outF);
@@ -1810,10 +1932,12 @@ static void read_legacy_item_data(FILE *f)
 
 			fprintf(outF, "enemyground=%d\n", (oldEnemyDat[i].explosiontype & 1) != 0);
 
-			close_extracted_file(outF, filename);
+			fputs("\n", outF);
 		}
 		#endif
 	}
+	if (outF != NULL)
+		close_extracted_file(outF, "data/enemy/enemies.tyrr");
 	
 	fclose(f);
 }

@@ -18,32 +18,89 @@ Tyrian 2.1 data files which have been released as freeware:
 Place the original data files in data under the game's working directory
 (visualc\data when running from Visual Studio).
 
-Run the Data Extractor executable first to build the required enemy, item
-and shot definitions. OpenTyrian loads these files at startup and no longer
-extracts data itself. The original Tyrian data files are still required.
+Run the Data Extractor first to build the eight named .tyrr category files
+listed below. OpenTyrian requires these files and the original Tyrian assets.
 
 Both data and visualc\data are ignored by Git; neither the original assets
 nor the generated definitions are committed.
 
 == Standalone Data Extractor ===================================================
 
-The Visual Studio solution also contains a data_extractor console project.
+The Visual Studio solution contains a data_extractor console project.
 Build it with the same configuration and platform as the game, then run it
-from visualc so its output is available to the game:
+from visualc to export category files for the game:
 
   cd visualc
   .\data_extractor-x64-Debug.exe --data .\data
 
 Use --data to point to the directory containing the original Tyrian 2.1
 assets (in particular tyrian.hdt). Output always goes into data beneath the
-current working directory. The executable creates enemy, shots and the
-items subfolders and preserves existing definitions. To extract a fresh
-set without changing local edits, run it from a separate empty directory
-with --data pointing to the original asset directory.
+current working directory. The executable creates eight text files:
 
-The standalone extractor does not extract shapes or levels, and does not
-start the game, graphics or audio. Extraction is available only in this
-standalone project, not in the main OpenTyrian executable.
+  data\enemy\enemies.tyrr
+  data\shots\shots.tyrr
+  data\items\ships.tyrr
+  data\items\weapons.tyrr
+  data\items\generators.tyrr
+  data\items\shields.tyrr
+  data\items\sidekicks.tyrr
+  data\items\specials.tyrr
+
+Each record starts with a [type:id] separator (for example [ship:1]),
+followed by key=value fields, including id, and a blank line before the next
+record. Existing category files are preserved as a whole, including local
+edits. To extract a fresh set without changing local edits, run it from a
+separate empty directory with --data pointing to the original asset directory.
+
+The extractor exports item, enemy and shot definitions without starting
+the game, graphics or audio.
+
+== Modding and Load Order ======================================================
+
+OpenTyrian explicitly loads the named files in this order:
+shots.tyrr, ships.tyrr, weapons.tyrr, generators.tyrr, shields.tyrr,
+sidekicks.tyrr, specials.tyrr, enemies.tyrr (at the paths listed above).
+These eight files are required, even when mods supply replacement objects.
+
+Next it loads other .tyrr files directly in data\items, data\enemy and
+data\shots, globally sorted by relative path, alphabetically ignoring case
+(case-sensitive order breaks ties). It does not search data itself or any
+nested subfolders. The eight named files are not loaded a second time.
+
+Any .tyrr file can contain a mixture of the supported object types:
+ship, weapon, generator, shield, sidekick, special, shot and enemy.
+For example, data\items\addon.tyrr may contain:
+
+  [generator:2]
+  name=Mod Generator
+  power=5
+
+  [ship:1]
+  name=Mod Ship
+  shipgraphic=233
+
+  [weapon:1]
+  name=Mod Weapon
+  op0=customshot
+
+  [shot:customshot]
+  multi=1
+  max=1
+
+Objects are identified by type AND ID. A later record with the same type
+and ID replaces the entire earlier object; omitted fields default to zero,
+not to the earlier object's values. The last record wins even within a
+single file. New IDs add objects without changing existing objects' slots.
+References are resolved only after all files are loaded, allowing references
+to objects defined later in the same bundle or in a later file.
+
+Headers supply IDs; an optional id= field must match its header.
+Each type must retain its reserved ID 0 object, which always occupies slot zero
+regardless of record order.
+IDs are case-sensitive, contain 1-10 non-whitespace characters, and cannot
+contain : [ ] = # or ;. Blank lines and full-line # or ; comments are allowed.
+Fields use key=value syntax. Parse errors and missing references report the
+file and line; missing required files direct you to run Data Extractor.
 
 == Keyboard Controls ===========================================================
 
