@@ -18,11 +18,9 @@ Tyrian 2.1 data files which have been released as freeware:
 Place the original data files in data under the game's working directory
 (visualc\data when running from Visual Studio).
 
-With DO_DECRYPT enabled in src/opentyr.h, startup creates the data subfolders
-and extracts enemy, item and shot definitions before loading them. Existing
-definitions are not overwritten, so local edits are preserved. The original
-Tyrian data files are still required. Without DO_DECRYPT, the extracted
-definitions must already be present.
+Run the Data Extractor executable first to build the required enemy, item
+and shot definitions. OpenTyrian loads these files at startup and no longer
+extracts data itself. The original Tyrian data files are still required.
 
 Both data and visualc\data are ignored by Git; neither the original assets
 nor the generated definitions are committed.
@@ -44,8 +42,8 @@ set without changing local edits, run it from a separate empty directory
 with --data pointing to the original asset directory.
 
 The standalone extractor does not extract shapes or levels, and does not
-start the game, graphics or audio. The game's DO_DECRYPT functionality is
-still enabled independently; it has not been removed.
+start the game, graphics or audio. Extraction is available only in this
+standalone project, not in the main OpenTyrian executable.
 
 == Keyboard Controls ===========================================================
 

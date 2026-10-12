@@ -2254,7 +2254,6 @@ static void initialize_level_combat_state(void)
 		player[i].exploding_ticks = 0;
 
 	if (isNetworkGame)
-		JE_loadItemDat();
 
 	memset(enemyAvail, 1, sizeof(enemyAvail));
 	for (uint i = 0; i < COUNTOF(enemyShotAvail); ++i)
@@ -2428,20 +2427,6 @@ static void load_level_shapes(FILE *level_f, JE_char shapeFile, JE_byte *ref[3][
 		else
 			fread_u8_die(shape, sizeof(shape), shpFile);
 
-#ifdef DO_DECRYPT
-		if (!shapeBlank)
-		{
-			char filename[60];
-			snprintf(filename, sizeof(filename), "data/shapes/%c_%d.pcx", shapeFile, z);
-			FILE *outF = dir_fopen_die(".", filename, "wb");
-			if (outF != NULL)
-			{
-				write_pcx_header(outF, 24, 28);
-				fwrite_u8(shape, sizeof(shape), outF);
-				fclose(outF);
-			}
-		}
-#endif
 
 		for (int i = 0; i <= 71; ++i)
 		{
@@ -2502,7 +2487,7 @@ static void load_level_shapes(FILE *level_f, JE_char shapeFile, JE_byte *ref[3][
 	fclose(shpFile);
 }
 
-static void load_level_map_layer(FILE *level_f, JE_byte *shapeRefs[128], void *map, JE_word width, JE_word height, FILE *dumpFile)
+static void load_level_map_layer(FILE *level_f, JE_byte *shapeRefs[128], void *map, JE_word width, JE_word height)
 {
 	JE_byte mapBuf[15 * 600];
 	JE_word bufLoc = 0;
@@ -2515,33 +2500,11 @@ static void load_level_map_layer(FILE *level_f, JE_byte *shapeRefs[128], void *m
 		for (JE_word x = 0; x < width; ++x)
 		{
 			mapRow[x] = shapeRefs[mapBuf[bufLoc]];
-			if (dumpFile != NULL)
-				fprintf(dumpFile, "%*d ", 3, mapBuf[bufLoc]);
 			bufLoc++;
 		}
-		if (dumpFile != NULL)
-			fputs("\n", dumpFile);
 	}
 }
 
-#ifdef DO_DECRYPT
-static void dump_level_main_map(FILE *dumpFile, const char *header, JE_byte *const *map, int width)
-{
-	fputs(header, dumpFile);
-	for (int y = 0; y < 300; y++)
-	{
-		for (int x = 0; x < 14; x++)
-		{
-			JE_byte *const tile = map[y * width + x];
-			if (tile != NULL)
-				fprintf(dumpFile, "%*d ", 3, *tile);
-			else
-				fputs("    ", dumpFile);
-		}
-		fputs("\n", dumpFile);
-	}
-}
-#endif
 
 static void play_map_transition(const char *section, Uint8 pic_buffer[320 * 200])
 {
@@ -2874,30 +2837,9 @@ static void load_selected_level_map(JE_byte *ref[3][128])
 
 	load_level_shapes(level_f, char_shapeFile, ref);
 
-	FILE *dumpFile = NULL;
-#ifdef DO_DECRYPT
-	char filename[60];
-	snprintf(filename, sizeof(filename), "data/levels/og_%d_%d.txt", episodeNum, lvlFileNum);
-	dumpFile = dir_fopen_die(".", filename, "w");
-	if (dumpFile != NULL)
-		fputs("*MAP 1*\n", dumpFile);
-#endif
-	load_level_map_layer(level_f, ref[0], &megaData1.mainmap[0][0], 14, 300, dumpFile);
-	if (dumpFile != NULL)
-		fputs("\n\n\n\n*MAP 2*\n", dumpFile);
-	load_level_map_layer(level_f, ref[1], &megaData2.mainmap[0][0], 14, 600, dumpFile);
-	if (dumpFile != NULL)
-		fputs("\n\n\n\n*MAP 3*\n", dumpFile);
-	load_level_map_layer(level_f, ref[2], &megaData3.mainmap[0][0], 15, 600, dumpFile);
-#ifdef DO_DECRYPT
-	if (dumpFile != NULL)
-	{
-		dump_level_main_map(dumpFile, "\n\n\n\n*MAINMAP 1*\n", &megaData1.mainmap[0][0], 14);
-		dump_level_main_map(dumpFile, "\n\n\n\n*MAINMAP 2*\n", &megaData2.mainmap[0][0], 14);
-		dump_level_main_map(dumpFile, "\n\n\n\n*MAINMAP 3*\n", &megaData3.mainmap[0][0], 15);
-		fclose(dumpFile);
-	}
-#endif
+	load_level_map_layer(level_f, ref[0], &megaData1.mainmap[0][0], 14, 300);
+	load_level_map_layer(level_f, ref[1], &megaData2.mainmap[0][0], 14, 600);
+	load_level_map_layer(level_f, ref[2], &megaData3.mainmap[0][0], 15, 600);
 
 	fclose(level_f);
 }

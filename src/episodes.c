@@ -66,6 +66,8 @@ char       episode_file[13], cube_file[13];
 
 JE_longint episode1DataLoc;
 
+static bool loading_item_data;
+
 /* Tells the game whether the level currently loaded is a bonus level. */
 JE_boolean bonusLevel;
 
@@ -265,6 +267,14 @@ bool get_item_index(const enum ITEM_TYPE* item_type, const char* id, int* output
 	if (index != -1) {
 		*output = index;
 		return true;
+	}
+	if (loading_item_data)
+	{
+		fprintf(stderr, "error: required extracted item ID '%s' (type %d) is missing.\n"
+		                "Run the Data Extractor executable first to build the required extracted data files.\n",
+		        id, *item_type);
+		SDL_Quit();
+		exit(EXIT_FAILURE);
 	}
 	return false;
 }
@@ -873,19 +883,17 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 	free(buffer);
 }
 
+#ifdef DATA_EXTRACTOR
 static void read_legacy_item_data(FILE *f);
 
-#ifdef DO_DECRYPT
-static void prepare_extracted_data_directories(bool include_level_data)
+static void prepare_extracted_data_directories(void)
 {
 	const char *const directories[] = {
 		"data", "data/shots", "data/enemy", "data/items",
 		"data/items/ship", "data/items/weapon", "data/items/generator",
-		"data/items/shield", "data/items/sidekick", "data/items/special",
-		"data/shapes", "data/levels"
+		"data/items/shield", "data/items/sidekick", "data/items/special"
 	};
-	const uint directoryCount = include_level_data ? COUNTOF(directories) : COUNTOF(directories) - 2;
-	for (uint i = 0; i < directoryCount; ++i)
+	for (uint i = 0; i < COUNTOF(directories); ++i)
 	{
 #ifdef TARGET_WIN32
 		const int result = _mkdir(directories[i]);
@@ -903,7 +911,7 @@ static void prepare_extracted_data_directories(bool include_level_data)
 
 void extract_item_data(const char *assetDirectory)
 {
-	prepare_extracted_data_directories(false);
+	prepare_extracted_data_directories();
 	FILE *f = dir_fopen_die(assetDirectory, "tyrian.hdt", "rb");
 	fread_s32_die(&episode1DataLoc, 1, f);
 	if (fseek(f, episode1DataLoc, SEEK_SET) != 0)
@@ -931,10 +939,7 @@ static void close_extracted_file(FILE *f, const char *filename)
 #endif
 
 void load_items(void) {
-#ifdef DO_DECRYPT
-	prepare_extracted_data_directories(true);
-	JE_initEpisode(1);
-#endif
+	loading_item_data = true;
 	for (int item_type = 0; item_type < ItemType_Count; item_type++) {
 		if (item_type == ItemType_WeaponRear) continue;
 		if (item_type == ItemType_SidekickRight) continue;
@@ -983,7 +988,9 @@ void load_items(void) {
 
 		if (tinydir_open_sorted(&dir, itemDirectory) == -1)
 		{
-			fprintf(stderr, "error: cannot read '%s': %s; enable DO_DECRYPT to generate item data.\n", itemDirectory, strerror(errno));
+			fprintf(stderr, "error: cannot read '%s': %s.\n"
+			                "Run the Data Extractor executable first to build the required extracted data files.\n",
+			        itemDirectory, strerror(errno));
 			SDL_Quit();
 			exit(EXIT_FAILURE);
 		}
@@ -1002,7 +1009,9 @@ void load_items(void) {
 
 		if (numItems == 0)
 		{
-			fprintf(stderr, "error: no .%s files in '%s'; enable DO_DECRYPT to generate item data.\n", itemFileExt, dir.path);
+			fprintf(stderr, "error: no .%s files in '%s'.\n"
+			                "Run the Data Extractor executable first to build the required extracted data files.\n",
+			        itemFileExt, dir.path);
 			SDL_Quit();
 			exit(EXIT_FAILURE);
 		}
@@ -1054,7 +1063,15 @@ void load_items(void) {
 			if (file.is_dir) continue;
 			if (_tinydir_strcmp(itemFileExt, file.extension) != 0) continue;
 
-			FILE* itemFile = dir_fopen_die(".", file.path, "r");
+			FILE* itemFile = fopen(file.path, "r");
+			if (itemFile == NULL)
+			{
+				fprintf(stderr, "error: cannot read extracted data file '%s': %s.\n"
+				                "Run the Data Extractor executable first to build the required extracted data files.\n",
+				        file.path, strerror(errno));
+				SDL_Quit();
+				exit(EXIT_FAILURE);
+			}
 			read_item_file(itemFile, item_type);
 			fclose(itemFile);
 
@@ -1136,28 +1153,10 @@ void load_items(void) {
 	ITEM_INDEX_STORE[ITEM_ENEMY_ARMORSHIP] = item_idx(&tempItemType, "560");
 	ITEM_INDEX_STORE[ITEM_ENEMY_FRONTPOWERUP] = item_idx(&tempItemType, "533");
 	ITEM_INDEX_STORE[ITEM_ENEMY_REARPOWERUP] = item_idx(&tempItemType, "534");
+	loading_item_data = false;
 }
 
-void JE_loadItemDat(void)
-{
-	FILE *f = NULL;
-	
-	if (episodeNum <= 3)
-	{
-		f = dir_fopen_die(data_dir(), "tyrian.hdt", "rb");
-		fread_s32_die(&episode1DataLoc, 1, f);
-		fseek(f, episode1DataLoc, SEEK_SET);
-	}
-	else
-	{
-		// episode 4 stores item data in the level file
-		f = dir_fopen_die(data_dir(), levelFile, "rb");
-		fseek(f, lvlPos[lvlNum-1], SEEK_SET);
-	}
-
-	read_legacy_item_data(f);
-}
-
+#ifdef DATA_EXTRACTOR
 static void read_legacy_item_data(FILE *f)
 {
 	JE_word itemNum[7]; /* [1..7] */
@@ -1187,7 +1186,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_u8_die( &oldWeapons[i].trail,           1, f);
 		fread_u8_die( &oldWeapons[i].shipblastfilter, 1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		char filename[60];
 		snprintf(filename, sizeof(filename), "data/shots/%d.tyrsht", i);
 		if (!dir_file_exists(".", filename)) {
@@ -1300,7 +1299,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_u16_die(&oldWeaponPort[i].itemgraphic, 1, f);
 		fread_u16_die(&oldWeaponPort[i].poweruse,    1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		// Sprite number of bigship graphic used in game menu.
 		// Originally was hardcoded into the game menu ship graphic drawing function
 		int bigshipgraphic[43] = {
@@ -1440,7 +1439,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_u8_die( &oldSpecial[i].stype,       1, f);
 		fread_u16_die(&oldSpecial[i].wpn,         1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		char filename[60];
 		snprintf(filename, sizeof(filename), "data/items/special/%d.tyrspc", i);
 		if (!dir_file_exists(".", filename)) {
@@ -1467,7 +1466,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_s8_die( &oldPowerSys[i].speed,       1, f);
 		fread_u16_die(&oldPowerSys[i].cost,        1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		// Sprite number of bigship graphic used in game menu.
 		// Originally was hardcoded into the game menu ship graphic drawing function
 		int bigshipgraphic[7] = {
@@ -1521,7 +1520,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_u16_die(&oldShips[i].cost,           1, f);
 		fread_u8_die( &oldShips[i].bigshipgraphic, 1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		// X and Y offsets of bigship graphic used in game menu.
 		// Originally was hardcoded into the game menu ship graphic drawing function
 		int bigshipgraphxy[14][2] = {
@@ -1579,7 +1578,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_bool_die(&oldOptions[i].stop,           f);
 		fread_u8_die(  &oldOptions[i].icongr,      1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		// 0 Both sides, 1 left only, 2 right only.
 		int positions[31] = {
 			0,
@@ -1686,7 +1685,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_u16_die(&oldShields[i].itemgraphic, 1, f);
 		fread_u16_die(&oldShields[i].cost,        1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		// Calculated by number of times item appeared in shop in episodes 1-4, divided by number of levels
 		int probabilities[31] = {
 			0,
@@ -1740,7 +1739,7 @@ static void read_legacy_item_data(FILE *f)
 		fread_s16_die(&oldEnemyDat[i].value,         1, f);
 		fread_u16_die(&oldEnemyDat[i].eenemydie,     1, f);
 
-		#ifdef DO_DECRYPT
+		#ifdef DATA_EXTRACTOR
 		char filename[60];
 		snprintf(filename, sizeof(filename), "data/enemy/%d.tyremy", i);
 		if (!dir_file_exists(".", filename)) {
@@ -1818,6 +1817,7 @@ static void read_legacy_item_data(FILE *f)
 	
 	fclose(f);
 }
+#endif
 
 void JE_initEpisode(JE_byte newEpisode)
 {
@@ -1831,7 +1831,6 @@ void JE_initEpisode(JE_byte newEpisode)
 	snprintf(episode_file, sizeof(episode_file), "levels%d.dat",  episodeNum);
 	
 	JE_analyzeLevel();
-	JE_loadItemDat();
 }
 
 void JE_scanForEpisodes(void)

@@ -15,7 +15,7 @@
   <Import Project="opentyrian.vcxproj" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>DATA_EXTRACTOR;DO_DECRYPT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>DATA_EXTRACTOR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
