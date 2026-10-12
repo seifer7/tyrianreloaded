@@ -1,0 +1,84 @@
+name: C# build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore OpenTyrian.slnx
+      - run: dotnet format OpenTyrian.slnx --verify-no-changes --no-restore
+      - run: dotnet build OpenTyrian.slnx --no-restore
+      - run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build
+      - name: Compile native core reference
+        if: runner.os == 'Linux'
+        run: cc -std=c99 -Wall -Wextra -I src tests/native/core_reference.c src/arg_parse.c src/mtrand.c src/config_file.c -o "$RUNNER_TEMP/core_reference"
+      - name: Compare native and managed core
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-reference "$RUNNER_TEMP/core_reference"
+      - name: Compile native extractor reference
+        if: runner.os == 'Linux'
+        run: |
+          python3 tests/native/build_extractor_reference.py --output "$RUNNER_TEMP/extractor_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/extractor_reference.c" -o "$RUNNER_TEMP/extractor_reference"
+      - name: Compare native and managed extractor
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-extractor "$RUNNER_TEMP/extractor_reference"
+      - name: Compile native gameplay references
+        if: runner.os == 'Linux'
+        run: |
+          python3 tests/native/build_background_reference.py --output "$RUNNER_TEMP/background_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/background_reference.c" src/mtrand.c -o "$RUNNER_TEMP/background_reference"
+          python3 tests/native/build_items_reference.py --output "$RUNNER_TEMP/items_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/items_reference.c" src/mtrand.c -o "$RUNNER_TEMP/items_reference"
+          python3 tests/native/build_help_reference.py --output "$RUNNER_TEMP/help_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/help_reference.c" -o "$RUNNER_TEMP/help_reference"
+          python3 -B tests/native/build_shots_reference.py --output "$RUNNER_TEMP/shots_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/shots_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/shots_reference"
+          python3 -B tests/native/build_effects_reference.py --output "$RUNNER_TEMP/effects_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/effects_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/effects_reference"
+          python3 -B tests/native/build_combat_reference.py --output "$RUNNER_TEMP/combat_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/combat_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/combat_reference"
+          python3 -B tests/native/build_enemy_reference.py --output "$RUNNER_TEMP/enemy_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/enemy_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/enemy_reference"
+          python3 -B tests/native/build_enemy_attacks_reference.py --output "$RUNNER_TEMP/attacks_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/attacks_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/attacks_reference"
+          python3 -B tests/native/build_enemy_events_reference.py --output "$RUNNER_TEMP/events_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/events_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/events_reference"
+          python3 -B tests/native/build_level_events_reference.py --output "$RUNNER_TEMP/dispatch_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/dispatch_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/dispatch_reference"
+          python3 -B tests/native/build_level_map_reference.py --output "$RUNNER_TEMP/level_map_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/level_map_reference.c" -o "$RUNNER_TEMP/level_map_reference"
+          python3 -B tests/native/build_boss_bar_reference.py --output "$RUNNER_TEMP/boss_bar_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/boss_bar_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/boss_bar_reference"
+          python3 -B tests/native/build_level_state_reference.py --output "$RUNNER_TEMP/level_state_reference.c"
+          cc -std=c99 -Wall -Wextra -I src "$RUNNER_TEMP/level_state_reference.c" src/mtrand.c -lm -o "$RUNNER_TEMP/level_state_reference"
+          python3 -B tests/native/build_sound_bank_reference.py --output "$RUNNER_TEMP/sound_bank_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/sound_bank_reference.c" -o "$RUNNER_TEMP/sound_bank_reference"
+          python3 -B tests/native/build_audio_mixer_reference.py --output "$RUNNER_TEMP/audio_mixer_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/audio_mixer_reference.c" -lm -o "$RUNNER_TEMP/audio_mixer_reference"
+          python3 -B tests/native/build_music_reference.py --output "$RUNNER_TEMP/music_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/music_reference.c" -o "$RUNNER_TEMP/music_reference"
+          python3 -B tests/native/build_lds_reference.py --output "$RUNNER_TEMP/lds_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/lds_reference.c" -o "$RUNNER_TEMP/lds_reference"
+          python3 -B tests/native/build_input_reference.py --output "$RUNNER_TEMP/input_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/input_reference.c" -o "$RUNNER_TEMP/input_reference"
+          python3 -B tests/native/build_mouse_reference.py --output "$RUNNER_TEMP/mouse_reference.c"
+          cc -std=c99 -Wall -Wextra "$RUNNER_TEMP/mouse_reference.c" -o "$RUNNER_TEMP/mouse_reference"
+      - name: Compare native gameplay references
+        if: runner.os == 'Linux'
+        run: dotnet run --project tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj --no-build -- --native-background "$RUNNER_TEMP/background_reference" --native-items "$RUNNER_TEMP/items_reference" --native-help "$RUNNER_TEMP/help_reference" --native-shots "$RUNNER_TEMP/shots_reference" --native-effects "$RUNNER_TEMP/effects_reference" --native-combat "$RUNNER_TEMP/combat_reference" --native-enemies "$RUNNER_TEMP/enemy_reference" --native-attacks "$RUNNER_TEMP/attacks_reference" --native-events "$RUNNER_TEMP/events_reference" --native-dispatch "$RUNNER_TEMP/dispatch_reference" --native-level-map "$RUNNER_TEMP/level_map_reference" --native-boss-bars "$RUNNER_TEMP/boss_bar_reference" --native-level-state "$RUNNER_TEMP/level_state_reference" --native-sounds "$RUNNER_TEMP/sound_bank_reference" --native-mixer "$RUNNER_TEMP/audio_mixer_reference" --native-music "$RUNNER_TEMP/music_reference"         --native-lds "$RUNNER_TEMP/lds_reference" --native-input "$RUNNER_TEMP/input_reference" --native-mouse "$RUNNER_TEMP/mouse_reference"

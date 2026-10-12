@@ -13,6 +13,8 @@ tyrian.sav
 /obj/
 /src/*.gch
 /opentyrian
+**/bin/
+**/obj/
 
 # Windows build output
 /opentyrian.exe

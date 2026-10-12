@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src-csharp/OpenTyrian.Core/OpenTyrian.Core.csproj" />
+  <Project Path="src-csharp/OpenTyrian.Game/OpenTyrian.Game.csproj" />
+  <Project Path="src-csharp/OpenTyrian.DataExtractor/OpenTyrian.DataExtractor.csproj" />
+  <Project Path="tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj" />
+</Solution>
