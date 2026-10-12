@@ -762,6 +762,7 @@ void setupMenu(void)
 	}
 }
 
+#ifndef DATA_EXTRACTOR
 int main(int argc, char *argv[])
 {
 	mt_srand(time(NULL));
@@ -907,3 +908,4 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+#endif

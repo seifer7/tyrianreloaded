@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7923D2CE-AE78-448B-94E7-F8346E794FF3}</ProjectGuid>
+    <RootNamespace>data_extractor</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup>
+    <WITH_NETWORK>false</WITH_NETWORK>
+    <ProjectOutputDirectory>$(MSBuildThisFileDirectory)</ProjectOutputDirectory>
+    <ProjectIntermediateDirectory>$(MSBuildThisFileDirectory)..\obj\data_extractor\$(Platform)\$(Configuration)\</ProjectIntermediateDirectory>
+    <LocalDebuggerWorkingDirectory>$(MSBuildThisFileDirectory)</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <!-- Reuse the game's source list, toolchain and SDL settings with a console entry point. -->
+  <Import Project="opentyrian.vcxproj" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>DATA_EXTRACTOR;DO_DECRYPT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\data_extractor.c" />
+    <ResourceCompile Remove="resources.rc" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Platform)'=='x64'">
+    <Dependency Include="$(SDL2BaseDir)\bin\x64\SDL2.dll" Condition="Exists('$(SDL2BaseDir)\bin\x64\SDL2.dll')" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Platform)'=='Win32'">
+    <Dependency Include="$(SDL2BaseDir)\bin\x86\SDL2.dll" Condition="Exists('$(SDL2BaseDir)\bin\x86\SDL2.dll')" />
+  </ItemGroup>
+</Project>

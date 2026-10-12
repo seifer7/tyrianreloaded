@@ -18,7 +18,9 @@
  */
 #ifndef OPENTYR_H
 #define OPENTYR_H
+#ifndef DO_DECRYPT
 #define DO_DECRYPT
+#endif
 
 #include "SDL_types.h"
 

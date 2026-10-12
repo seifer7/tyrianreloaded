@@ -20,12 +20,14 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{F0FF290F-887C-4E70-8BF0-F5F45ADA8432}</ProjectGuid>
+    <ProjectGuid Condition="'$(ProjectGuid)'==''">{F0FF290F-887C-4E70-8BF0-F5F45ADA8432}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
-    <OutDir>$(SolutionDir)..\</OutDir>
-    <IntDir>$(SolutionDir)..\obj\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir Condition="'$(ProjectOutputDirectory)'==''">$(SolutionDir)..\</OutDir>
+    <OutDir Condition="'$(ProjectOutputDirectory)'!=''">$(ProjectOutputDirectory)</OutDir>
+    <IntDir Condition="'$(ProjectIntermediateDirectory)'==''">$(SolutionDir)..\obj\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(ProjectIntermediateDirectory)'!=''">$(ProjectIntermediateDirectory)</IntDir>
     <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>v142</PlatformToolset>

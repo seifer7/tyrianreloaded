@@ -32,6 +32,11 @@ tyrian.sav
 /visualc/.vs/
 /visualc/*.props
 /visualc/*.user
+/visualc/data_extractor-*.exe
+/visualc/data_extractor-*.ilk
+/visualc/data_extractor-*.pdb
+/visualc/data_extractor-*.iobj
+/visualc/data_extractor-*.ipdb
 
 # Doxygen output
 /doc/doxygen/

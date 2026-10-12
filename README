@@ -27,6 +27,26 @@ definitions must already be present.
 Both data and visualc\data are ignored by Git; neither the original assets
 nor the generated definitions are committed.
 
+== Standalone Data Extractor ===================================================
+
+The Visual Studio solution also contains a data_extractor console project.
+Build it with the same configuration and platform as the game, then run it
+from visualc so its output is available to the game:
+
+  cd visualc
+  .\data_extractor-x64-Debug.exe --data .\data
+
+Use --data to point to the directory containing the original Tyrian 2.1
+assets (in particular tyrian.hdt). Output always goes into data beneath the
+current working directory. The executable creates enemy, shots and the
+items subfolders and preserves existing definitions. To extract a fresh
+set without changing local edits, run it from a separate empty directory
+with --data pointing to the original asset directory.
+
+The standalone extractor does not extract shapes or levels, and does not
+start the game, graphics or audio. The game's DO_DECRYPT functionality is
+still enabled independently; it has not been removed.
+
 == Keyboard Controls ===========================================================
 
 alt-enter      -- toggle full-screen

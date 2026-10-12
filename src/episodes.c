@@ -873,8 +873,10 @@ void read_item_file(FILE* file, enum ITEM_TYPE item_type) {
 	free(buffer);
 }
 
+static void read_legacy_item_data(FILE *f);
+
 #ifdef DO_DECRYPT
-static void prepare_extracted_data_directories(void)
+static void prepare_extracted_data_directories(bool include_level_data)
 {
 	const char *const directories[] = {
 		"data", "data/shots", "data/enemy", "data/items",
@@ -882,7 +884,8 @@ static void prepare_extracted_data_directories(void)
 		"data/items/shield", "data/items/sidekick", "data/items/special",
 		"data/shapes", "data/levels"
 	};
-	for (uint i = 0; i < COUNTOF(directories); ++i)
+	const uint directoryCount = include_level_data ? COUNTOF(directories) : COUNTOF(directories) - 2;
+	for (uint i = 0; i < directoryCount; ++i)
 	{
 #ifdef TARGET_WIN32
 		const int result = _mkdir(directories[i]);
@@ -897,11 +900,39 @@ static void prepare_extracted_data_directories(void)
 		}
 	}
 }
+
+void extract_item_data(const char *assetDirectory)
+{
+	prepare_extracted_data_directories(false);
+	FILE *f = dir_fopen_die(assetDirectory, "tyrian.hdt", "rb");
+	fread_s32_die(&episode1DataLoc, 1, f);
+	if (fseek(f, episode1DataLoc, SEEK_SET) != 0)
+	{
+		fprintf(stderr, "error: cannot seek to item data in tyrian.hdt: %s\n", strerror(errno));
+		fclose(f);
+		exit(EXIT_FAILURE);
+	}
+	read_legacy_item_data(f);
+}
+
+static void close_extracted_file(FILE *f, const char *filename)
+{
+	bool failed = ferror(f) != 0;
+	if (fclose(f) != 0)
+		failed = true;
+	if (failed)
+	{
+		fprintf(stderr, "error: failed to write extracted data to '%s'.\n", filename);
+		if (remove(filename) != 0)
+			fprintf(stderr, "error: failed to remove incomplete output '%s': %s\n", filename, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+}
 #endif
 
 void load_items(void) {
 #ifdef DO_DECRYPT
-	prepare_extracted_data_directories();
+	prepare_extracted_data_directories(true);
 	JE_initEpisode(1);
 #endif
 	for (int item_type = 0; item_type < ItemType_Count; item_type++) {
@@ -1124,6 +1155,11 @@ void JE_loadItemDat(void)
 		fseek(f, lvlPos[lvlNum-1], SEEK_SET);
 	}
 
+	read_legacy_item_data(f);
+}
+
+static void read_legacy_item_data(FILE *f)
+{
 	JE_word itemNum[7]; /* [1..7] */
 	fread_u16_die(itemNum, 7, f);
 
@@ -1246,7 +1282,7 @@ void JE_loadItemDat(void)
 			fprintf(outF, "sound=%d\n", oldWeapons[i].sound);
 			fprintf(outF, "trail=%d\n", oldWeapons[i].trail);
 			fprintf(outF, "shipblastfilter=%d\n", oldWeapons[i].shipblastfilter);
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
@@ -1388,7 +1424,7 @@ void JE_loadItemDat(void)
 			}
 			fputs("\n", outF);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
@@ -1415,7 +1451,7 @@ void JE_loadItemDat(void)
 			fprintf(outF, "pwr=%d\n", oldSpecial[i].pwr);
 			fprintf(outF, "stype=%d\n", oldSpecial[i].stype);
 			fprintf(outF, "wpn=%d\n", oldSpecial[i].wpn);
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
@@ -1466,7 +1502,7 @@ void JE_loadItemDat(void)
 			fprintf(outF, "bigshipgraphx=%d\n", bigshipgraphxy[i][0]);
 			fprintf(outF, "bigshipgraphy=%d\n", bigshipgraphxy[i][1]);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
@@ -1518,7 +1554,7 @@ void JE_loadItemDat(void)
 			fprintf(outF, "bigshipgraphx=%d\n", bigshipgraphxy[i][0]);
 			fprintf(outF, "bigshipgraphy=%d\n", bigshipgraphxy[i][1]);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
@@ -1634,7 +1670,7 @@ void JE_loadItemDat(void)
 			fprintf(outF, "icongr=%d\n", oldOptions[i].icongr);
 			fprintf(outF, "position=%d\n", positions[i]);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
@@ -1668,7 +1704,7 @@ void JE_loadItemDat(void)
 			fprintf(outF, "itemgraphic=%d\n", oldShields[i].itemgraphic);
 			fprintf(outF, "cost=%d\n", oldShields[i].cost);
 			fprintf(outF, "probability=%d\n", probabilities[i]);
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
@@ -1775,7 +1811,7 @@ void JE_loadItemDat(void)
 
 			fprintf(outF, "enemyground=%d\n", (oldEnemyDat[i].explosiontype & 1) != 0);
 
-			fclose(outF);
+			close_extracted_file(outF, filename);
 		}
 		#endif
 	}
