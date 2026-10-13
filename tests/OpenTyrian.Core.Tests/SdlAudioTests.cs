@@ -6,6 +6,24 @@ namespace OpenTyrian.Core.Tests;
 
 internal static class SdlAudioTests
 {
+    internal static void TestDisabledInitialization()
+    {
+        var disabled = true;
+        using var output = new StringWriter();
+        var initialized = SdlAudioDevice.TryInitialize(ref disabled,
+            _ => throw new InvalidOperationException("Disabled audio constructed a mixer."),
+            output, out var device);
+        if (initialized || device is not null || !disabled || output.ToString().Length != 0)
+            throw new InvalidOperationException("Disabled audio initialization did not short-circuit cleanly.");
+
+        using var oplOutput = new StringWriter();
+        initialized = SdlAudioDevice.TryInitializeOpl(ref disabled, oplOutput,
+            out var oplDevice, out var player);
+        if (initialized || oplDevice is not null || player is not null ||
+            !disabled || oplOutput.ToString().Length != 0)
+            throw new InvalidOperationException("Disabled OPL audio initialization did not short-circuit cleanly.");
+    }
+
     internal static void Run(string native)
     {
         var expected = new StringBuilder();
@@ -60,10 +78,11 @@ internal static class SdlAudioTests
         TestDevice();
     }
 
-    private static void TestDevice()
+    internal static void TestDevice()
     {
         if (Environment.GetEnvironmentVariable("SDL_AUDIODRIVER") != "dummy")
             throw new InvalidOperationException("SDL audio device checks require SDL_AUDIODRIVER=dummy to avoid physical audio.");
+        TestDisabledInitialization();
         using (var device = new SdlAudioDevice(rate => new AudioMixer(rate, new SilentMusic())))
         {
             if (device.SampleRate != 44100 || device.BufferSamples != 1024)
@@ -80,6 +99,50 @@ internal static class SdlAudioTests
             device.Start(); WaitFor(() => device.CompletedCallbacks > callbacks, device.ThrowIfFaulted);
             device.Dispose(); device.Dispose();
             Throws<ObjectDisposedException>(device.Start);
+        }
+        var audioDisabled = false;
+        using (var output = new StringWriter())
+        {
+            if (!SdlAudioDevice.TryInitialize(ref audioDisabled,
+                    rate => new AudioMixer(rate, new SilentMusic()), output, out var initialized) ||
+                initialized is null || audioDisabled || output.ToString().Length != 0)
+                throw new InvalidOperationException("SDL audio initialization did not start successfully.");
+            using (initialized)
+                WaitFor(() => initialized.CompletedCallbacks > 0, initialized.ThrowIfFaulted);
+        }
+        var oplDisabled = false;
+        using (var output = new StringWriter())
+        {
+            var randomReads = 0;
+            if (!SdlAudioDevice.TryInitializeOpl(ref oplDisabled, output,
+                    out var oplDevice, out var player, () => { randomReads++; return 1; }) ||
+                oplDevice is null || player is null || oplDisabled || output.ToString().Length != 0 ||
+                !oplDevice.Mixer.MusicStopped || oplDevice.SampleRate < 139)
+            {
+                oplDevice?.Dispose();
+                throw new InvalidOperationException("SDL OPL audio initialization did not create a live LDS/OPL mixer.");
+            }
+            using (oplDevice)
+            {
+                var song = LdsPlayerTests.FixtureForAudio();
+                song[14] = 0x3f;
+                player.Load(song);
+                oplDevice.Mixer.MusicStopped = false;
+                oplDevice.Start();
+                WaitFor(() => oplDevice.CompletedCallbacks > 0, oplDevice.ThrowIfFaulted);
+                oplDevice.Pause();
+                player.Free();
+            }
+            if (randomReads == 0)
+                throw new InvalidOperationException("SDL OPL playback did not forward its injected rhythm-noise source.");
+        }
+        var factoryFailureDisabled = false;
+        using (var output = new StringWriter())
+        {
+            Throws<IOException>(() => SdlAudioDevice.TryInitialize(ref factoryFailureDisabled,
+                _ => throw new IOException("Synthetic mixer factory failure."), output, out _));
+            if (factoryFailureDisabled || output.ToString().Length != 0)
+                throw new InvalidOperationException("Unexpected mixer failures were converted to disabled-audio success.");
         }
         Throws<IOException>(() => new SdlAudioDevice(_ => throw new IOException("Synthetic mixer factory failure.")));
         using (var recovered = new SdlAudioDevice(rate => new AudioMixer(rate, new SilentMusic())))

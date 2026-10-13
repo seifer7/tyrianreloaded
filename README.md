@@ -120,9 +120,14 @@ audio-device callback playback are integrated with the sound bank and mixer.
 Real SDL2 event queues and window/renderer/texture presentation are integrated
 with managed input, indexed palettes/scalers, fullscreen and viewport state.
 HQ2x/HQ3x/HQ4x now have managed kernels with exact native pixel parity and
-real SDL presentation across all nine scaler choices. FM waveform synthesis
-remains pending. These systems are integrated into the
-library and regression harness, not yet into playable game flows. Native
+real SDL presentation across all nine scaler choices. OPL2 FM sample rendering
+and SDL audio initialization are implemented: the device negotiates its sample
+rate before creating the LDS/OPL2 synthesizer, and PCM vectors match native
+FM/additive voices, tremolo, feedback, percussion, multiple channels, and block
+boundaries. Rhythm noise accepts a platform random-source callback.
+Conditional OPL3 four-operator sample output remains unimplemented, and full
+game-host audio/title-menu integration is still pending. These systems are
+integrated into the library and regression harness, not yet into playable game flows. Native
 differential checks compare parsing, RNG, configuration, backgrounds, typed
 items, help layouts, projectiles, effects, combat/HUD, enemy/collision/attack traces,
 all level-event groups, binary level loading, boss bars, completion/sound queues,
@@ -138,7 +143,8 @@ The full jukebox loop now combines all 15 animated star patterns, original
 music/sample title tables, keyboard/music/sample controls, automatic song fades,
 and mouse/key exit with palette fading. Its concrete font/palette/star renderer
 and music-controller/PCM/sample adapters are exercised through real SDL
-presentation/events; FM synthesis and the title-menu caller remain pending.
+presentation/events; OPL2 synthesis is available through the core LDS interface,
+but the title-menu caller remains pending.
 
 The game host supports the native `--help`, modern/legacy options, and network
 argument validation. Actual launch remains an explicit incomplete-game error;

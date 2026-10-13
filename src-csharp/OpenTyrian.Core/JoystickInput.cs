@@ -338,3 +338,126 @@ public sealed class JoystickInput(IReadOnlyList<JoystickState> joysticks, Func<u
         return detected;
     }
 }
+
+public interface IJoystickAssignmentHost
+{
+    JoystickAssignment? DetectAssignment();
+    void DrawSelectionRectangle(int left, int top, int right, int bottom, int color);
+    void PollJoysticks();
+}
+
+public static class JoystickConfigurationSelection
+{
+    public static void AdjustSetting(byte selection, int direction,
+        IReadOnlyList<JoystickState> joysticks, ref int joystickConfig)
+    {
+        ArgumentNullException.ThrowIfNull(joysticks);
+        if (joysticks.Count == 0)
+            return;
+        if ((uint)joystickConfig >= (uint)joysticks.Count)
+            throw new ArgumentOutOfRangeException(nameof(joystickConfig));
+
+        if (selection == 2)
+        {
+            joystickConfig = (joystickConfig + joysticks.Count + direction) % joysticks.Count;
+            return;
+        }
+
+        var joystick = joysticks[joystickConfig];
+        switch (selection)
+        {
+            case 3:
+                joystick.Analog = !joystick.Analog;
+                break;
+            case 4 when joystick.Analog:
+                joystick.Sensitivity = (joystick.Sensitivity + 11 + direction) % 11;
+                break;
+            case 5 when joystick.Analog:
+                joystick.Threshold = (joystick.Threshold + 11 + direction) % 11;
+                break;
+        }
+    }
+
+    public static void Handle(byte selection, IReadOnlyList<JoystickState> joysticks,
+        ref int joystickConfig, bool networkGame, Action<byte> setCurrentMenu,
+        IJoystickAssignmentHost assignmentHost)
+    {
+        ArgumentNullException.ThrowIfNull(joysticks);
+        ArgumentNullException.ThrowIfNull(setCurrentMenu);
+        ArgumentNullException.ThrowIfNull(assignmentHost);
+        if (joysticks.Count == 0)
+        {
+            if (selection == 17)
+                setCurrentMenu(networkGame ? (byte)11 : (byte)2);
+            return;
+        }
+        if (selection == 17)
+        {
+            setCurrentMenu(networkGame ? (byte)11 : (byte)2);
+            return;
+        }
+        if (joystickConfig < 0 || joystickConfig >= joysticks.Count)
+            throw new ArgumentOutOfRangeException(nameof(joystickConfig));
+
+        switch (selection)
+        {
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+                AdjustSetting(selection, 1, joysticks, ref joystickConfig);
+                break;
+            case 16:
+                joysticks[joystickConfig].ResetAssignments();
+                break;
+            default:
+                if (selection is >= 6 and <= 15)
+                    Assign(joysticks[joystickConfig], selection, assignmentHost);
+                break;
+        }
+    }
+
+    public static void Assign(JoystickState joystick, byte selection, IJoystickAssignmentHost host)
+    {
+        ArgumentNullException.ThrowIfNull(joystick);
+        ArgumentNullException.ThrowIfNull(host);
+        if (selection is < 6 or > 15)
+            throw new ArgumentOutOfRangeException(nameof(selection));
+
+        host.DrawSelectionRectangle(235, 21 + selection * 8, 310, 30 + selection * 8, 248);
+        var assignment = host.DetectAssignment();
+        if (assignment is not JoystickAssignment detected)
+            return;
+
+        var action = selection - 6;
+        var first = joystick.Assignments[action, 0];
+        var second = joystick.Assignments[action, 1];
+        if (first.Matches(detected))
+        {
+            joystick.Assignments[action, 0] = first with { Kind = JoystickAssignmentKind.None };
+            host.PollJoysticks();
+            return;
+        }
+        if (second.Matches(detected))
+        {
+            joystick.Assignments[action, 1] = second with { Kind = JoystickAssignmentKind.None };
+            host.PollJoysticks();
+            return;
+        }
+
+        if (first.Kind == JoystickAssignmentKind.None)
+        {
+            joystick.Assignments[action, 0] = detected;
+        }
+        else if (second.Kind == JoystickAssignmentKind.None)
+        {
+            joystick.Assignments[action, 1] = detected;
+        }
+        else
+        {
+            joystick.Assignments[action, 0] = second;
+            joystick.Assignments[action, 1] = detected;
+        }
+        host.PollJoysticks();
+    }
+}

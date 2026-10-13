@@ -31,6 +31,85 @@ internal static class JoystickTests
         joystick.PushKey(40);
         Check(events.Dequeue().Kind == InputEventKind.KeyDown && events.Dequeue().Kind == InputEventKind.KeyUp,
             "Joystick keyboard synthesis order changed.");
+
+        AssignmentRouting();
+    }
+
+    private static void AssignmentRouting()
+    {
+        var state = new JoystickState(new Device());
+        var axis = new JoystickAssignment(JoystickAssignmentKind.Axis, 1, Negative: true);
+        var button = new JoystickAssignment(JoystickAssignmentKind.Button, 2);
+        var hat = new JoystickAssignment(JoystickAssignmentKind.Hat, 0, XAxis: true);
+
+        state.Assignments[0, 0] = axis;
+        state.Assignments[0, 1] = button;
+        var host = new AssignmentHost(axis);
+        JoystickConfigurationSelection.Assign(state, 6, host);
+        Check(state.Assignments[0, 0] == axis with { Kind = JoystickAssignmentKind.None } &&
+            state.Assignments[0, 1] == button && host.Polls == 1,
+            "Matching joystick assignment was not removed while preserving its stored fields.");
+        Check(host.Rectangle == (235, 69, 310, 78, 248), "Joystick assignment highlight used the wrong native row.");
+
+        state.Assignments[0, 0] = axis;
+        state.Assignments[0, 1] = new(JoystickAssignmentKind.None, 44, XAxis: true);
+        host = new AssignmentHost(hat);
+        JoystickConfigurationSelection.Assign(state, 6, host);
+        Check(state.Assignments[0, 0] == axis && state.Assignments[0, 1] == hat,
+            "Joystick assignment did not fill the first unassigned slot.");
+
+        state.Assignments[0, 0] = axis;
+        state.Assignments[0, 1] = button;
+        host = new AssignmentHost(hat);
+        JoystickConfigurationSelection.Assign(state, 6, host);
+        Check(state.Assignments[0, 0] == button && state.Assignments[0, 1] == hat,
+            "A third joystick assignment did not shift the older assignment out.");
+
+        host = new AssignmentHost(null);
+        var before = (state.Assignments[0, 0], state.Assignments[0, 1]);
+        JoystickConfigurationSelection.Assign(state, 6, host);
+        Check((state.Assignments[0, 0], state.Assignments[0, 1]) == before && host.Polls == 0,
+            "Unsuccessful joystick detection modified the assignments or polled devices.");
+        Throws<ArgumentOutOfRangeException>(() => JoystickConfigurationSelection.Assign(state, 5, host));
+
+        JoystickState[] joysticks = [new(new Device()), new(new Device())];
+        var selectedJoystick = 0;
+        JoystickConfigurationSelection.AdjustSetting(2, -1, joysticks, ref selectedJoystick);
+        Check(selectedJoystick == 1, "Joystick selection did not wrap backward.");
+        JoystickConfigurationSelection.AdjustSetting(4, 1, joysticks, ref selectedJoystick);
+        Check(joysticks[1].Sensitivity == 5, "Sensitivity changed while analog controls were disabled.");
+        JoystickConfigurationSelection.AdjustSetting(3, 1, joysticks, ref selectedJoystick);
+        JoystickConfigurationSelection.AdjustSetting(4, 1, joysticks, ref selectedJoystick);
+        JoystickConfigurationSelection.AdjustSetting(5, -1, joysticks, ref selectedJoystick);
+        Check(joysticks[1].Analog && joysticks[1].Sensitivity == 6 && joysticks[1].Threshold == 4,
+            "Joystick analog settings did not toggle or wrap with their native direction.");
+        joysticks[1].Assignments[0, 0] = hat;
+        JoystickConfigurationSelection.Handle(16, joysticks, ref selectedJoystick, false,
+            _ => throw new InvalidOperationException("Reset unexpectedly returned to options."), new AssignmentHost(null));
+        Check(joysticks[1].Assignments[0, 0].Kind == JoystickAssignmentKind.Axis &&
+            !joysticks[1].Analog && joysticks[1].Sensitivity == 5 && joysticks[1].Threshold == 5,
+            "Joystick reset did not restore capability-dependent assignments and analog defaults.");
+
+        byte destinationMenu = 0;
+        JoystickConfigurationSelection.Handle(17, [], ref selectedJoystick, true,
+            menu => destinationMenu = menu, new AssignmentHost(null));
+        Check(destinationMenu == 11, "No-joystick exit did not return to network options.");
+        destinationMenu = 0;
+        JoystickConfigurationSelection.Handle(17, joysticks, ref selectedJoystick, false,
+            menu => destinationMenu = menu, new AssignmentHost(null));
+        Check(destinationMenu == 2, "Joystick configuration did not return to local options.");
+        JoystickConfigurationSelection.Handle(3, [], ref selectedJoystick, false,
+            _ => throw new InvalidOperationException("No joystick setting should exit."), new AssignmentHost(null));
+    }
+
+    private sealed class AssignmentHost(JoystickAssignment? detection) : IJoystickAssignmentHost
+    {
+        internal int Polls;
+        internal (int Left, int Top, int Right, int Bottom, int Color) Rectangle;
+        public JoystickAssignment? DetectAssignment() => detection;
+        public void DrawSelectionRectangle(int left, int top, int right, int bottom, int color)
+            => Rectangle = (left, top, right, bottom, color);
+        public void PollJoysticks() => Polls++;
     }
 
     private static string Execute()

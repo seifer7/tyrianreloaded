@@ -34,6 +34,32 @@ public sealed class PlayerProgression(LegacyGameState game, ItemDatabase items)
         return NativeUnsignedLong(unchecked((ulong)(long)cost));
     }
 
+    public int CashLeft(byte itemType)
+    {
+        if (itemType is < 2 or > 8)
+        {
+            throw new ArgumentOutOfRangeException(nameof(itemType));
+        }
+
+        var player = game.Players[0];
+        var itemNumber = player.Items.GetMenuItemId(itemType - 2);
+        var cashLeft = unchecked((int)player.Cash - (int)GetCost(itemType, itemNumber));
+        if (itemType is 3 or 4)
+        {
+            var port = itemType - 3;
+            var power = player.Items.Weapons[port].Power;
+            var baseCost = items.Weapons[itemNumber].Cost;
+            ushort accumulatedUpgradeCost = 0;
+            for (uint i = 1; i < power; i++)
+            {
+                accumulatedUpgradeCost = unchecked((ushort)(accumulatedUpgradeCost + unchecked(baseCost * (int)i)));
+                cashLeft = unchecked(cashLeft - accumulatedUpgradeCost);
+            }
+        }
+
+        return cashLeft;
+    }
+
     public int GetValue(byte type, ushort index)
     {
         long value = BaseCost(type, index);

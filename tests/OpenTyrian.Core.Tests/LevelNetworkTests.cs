@@ -9,6 +9,7 @@ internal static class LevelNetworkTests
 {
     public static void Run(string? executable = null)
     {
+        InGameChat.Handle();
         var definitions = new ItemDefinitions();
         definitions.ParseBundle(Encoding.Latin1.GetBytes(LevelEventTests.Fixture()), "network-level.tyrr");
         var items = ItemDatabase.FromDefinitions(definitions);

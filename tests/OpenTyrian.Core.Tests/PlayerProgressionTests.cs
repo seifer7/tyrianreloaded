@@ -79,6 +79,18 @@ internal static class PlayerProgressionTests
                     game.InitialDifficulty = (sbyte)difficulty; game.Difficulty = (sbyte)(mode % 11);
                     progression.AdjustDifficulty(); trace.AppendLine($"difficulty:{difficulty},{j},{game.Difficulty}");
                 }
+            var maximumCash = OperatingSystem.IsWindows() || IntPtr.Size == 4 ? uint.MaxValue : ulong.MaxValue;
+            foreach (var cash in new[] { 0UL, 1UL, 100000UL, maximumCash, maximumCash - 1 })
+            {
+                game.Players[0].Cash = cash;
+                foreach (var power in new byte[] { 1, 2, 11 })
+                {
+                    game.Players[0].Items.Weapons[0].Power = power;
+                    game.Players[0].Items.Weapons[1].Power = power;
+                    for (byte type = 2; type <= 8; type++)
+                        trace.AppendLine($"cash-left:{mode},{cash},{power},{type},{progression.CashLeft(type)}");
+                }
+            }
             void Dump(PlayerItems p) => trace.AppendLine($"items:{p.Weapons[0].Id},{p.Weapons[0].Power},{p.Weapons[1].Id},{p.Weapons[1].Power}," +
                 $"{p.Sidekicks[0]},{p.Sidekicks[1]},{p.Special},{p.Ship},{p.SidekickLevel},{p.SidekickSeries},{p.SuperArcadeMode},{p.Generator},0,0,0");
         }

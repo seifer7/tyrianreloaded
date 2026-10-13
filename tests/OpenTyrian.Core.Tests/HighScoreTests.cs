@@ -46,6 +46,7 @@ internal static class HighScoreTests
         }
         TestHost();
         TestEditing(items, text, episodes);
+        TestSaveNamePopup();
         if (executable is null) return;
         var path = Path.Combine(Path.GetTempPath(), $"opentyrian-scores-{Guid.NewGuid():N}.tyrr");
         File.WriteAllBytes(path, Encoding.Latin1.GetBytes(fixture));
@@ -66,6 +67,78 @@ internal static class HighScoreTests
             }
         }
         finally { File.Delete(path); }
+    }
+
+    private static void TestSaveNamePopup()
+    {
+        var text = Enumerable.Range(0, 11).Select(i => Encoding.ASCII.GetBytes($"Text{i}")).ToArray();
+        var host = new TraceSaveNameHost(
+        [
+            new(false, false, true, 0, 0, 0, 0, "ab "u8.ToArray()),
+            new(true, false, false, 42, 0, 0, 0, ReadOnlyMemory<byte>.Empty),
+            new(true, false, false, 40, 0, 0, 0, ReadOnlyMemory<byte>.Empty)
+        ]);
+        SavedGameNamePopup.Run(true, "LEVEL"u8.ToArray(), text, host);
+        if (host.Saved != "AB" || host.Loaded is not null ||
+            !host.Calls.Contains("wait-no-input") || !host.Calls.Contains("shade:65,55,255,155") ||
+            !host.Calls.Contains("text:60,55,Text0,11,4,True") ||
+            !host.Calls.Contains("adjusted:Text9") || !host.Calls.Contains("adjusted:Text10"))
+            throw new InvalidOperationException("Save-name popup changed text editing, trimming, layout or save dispatch.");
+
+        host = new TraceSaveNameHost(
+        [
+            new(false, false, true, 0, 0, 0, 0, "load me"u8.ToArray()),
+            new(true, false, false, 88, 0, 0, 0, ReadOnlyMemory<byte>.Empty),
+            new(true, false, false, 40, 0, 0, 0, ReadOnlyMemory<byte>.Empty)
+        ]);
+        SavedGameNamePopup.Run(false, "LEVEL"u8.ToArray(), text, host);
+        if (host.Loaded != "LOAD ME" || host.Saved is not null)
+            throw new InvalidOperationException("Save-name popup changed load dispatch or text capitalization.");
+
+        host = new TraceSaveNameHost(
+        [
+            new(false, false, true, 0, 0, 0, 0, "cancel"u8.ToArray()),
+            new(true, false, false, 41, 0, 0, 0, ReadOnlyMemory<byte>.Empty)
+        ]);
+        SavedGameNamePopup.Run(true, "LEVEL"u8.ToArray(), text, host);
+        if (host.Saved is not null || host.Loaded is not null)
+            throw new InvalidOperationException("Save-name popup did not suppress save dispatch after Escape.");
+    }
+
+    private sealed class TraceSaveNameHost(IEnumerable<HighScoreInput> inputs) : ISavedGameNamePopupHost
+    {
+        private readonly Queue<HighScoreInput> _inputs = new(inputs);
+        public List<string> Calls { get; } = [];
+        public HighScoreInput Input { get; private set; }
+        public bool Playing => true;
+        public string? Saved { get; private set; }
+        public string? Loaded { get; private set; }
+        public void EnsureMouseSprite() => Calls.Add("cursor");
+        public void WaitForNoInput(CancellationToken cancellation) => Calls.Add("wait-no-input");
+        public void Shade(int left, int top, int right, int bottom) => Calls.Add($"shade:{left},{top},{right},{bottom}");
+        public void ServiceEvents(bool clearNew)
+        {
+            if (clearNew) Input = default;
+            if (_inputs.Count > 0) Input = _inputs.Dequeue();
+        }
+        public void DrawMessageBox() => Calls.Add("message-box");
+        public void DrawShadedText(int x, int y, ReadOnlyMemory<byte> text, byte color, int brightness, bool darken)
+            => Calls.Add($"text:{x},{y},{Encoding.ASCII.GetString(text.Span)},{color},{brightness},{darken}");
+        public void DrawName(int x, int y, ReadOnlyMemory<byte> text) => Calls.Add($"name:{x},{y},{Encoding.ASCII.GetString(text.Span)}");
+        public int TextWidth(ReadOnlyMemory<byte> text, Font font) => text.Length * 5;
+        public void DrawAdjustedText(int x, int y, ReadOnlyMemory<byte> text, byte color, int adjustment, Font font, bool centered)
+            => Calls.Add($"adjusted:{Encoding.ASCII.GetString(text.Span)}");
+        public void Fill(int left, int top, int right, int bottom, byte color) { }
+        public void SetDelay(int ticks) { }
+        public void MouseStart() { }
+        public void Present() { }
+        public void MouseReplace() { }
+        public void PushJoysticks() { }
+        public void ServiceWait() { }
+        public void ReadMousePosition() { }
+        public void PlaySong(uint song) { }
+        public void SaveGame(string name) => Saved = name;
+        public void LoadGame(string name) => Loaded = name;
     }
 
     private static void TestEditing(ItemDatabase items, byte[][] text, byte[][] episodes)

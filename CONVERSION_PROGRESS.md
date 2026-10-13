@@ -10,12 +10,12 @@ The inventory audit restored sixteen existing OPL definitions and eleven
 existing inline directory helpers omitted by the original scanner; these are
 not newly added native functions and remain unchecked until dispositioned.
 
-**Baseline conversion status: 23/126 files dispositioned; 585/766 functions
+**Baseline conversion status: 38/126 files dispositioned; 704/766 functions
 converted and verified.** The C# foundation also adds one solution, shared
-build properties, four projects, one hundred twenty-eight application source
-files, one hundred thirteen managed test sources, four native harnesses,
+build properties, four projects, one hundred thirty application source
+files, one hundred fourteen managed test sources, four native harnesses,
 ninety-one oracle generators, one inventory checker, and one managed kernel
-generator (351 added implementation/build/test files).
+generator (356 added implementation/build/test files).
 The game entrypoint parses native
 options but remains unplayable; the data extractor has synthetic native parity.
 
@@ -95,6 +95,10 @@ options but remains unplayable; the data extractor has synthetic native parity.
   left pending their explicit managed-ownership disposition.
 - [x] `tests/OpenTyrian.Core.Tests/ConfigurationTests.cs` - configuration
   roundtrips, model operations, typed settings, and invalid directives.
+- [x] `src-csharp/OpenTyrian.Core/DestructUnitNames.cs` - typed Destruct unit
+  values and exact native string-to-unit lookup.
+- [x] `tests/OpenTyrian.Core.Tests/DestructUnitNameTests.cs` - all names,
+  case/whitespace rejection, unknown values, and null handling.
 - [x] `src-csharp/OpenTyrian.Core/EncryptedText.cs` - byte-preserving Pascal
   string decryption, truncation/NUL termination, and skip operations.
 - [x] `src-csharp/OpenTyrian.Core/AnimationFile.cs` - LPF header, palette,
@@ -421,7 +425,9 @@ options but remains unplayable; the data extractor has synthetic native parity.
 - [x] `src-csharp/OpenTyrian.Core/LdsPlayer.cs` - bounded binary LDS loading,
   typed instrument/channel/order ownership, rewind/OPL initialization, register
   caching/masking, instrument triggers, tuning/glide/portamento, vibrato/
-  tremolo/arpeggio setup, and managed teardown. Required OPL adapter remains pending.
+  tremolo/arpeggio setup, managed teardown, and OPL2 FM sample rendering via
+  the synthesizer contract. Conditional OPL3 four-operator sample rendering is
+  not implemented or verified.
 - [x] `src-csharp/OpenTyrian.Core/LdsPlayback.cs` - complete nine-channel
   packed-pattern sequencing, note/instrument transpose, delays, every native
   command, tempo/order jumps and looping, fade, key-off, arpeggio, portamento,
@@ -433,8 +439,9 @@ options but remains unplayable; the data extractor has synthetic native parity.
 - [x] `tests/OpenTyrian.Core.Tests/LdsPlayerTests.cs` - 24 synthetic songs,
   9,216 sequencer frames and 1,536 direct notes, all native command families,
   transposes, effects, delayed notes, fades, stop/loops/rewind/cache writes,
-  truncation/invalid data, and real archive/controller/LDS/mixer integration
-  through an explicitly synthetic OPL renderer (not FM waveform parity).
+  truncation/invalid data, real archive/controller/LDS/mixer integration,
+  and native OPL2 sample parity for FM/additive, tremolo, feedback, percussion,
+  multiple channels, block boundaries, and reset behavior.
 - [x] `tests/native/build_lds_reference.py` - entire unchanged LDS source,
   native instrument/channel models, recorded OPL reset/register order and
   playback state snapshots.
@@ -479,14 +486,26 @@ options but remains unplayable; the data extractor has synthetic native parity.
   mono signed-16 device, native 44100 Hz/1024-frame request and frequency/
   buffer negotiation, rooted callback, real `AudioMixer` invocation, start/
   pause/close, channel cleanup, subsystem lifetime and construction rollback.
+  `TryInitialize` preserves the native already-disabled short-circuit,
+  initialization/open failure diagnostics and audio-disable policy, and starts
+  successful devices; non-SDL mixer failures continue to propagate.
   Native callback faults are retained, output silenced, and rethrown by
   `ThrowIfFaulted`, start/pause/dispose. Host must check faults each frame.
-  Full `init_audio`/`deinit_audio` stay pending until FM initialization and
-  LDS lifetime are wired into the game host.
+  `TryInitializeOpl` creates a sample-rate-matched OPL2 chip and LDS player
+  through the actual SDL device/mixer factory; native rhythm noise remains an
+  injected platform random source. Full game-host lifetime wiring remains
+  pending. `deinit_audio` is verified below.
 - [x] `tests/OpenTyrian.Core.Tests/SdlAudioTests.cs` - 192 actual SDL
   conversion buffers (six rates, eight lengths, four signed patterns), all
-  38 sound-bank conversions and PCM consumption, real dummy-driver callback
-  timing/start/pause/GC rooting/dispose, factory/callback failures and reopen.
+  38 sound-bank conversions and PCM consumption, real dummy-driver OPL2/LDS
+  initialization with sample playback through the callback, callback timing/
+  start/pause/GC rooting/dispose, factory/callback failures and reopen.
+- [x] `src-csharp/OpenTyrian.Core/TinyDirectory.cs` - managed sorted directory
+  entries, indexed file/subdirectory navigation, file lookup, extension extraction, and
+  native-compatible empty-directory/index failure handling.
+- [x] `tests/OpenTyrian.Core.Tests/TinyDirectoryTests.cs` - temporary
+  filesystem checks for directories-first sorting, file/directory metadata,
+  hidden/trailing-dot extensions, nested and empty directories, and errors.
 - [x] `tests/native/sdl_audio_reference.c` - native SDL CVT ABI validation
   and exact converted sample lengths/byte hashes using the same SDL2 runtime.
 - [x] `src-csharp/OpenTyrian.Core/GameOptions.cs` - complete native game
@@ -532,8 +551,11 @@ options but remains unplayable; the data extractor has synthetic native parity.
   and two-bind maximums, poll/repeat/confirm/cancel, ordered menu key synthesis,
   native defaults, config load/save, exact code parsing/six-character format/
   comparison, and assignment capture with native axis/button/hat precedence,
-  release tracking and input/display/PIT integration. Undefined integer/divide/
-  code-number overflow throws; defined negative thresholds remain compatible.
+  release tracking and input/display/PIT integration. Configuration assignment
+  insertion, duplicate removal, two-slot rolling replacement, joystick
+  selection, analog toggling and sensitivity/threshold adjustment are ported.
+  Undefined integer/divide/code-number overflow throws; defined negative
+  thresholds remain compatible.
 - [x] `src-csharp/OpenTyrian.Core/SdlJoysticks.cs` - actual SDL joystick
   initialization/event-disable/enumeration/open/capabilities, config/defaults,
   poll/key-synthesis bridge to `SdlInputPlatform`, diagnostics, ignored gates,
@@ -544,9 +566,11 @@ options but remains unplayable; the data extractor has synthetic native parity.
   codes, 484 equality pairs, 640 defaults, 4,608 native state snapshots over
   1,536 three-device frames, 1,536 analog/reduction traces, 32 exact config
   save/load outputs, eight detector cases (signed axes, thresholds, release,
-  overriding hats/buttons, key/mouse cancellation) and invalid-input guards.
-  Analog angles use a 1e-6 radian tolerance for platform math-library rounding;
-  all integer/state/config/event ordering comparisons are exact.
+  overriding hats/buttons, key/mouse cancellation), assignment routing,
+  defaults/reset, joystick wrapping, analog gating and options-return cases,
+  and invalid-input guards. Analog angles use a 1e-6 radian tolerance for
+  platform math-library rounding; all integer/state/config/event ordering
+  comparisons are exact.
 - [x] `tests/OpenTyrian.Core.Tests/SdlJoystickTests.cs` - real synthetic
   SDL virtual device enumeration, axes/buttons/hats into managed state, actual
   SDL menu key-down/up queue, assignment save/reopen, ignored-device gates,
@@ -559,16 +583,46 @@ options but remains unplayable; the data extractor has synthetic native parity.
   bounds, disabled entries, mouse-over-key precedence, difficulty unlocks,
   sound/fade/keep-alive ordering and commit/cancel state. Shared managed
   presentation uses font shadows, full background copy, cursor save/restore
-  (also on present failure), and required palette/audio/episode/platform hooks.
+  (also on present failure), required palette/audio/episode/platform hooks,
+  menu navigation geometry/rendering/help selection, planet rendering,
+  pitch-aware native bitmap scaling, weapon-preview initialization, and
+  ship-specification/upgrade-score presentations and navigation-map frame
+  integration, next-level setup, item-upgrade submenu label/state building,
+  keyboard configuration defaults, options return, and key rebinding, plus
+  full-game, multiplayer, limited/options, SuperTyrian, upgrade, next-level and
+  upgrade-completion and data-cube menu actions, and two-player device
+  cycling in both directions. The central menu-selection dispatcher preserves
+  its click/color setup, selected-row versus clicked-row arguments, submenu
+  routing and post-dispatch player-item snapshot.
+  Confirmed menu exits now also preserve conditional network halting and the
+  native game-loaded/main-level state transition. The confirmation dialog
+  reproduces native keyboard/mouse selection, animation brightness, frame
+  ordering, cursor presentation, final sound and network quit packet/halt
+  behavior.
 - [x] `tests/OpenTyrian.Core.Tests/SelectionMenuTests.cs` - 120 native
   menu scenarios tracing complete draws/frame hashes, sounds, waits, fades,
   keep-alives and return/game state; native boundary and hidden difficulty
   checks, concrete managed font/cursor integration, validation and error
-  cleanup. SDL input group additionally runs all selectors with real SDL
-  event queues, live modifier state, PIT-timed palette fades and presentation.
+  cleanup; help selection, navigation planet rendering, weapon preview, and
+  bitmap-scaling/presentation, score formatting, all upgrade submenu
+  categories, confirmed/cancelled local/network quit transitions, and keyboard
+  and mouse quit-dialog scenarios additionally match native traces. Keyboard
+  configuration tests cover default reset, local/network return destinations,
+  binding swaps, reserved keys and mouse cancellation. SDL input
+  group also runs selectors with real events, modifiers and PIT fades. Main
+  menu tests cover each navigation action, local/network exit destinations,
+  two-player device cycling, upgrade snapshot isolation, cash handoff, Done
+  selection, data-cube subpage/empty-state transitions, save/load paging,
+  quick-save restoration, save-name popups, save-list disposal, and
+  twelve exact native device-cycling traces. The original C menu dispatcher
+  also matches managed dispatch callback order and state across all fourteen
+  menu kinds plus an unknown-menu path. Upgrade-weapon power changes match
+  native temporary-array and narrowed player-power state across 24 traces.
 - [x] `tests/native/build_selection_menus_reference.py` - unchanged
-  complete `menus.c` functions with asset-free traced presentation services
-  and scripted keyboard/mouse/modifier input across 120 cases.
+  complete `menus.c` functions with asset-free traced presentation services,
+  menu-help selection, navigation grid/dot/planet, bitmap-scale, item submenu,
+  and complete quit-confirmation traces, and scripted keyboard/mouse/modifier
+  input across 120 cases.
 - [x] `tests/OpenTyrian.Core.Tests/UiControlTests.cs` - 256 native
   shadowed-gauge frame hashes/warnings, width/height unsigned underflow,
   clipping/pitch/color wrapping, partial-segment division order, zero divisor
@@ -1132,7 +1186,7 @@ these implementation inventories:
 | `build_extractor_reference.py` | `without_includes`, `build_source`, `main` |
 | `MersenneTwister.cs` | `Seed`, `NextUInt32`, `NextFloatInclusive`, `NextFloatExclusive` |
 | `SizeBuffer.cs` | Constructor, `Fill`, `CopyFrom`, `Seek`, `ReadByte`, `ReadWord`, `CanAccess` |
-| `Configuration.cs` | `ConfigOption` constructor, `CString`, `SetValue`, `AddValue`, `RemoveValue`; `ConfigSection` constructor, `GetOption`, `SetOption`, `GetOrSetOption`, `AppendOption`, `TryGetString`, `GetOrSetString`, `SetBoolean`, `TryGetBoolean`, `GetOrSetBoolean`, `SetInt32`, `SetUInt32`, `TryGetInt32`, `TryGetUInt32`, `GetOrSetInt32`, `GetOrSetUInt32`, `TryGetInteger`; `Configuration.Clear`, `AddSection`, `FindSections`, `FindSection`, `FindOrAddSection`, `Parse`, `IsWhitespace`, `IsEnd`, `CharacterAt`, `ReadDirective`, `TryReadField`, `HexDigit`, `Write`, `WriteField` |
+| `Configuration.cs` | `ConfigOption` constructor, `CString`, `SetValue`, `AddValue`, `RemoveValue`; `ConfigSection` constructor, `GetOption`, `SetOption`, `GetOrSetOption`, `AppendOption`, `TryGetString`, `GetOrSetString`, `SetBoolean`, `TryGetBoolean`, `GetOrSetBoolean`, `SetInt32`, `SetUInt32`, `TryGetInt32`, `TryGetUInt32`, `GetOrSetInt32`, `GetOrSetUInt32`, `TryGetInteger`; `Configuration.Clear`, `ThrowOutOfMemory`, `AddSection`, `FindSections`, `FindSection`, `FindOrAddSection`, `Parse`, `IsWhitespace`, `IsEnd`, `CharacterAt`, `ReadDirective`, `TryReadField`, `HexDigit`, `Write`, `WriteField` |
 | `EncryptedText.cs` | `Decrypt`, `ReadPascalString`, `SkipPascalString` |
 | `AnimationFile.cs` | Constructor, `FindPage`, `LoadPage`, `RenderFrame`, `ReadPageHeader`, `Dispose`; palette/page-header record types |
 | `IndexedSurface.cs` | Both constructors, `Pixel`, `PixelCross`, `Rectangle`, `FillRectangle`, `FillRectangleSize`, `ShadeRectangle`, `BrightenRectangle`, `SegmentedGauge`, `ValidRectangle` |
@@ -1141,7 +1195,7 @@ these implementation inventories:
 | `VideoScaler.cs` | `SetByName`, `Scale32`, `Scale16`, generic `Scale`; scaler-definition/algorithm types |
 | `PlayerState.cs` | `PlayerItems.Copy`, `PlayerState` constructor, `Cash` and `Lives` accessors; `PlayerRules.CalculatePurpleBalls`, `PowerUpWeapon`, `GotPurpleBall`, `AllDead`, `AllAlive`; weapon/sidekick/item model types |
 | Core tests `Program.cs` | Entrypoint, `Run`, `TestDefaultSeed`, `TestPublishedVectors`, `TestSeedTruncationAndRepeatability`, `TestStateWraparound`, `TestFloatBounds`, `TestSizeBufferReadAndWrite`, `TestSizeBufferBoundsAndRecovery`, `TestSizeBufferCopyFailures`, `TestSizeBufferSeekModes`, `AssertSequence`, `AssertEqual`, `AssertThrows` |
-| `ConfigurationTests.cs` | `Run`, `Equal` |
+| `ConfigurationTests.cs` | `Run`, `Equal`; captured diagnostic/exception test for managed OOM handling |
 | `AssetReaderTests.cs` | `Run`, `PutWord`, `Check`, `ExpectInvalid` |
 | `IndexedSurfaceTests.cs` | `Run`, `Equal` |
 | `PaletteTests.cs`, `PictureLoaderTests.cs`, `VideoScalerTests.cs`, `PlayerRulesTests.cs` | Each defines `Run` and `Check` |
@@ -1184,8 +1238,10 @@ these implementation inventories:
 | `LevelEventDispatchTests.cs` | `Run`, `Execute`, `Flag`, `Dump`, `TestInvalidActions`, `ThrowsInvalid`; services `LoadEnemySheet`, `DrawTextWindow`, `PlaySong`, `SetVolume` |
 | `build_enemy_events_reference.py` | `build_source`, `main`; generated `dump_event`, native helper/oracle `main` |
 | `build_level_events_reference.py` | `build_source`, `main`; generated `dump_dispatch`, shape/text/music/volume recording shims, native oracle `main` |
-| `LevelMap.cs` | Constructor, `ReadHeader`, `LoadShapes`, `LoadMapLayer`, `Load`, `LoadSelected`, `Apply`; `LevelMapHeader` record and `LevelTileSet` arrays/ownership |
-| `LevelMapTests.cs` | `Run`, `BuildLevel`, `BuildShapes`, `TestIntegration`, `Dump`, `Hash`, `CompareNative`, `TestFailures`, `Throws`, `Check` |
+| `LevelMap.cs` | Constructor, `ReadHeader`, `LoadShapes`, `LoadMapLayer`, `Load`, `LoadSelected`, `Apply`; `Apply` also transfers the parsed enemy roster to level background state |
+| `LevelMapTests.cs` | `Run`, `BuildLevel`, `BuildShapes`, `TestIntegration` (map/event/enemy-roster application), `Dump`, `Hash`, `CompareNative`, `TestFailures`, `Throws`, `Check` |
+| `DestructUnitNames.cs` | `DestructUnit` enum and `DestructUnitNames.GetUnitByName`; exact native unit-name matching |
+| `DestructUnitNameTests.cs` | `Run`, `Check`; all native unit-name mappings, case/whitespace mismatches, and null handling |
 | `build_level_map_reference.py` | `build_source`, `main`; generated binary-read/file-open/endian shims, `hash`, native oracle `main` |
 | `EnemyHud.cs` | Both `DrawBossBars` overloads and `BeveledBar`; shared `BossBar.Armor` state |
 | `EnemyHudTests.cs` | `Run`, `Execute`, `TestRendering`, `Check` |
@@ -1201,10 +1257,10 @@ these implementation inventories:
 | `MusicPlayer.cs` | `MusicArchive` constructor, `Load`, `Song`; `MusicController` constructor, `SongPlaying` accessor, `PlaySong`, `Restart`, `Stop`, `Fade`; `IMusicPlayer.Load`/`Rewind`/`Fade` contract |
 | `MusicPlayerTests.cs` | `Run`/local `State`, `Fixture`, `TestFailures`, `Hash`, `CompareNative`, `Throws`, `Check`; fake player `Load`, `Rewind`, `Fade`, `Update`, `Render` |
 | `build_music_reference.py` | `build_source`, `main`; generated archive/read/lock/LDS shims, `state`, native oracle `main` |
-| `LdsPlayer.cs` | Constructor, `NewChannels`, `Load`, `Require`, `Free`, `Rewind`, `Fade`, `SetRegister`, `SetRegisterMasked`, `Render`, `Register`, `Masked`, `PlaySound`; typed instrument/channel/position models and `IOplSynthesizer` contract |
+| `LdsPlayer.cs` | Constructor, `NewChannels`, `Load`, `Require`, `Free`, `Rewind`, `Fade`, `SetRegister`, `SetRegisterMasked`, `Render`, `Register`, `Masked`, `PlaySound`, `OplSample.ClipInt16`, `OplWaveforms.GetTable`, `GetStart`, `GetMask`, `GetInitialPosition`, `CreateTable`, `OplChipState` constructor, `Initialize`, `Reset`, `Write`, `Render`, `RenderPercussion`, `TremoloFor`, `AdvanceEnvelopeAfterDrumAdvance`, `AddPercussionOutput`, `BuildModulationTables`, `RenderTwoOperatorChannel`, `AdvanceAndRenderOperator`, `CreateTremoloTable`, `ConfigureFourOperatorChannels`, `ReadPort`, `WriteIndex`, `WriteRegister`, `ConfigureOperatorMisc`, `ConfigureOperatorLevel`, `ConfigureOperatorAttackDecay`, `ConfigureOperatorSustainRelease`, `ConfigureChannelFrequencies`, `ConfigureChannelKey`, `ConfigurePercussion`, `ConfigurePercussionOperator`, `ConfigureChannelFeedback`, `ConfigureOperatorWaveform`, `IsFourOperatorEnabled`, `EnableOperator`, `DisableOperator`, `WaveSelectionIndex`, `ConfigureMappedFrequency`, `ConfigureFrequency`, `OplFrequencyTables` constructor, `FrequencyMultiplier`, `KeyScaleMultiplier`, `KeyScaleLevel`, `CreateKeyScaleLevels`, `OplOperatorTimingState.Initialize`, `Advance`, `AdvanceTime`, `AdvanceDrums`, `Render`, `ConfigureWaveform`, `ConfigureVibrato`, `ConfigureFeedback`, `Enable`, `Disable`, `ConfigureFrequency`, `OplEnvelopeState.Initialize`, `ConfigureAttack`, `ConfigureSustainLevel`, `ConfigureDecayRate`, `ConfigureReleaseRate`, `ConfigureSustainKeep`, `CalculateEnvelopeStepMask`, `AdvanceOff`, `AdvanceSustain`, `AdvanceRelease`, `AdvanceDecay`, `AdvanceAttack`, `OplPortState.Read`, `WriteIndex`, `WriteRegister`; `OplFrequencyRegisters` model; typed instrument/channel/position models and `IOplSynthesizer` contract |
 | `LdsPlayback.cs` | `Update`, `Advance`, `ResetPackedChannels`, `Command`, `OffsetTune`, `TuneChannel`, `ApplyEffects`, `Tremolo` |
 | `LdsTables.cs` | Exact frequency/operator/vibrato/tremolo table initialization |
-| `LdsPlayerTests.cs` | `Run`, `Fixture`, `Execute`/local `State`, `TestFailuresAndIntegration`, `CompareNative`, `Check`, `Throws`; synthetic OPL `Reset`, `Write`, `Render` |
+| `LdsPlayerTests.cs` | `Run`, `TestClipInt16`, `TestOplInitialization`, `TestOplSampleRendering`, `RenderOplSignature`, `RenderOplRhythmSignature`, `ConfigureVoice`, `TestOperatorTiming`, `TestDrumTiming`, `TestOperatorOutput`, `TestWaveformConfiguration`, `TestOperatorActivation`, `TestFrequencyConfiguration`, `TestOplRegisterWrites`, `TestOplPorts`, `TestOff`, `TestAttackConfiguration`, `TestSustainLevelConfiguration`, `TestDecayReleaseConfiguration`, `TestSustainKeepConfiguration`, `TestVibratoConfiguration`, `TestFeedbackConfiguration`, `TestSustain`, `TestRelease`, `TestDecay`, `TestAttack`, `Fixture`, `FixtureForAudio`, `Execute`/local `State`, `TestFailuresAndIntegration`, `CompareNative`, `Check`, `Throws`; synthetic OPL `Reset`, `Write`, `Render` |
 | `build_lds_reference.py` | `build_source`, `main`; generated OPL/read shims, `dump_state`, native oracle `main` |
 | `VideoLayout.cs` | `Output` validation, `SetModeByName`, `Calculate`, `ScreenToWindow`, `WindowToScreen`, `WindowDistanceToScreen`; `ScalingMode`/`OutputRectangle` models |
 | `InputState.cs` | Constructor/state accessors, `Initialize`, `FlushEvents`, `ClearKeyboard`, `SetRelative`, `MousePosition`, `RelativePosition`, `WaitInput`, `WaitNoInput`, `Wait`, `ServiceEvents`, `ValidateScancode`, `Delay`, `PollJoysticks`; typed event model and required `IInputPlatform` contract |
@@ -1216,8 +1272,10 @@ these implementation inventories:
 | `SdlNative.cs` | Static resolver registration, `Resolve`, `Error`; cdecl `GetError`, `BuildAudioConverter`, `ConvertAudio`, `InitSubSystem`, `QuitSubSystem`, `Quit`, `OpenAudioDevice`, `PauseAudioDevice`, `CloseAudioDevice`; ABI `AudioSpec`/`AudioCallback` |
 | `SdlNative.cs` video/input members | `Rectangle` constructor, window/display/fullscreen/renderer/texture/presentation/readback cdecl services, `PollEvent`, `PushEvent`, `GetTicks`, `Delay`, `ShowCursor`, `SetRelativeMouseMode`, `SetHint`, `Free` |
 | `SdlAudioSampleConverter.cs` | Constructor, `Convert`; bounded native CVT buffer ownership and cleanup |
-| `SdlAudioDevice.cs` | Constructor, `CompletedCallbacks`, `Start`, `Pause`, `ThrowIfFaulted`, `Mix`, `Dispose`, `Release` |
-| `SdlAudioTests.cs` | `Run`, `TestDevice`, `WaitFor`, `Bank`, `Throws`; synthetic music `Update`/`Render` failure gates |
+| `SdlAudioDevice.cs` | Constructor, `TryInitialize`, `TryInitializeOpl`, `CompletedCallbacks`, `Start`, `Pause`, `ThrowIfFaulted`, `Mix`, `Dispose`, `Release` |
+| `SdlAudioTests.cs` | `Run`, `TestDisabledInitialization`, `TestDevice`, `WaitFor`, `Bank`, `Throws`; synthetic music `Update`/`Render` failure gates and real SDL OPL/LDS startup |
+| `TinyDirectory.cs` | `TryReadFileAt`, `TryOpenSorted`, `OpenSubdirectory`, `TryOpenFile`, `GetExtension`; managed filesystem entry model |
+| `TinyDirectoryTests.cs` | `Run`, `TestFileOpen`, `TestSubdirectoryOpen`, `Check` |
 | `sdl_audio_reference.c` | `hash`, `main`; real SDL conversion fixtures and ABI gates |
 | `GameOptions.cs` | `Parse`/local `Invalid`, `TryIntegerPrefix`, `Help`; launch/network state and `GameOptionResult` |
 | `GameOptionsTests.cs` | `Run`, `State`, `CompareNative`, `Normalize`, `Bit`, `Check` |
@@ -1228,14 +1286,14 @@ these implementation inventories:
 | `SdlInputPlatform.cs` | Constructor, SDL/event state accessors, `PollEvent`, `ReadText`, `PostEvent`, `Delay`, `SetCursorVisible`, `SetRelativeMouseMode`, `EnableSystemMouseScaling`, `ToggleFullscreen`, `WindowResized`, `Quit`, `PushJoysticksAsKeyboard`, `PollJoysticks`, `CheckNetwork`, `EnsureOpen`, `Dispose`; required `IInputAuxiliaryServices` |
 | `SdlInputTests.cs` | `Run`, `Describe`, `CompareNative`, `Check`, `Throws`; recording auxiliary input services |
 | `sdl_input_reference.c` | `print`, `main`; real SDL ABI/event posting/polling fixtures |
-| `JoystickInput.cs` | `JoystickAssignment.Matches`, `ToCode`, `Parse`, `Describe`; `JoystickState.AxisThreshold`, `AxisReduce`, `AnalogAngle`, `CheckAssigned`, `HatValue`, `ResetAssignments`, `LoadAssignments`, `SaveAssignments`; `JoystickInput.Poll`, `PollAll`, `PushKey`, `PushAsKeyboard`, `DetectAssignment`; required `IJoystickDevice` |
+| `JoystickInput.cs` | `JoystickAssignment.Matches`, `ToCode`, `Parse`, `Describe`; `JoystickState.AxisThreshold`, `AxisReduce`, `AnalogAngle`, `CheckAssigned`, `HatValue`, `ResetAssignments`, `LoadAssignments`, `SaveAssignments`; `JoystickInput.Poll`, `PollAll`, `PushKey`, `PushAsKeyboard`, `DetectAssignment`; `JoystickConfigurationSelection.Assign`, `AdjustSetting`, `Handle`; required `IJoystickDevice`, `IJoystickAssignmentHost` |
 | `SdlJoysticks.cs` | Constructor, `States`, `JoystickDown`, `IsNetworkGame`, `PushJoysticksAsKeyboard`, `PollJoysticks`, `CheckNetwork`, `EnsureOpen`, `Dispose`, `Release`; device handle/name/count/read guards and `Close` |
-| `JoystickTests.cs` | `Run`, `Execute`/local `Update`, `Bit`, `Bits`, `CompareNative`, `Check`, `Throws`; scripted device getters and detector platform services |
+| `JoystickTests.cs` | `Run`, `Execute`/local `Update`, `AssignmentRouting`, `Bit`, `Bits`, `CompareNative`, `Check`, `Throws`; scripted device getters, detector platform services and assignment host |
 | `SdlJoystickTests.cs` | `Run`/local `Export`, `Check`, `Throws`; native virtual-device/init/close/set/hint delegate contracts |
 | `build_joystick_reference.py` | `function`, `build_source`, `main`; scripted SDL getters/update/post/detector callbacks, `bits`, native oracle `main` |
 | `SdlNative.cs` joystick members | Cdecl `NumJoysticks`, `JoystickEventState`, `JoystickOpen`, `JoystickClose`, `JoystickName`, capability counts, axis/button/hat reads and `JoystickUpdate` |
-| `SelectionMenus.cs` | `SelectionMenuState` gameplay/episode/difficulty properties; `SelectionMenus.SelectGameplay`, `SelectEpisode`, `SelectDifficulty`, shared `Select`/`Kind`; required `ISelectionMenuHost`; `SelectionMenuPresentation` background copy, font width/shadow, normal cursor/fades, present/restore, sound, joystick, keep-alive, modifiers and episode services |
-| `SelectionMenuTests.cs` | `Run`, `Execute`, `Script`/`Key`/`Mouse`/`Down`, `Presentation`, `RunSdl`/`Present`/`BeginDelay`, `Bit`, `Check`; frame/script platform, traced host, SDL auxiliary and modifier delegate |
+| `SelectionMenus.cs` | `SelectionMenuState` gameplay/episode/difficulty properties; `SelectionMenus.SelectGameplay`, `SelectEpisode`, `SelectDifficulty`, shared `Select`/`Kind`; `MainMenuActionState`; `MainMenuActionHandlers.SelectFullGame`, `SelectTwoPlayer`, `ChangeTwoPlayerInputDevice`, `ChangeUpgradeWeaponPower`, `SelectOnePlayer`, `SelectLimitedOptions`, `SelectSuperTyrian`, `SelectOptions`, `SelectNextLevel`, `SelectUpgrade`, `SelectUpgradeSubmenu`, `SelectDataCube`, `SelectLoadSave`, `CopyItems`; `MainMenuFunction.Dispatch`; `WeaponViewFrame.Update`; required `ISelectionMenuHost`, `IMainMenuFunctionHost`, `ISaveMenuHost`, `ISaveMenuList`, `IWeaponViewFrameHost`; `SelectionMenuPresentation` background copy, font width/shadow, normal cursor/fades, present/restore, sound, joystick, keep-alive, modifiers and episode services |
+| `SelectionMenuTests.cs` | `Run`, `Execute`, `MainMenuActionParity`, `MainMenuFunctionParity`, `TwoPlayerInputDeviceParity`, `UpgradeWeaponPowerParity`, `KeyboardConfigurationParity`, `QuitConfirmationParity`, `MenuQuitParity`, `UpgradeSubmenuParity`, `WeaponViewFrameParity`, `Script`/`Key`/`Mouse`/`Down`, `Presentation`, `RunSdl`/`Present`/`BeginDelay`, `Bit`, `Check`; menu-function and save-menu test hosts/lists, frame/script platform, traced host, SDL auxiliary and modifier delegate |
 | `build_selection_menus_reference.py` | `build_source`, `main`; native oracle fixtures, frame script, input services and traced rendering/audio/palette/network/episode callbacks |
 | `UiControlTests.cs` | `Run`, `Bit`; scripted platform event/poll services, native trace comparison and gauge/input guards |
 | `build_ui_controls_reference.py` | `build_source`, `main`; native input/poll/fill fixtures and oracle `main` |
@@ -1284,8 +1342,8 @@ these implementation inventories:
 | `build_network_reference.py` | `build_source`, `main`; deterministic native tick/UDP/allocation/receive/send/handshake/input fixtures, `clone`, `queue`, `dump`, `inject`, halt picture/font/fade/button/SDLNet-quit/game-halt fixtures, native oracle `main` |
 | `SdlNetTests.cs` | `Run`, `Receive`, `Poll`, `CompareNative`, `Throws`, `Check`; clock/input platform for actual loopback queues |
 | `sdl_net_reference.c` | `fail`, `main`; real SDL2_net resolve/bind/native packet/echo/lifecycle reference |
-| `LevelNetwork.cs` | `ILevelNetworkServices`; `LevelNetworkServices.Pause`/`ShowInGameSetup`/`DrawDesynchronization`; `LevelEvents.UpdateNetworkState`/local `Write`, `Read` |
-| `LevelNetworkTests.cs` | `Run`, `RunSdl`, `Failures`, `CopyRequests`, `Bit`; wire `Transport.Send`/`Receive`, `Services.Pause`/`ShowInGameSetup`/`DrawDesynchronization`, deterministic/real-time input platform |
+| `LevelNetwork.cs` | `ILevelNetworkServices`; `LevelNetworkServices.Pause`/`ShowInGameSetup`/`DrawDesynchronization`; `InGameChat.Handle`; `LevelEvents.UpdateNetworkState`/local `Write`, `Read` |
+| `LevelNetworkTests.cs` | `Run`, `RunSdl`, `Failures`, `CopyRequests`, `Bit`; `InGameChat.Handle` no-op regression; wire `Transport.Send`/`Receive`, `Services.Pause`/`ShowInGameSetup`/`DrawDesynchronization`, deterministic/real-time input platform |
 | `build_level_network_reference.py` | `build_source`, `main`; native wire read/write/send/update, pause/setup/text/reset fixture functions and exhaustive oracle `main` |
 | `GamePause.cs` | `GamePausePresentation.Draw`, constructors; `GamePause.Run` |
 | `GamePauseTests.cs` | `Run`, `RunSdl`, `RunSdlNetwork`, `Normalize`; scripted/real-time `Platform` queue/focus/timing/input services, `Transport.Send`/`Queue`/`Receive`, actual SDL auxiliary services |
@@ -1367,8 +1425,9 @@ these implementation inventories:
 | `Credits.cs` | `Credits.Run`; `ICreditsHost`/`CreditsHost` picture/text/file/font/palette/ship/audio/input/timer and cleanup services |
 | `CreditsTests.cs` | `Run`, `TextData`, `TestHost`, `Throws`; `TraceHost` credits services |
 | `build_credits_reference.py` | `build_source`, `main`; native credits playback and generated synthetic service oracle |
-| `HighScores.cs` | `HighScores.Run`, local `Rank`/`Title`, `Number`, `CString`, `Join`; `HighScoreInput`, `IHighScoreHost`/`HighScoreHost` cursor/palette/input/text/shape/glow/audio/timer services |
-| `HighScoreTests.cs` | `Run`, `TestEditing`, `TestHost`, local `LoadCursor`; `TraceHost` and local `Key`/`Text` scripted input |
+| `HighScores.cs` | `HighScores.Run`, local `Rank`/`Title`, `Number`, `CString`, `Join`; `HighScoreInput`, `IHighScoreHost`/`HighScoreHost` cursor/palette/input/text/shape/glow/audio/timer services; `HighScoreHost` saved-name popup rendering/input/callback adapter |
+| `HighScoreTests.cs` | `Run`, `TestEditing`, `TestHost`, `TestSaveNamePopup`, local `LoadCursor`; `TraceHost` and `TraceSaveNameHost` scripted input |
+| `SavedGameNamePopup.cs` | `ISavedGameNamePopupHost`; `SavedGameNamePopup.Run` with input, drawing, and save/load callbacks |
 | `build_high_scores_reference.py` | `build_source`, `main`; native sorting/qualification/name entry and generated service oracle |
 | `PlayerShipInfo.cs` | `Initialize`, `ExtraGraphic`, `Draw`; shared frame graphics, selected sprite sheets and generator power |
 | `ShipInfoTests.cs` | `Run`, local `SheetId`, `Sheet`, `TestDraw`, `Throws` |
@@ -1481,11 +1540,16 @@ these implementation inventories:
 - [x] `src-csharp/OpenTyrian.Core/HighScores.cs` - score qualification and
   entry for both players, native signed-score narrowing, sorting/shifting,
   ASCII glyph-filtered names, keyboard/mouse cancellation and full blinking/
-  cursor/glow/results flow with actual managed services.
+  cursor/glow/results flow with actual managed services; also provides the
+  saved-name popup rendering/input adapter.
 - [x] `tests/OpenTyrian.Core.Tests/HighScoreTests.cs` - 512 native-matched
   qualification/edit/presentation scenarios, threshold ties and signed
   narrowing boundaries; concrete sprite/font/palette/input/cursor/timer
-  routing, 28-character cap, trailing spaces and cancel semantics.
+  routing, 28-character cap, trailing spaces and cancel semantics, plus
+  scripted save-name popup input and save/load/cancel dispatch.
+- [x] `src-csharp/OpenTyrian.Core/SavedGameNamePopup.cs` - native save/load
+  name-entry loop, bounded character editing, prompt drawing and operation
+  dispatch, verified with scripted host scenarios.
 - [x] `tests/native/build_high_scores_reference.py` - unchanged native
   high-score checking/sorting and real total-score calculations with
   scripted input and ordered presentation traces.
@@ -1852,14 +1916,20 @@ these implementation inventories:
 
 - [x] `src/animlib.c` - `AnimationFile`, `AnimationDecoder`, `AnimationPlayer`; complete synthetic native playback plus real SDL presentation/input.
 - [x] `src/animlib.h` - managed animation APIs replace native declarations; required host services retain gameplay/platform separation.
-- [ ] `src/arg_parse.c`
-- [ ] `src/arg_parse.h`
+- [x] `src/arg_parse.c` — all five parser functions are mapped to
+  `ArgumentParser`; unit scenarios and the native game-options oracle verify
+  permutations, clustered/long options, argument binding and diagnostics.
+- [x] `src/arg_parse.h` — `Options`/`Option` and status constants are replaced
+  by managed option records/constants; native game-option compatibility and
+  parser tests pass.
 - [ ] `src/backgrnd.c`
 - [ ] `src/backgrnd.h`
 - [ ] `src/config.c` - all functions verified; remaining shared global gameplay-state ownership still requires full-game integration.
 - [ ] `src/config.h` - save/config types and functions replaced; broad gameplay globals/declarations remain pending integration.
-- [ ] `src/config_file.c`
-- [ ] `src/config_file.h`
+- [x] `src/config_file.c` — all configuration functions replaced by the
+  managed configuration model/parser/writer; regression fixtures pass.
+- [x] `src/config_file.h` — native configuration declarations and inline
+  helpers replaced by managed types and methods; configuration tests pass.
 - [x] `src/data_extractor.c` - managed CLI delegates to the fully integrated
   legacy extraction pipeline; synthetic native output/CLI parity verified.
 - [ ] `src/destruct.c`
@@ -1868,8 +1938,12 @@ these implementation inventories:
 - [x] `src/editship.h` - managed owned sprite/record state replaces globals and the opaque byte-array typedef; declarations integrated and verified with archive/ship tests.
 - [ ] `src/episodes.c`
 - [ ] `src/episodes.h`
-- [ ] `src/file.c`
-- [ ] `src/file.h`
+- [x] `src/file.c` — data-directory lookup, open/error paths, file existence,
+  EOF position, exact reads/writes and PCX header output are mapped to
+  `DataFiles`/`BinaryFile`; filesystem, failure and binary-layout tests pass.
+- [x] `src/file.h` — endian-aware typed read/write helpers map to `BinaryFile`
+  fixed-width APIs; all declared helpers and native-width layout behavior are
+  covered by binary-format regression tests.
 - [ ] `src/font.c`
 - [ ] `src/font.h`
 - [ ] `src/fonthand.c`
@@ -1886,8 +1960,12 @@ these implementation inventories:
 - [ ] `src/keyboard.h`
 - [ ] `src/lds_play.c`
 - [ ] `src/lds_play.h`
-- [ ] `src/loudness.c`
-- [ ] `src/loudness.h`
+- [x] `src/loudness.c` - SDL audio initialization, sample-rate-matched OPL2/LDS
+  synthesis, PCM callback mixing, music controls and teardown are represented
+  by the managed audio/mixer/player services and tested; final game-host
+  ownership remains a separate integration gate.
+- [x] `src/loudness.h` - audio, music, sample-rate and control declarations map
+  to managed SDL audio, mixer, music archive/controller and LDS player APIs.
 - [ ] `src/lvllib.c`
 - [ ] `src/lvllib.h`
 - [ ] `src/lvlmast.c`
@@ -1896,10 +1974,18 @@ these implementation inventories:
 - [ ] `src/mainint.h`
 - [x] `src/menus.c` - verified managed gameplay/episode/difficulty selectors and presentation adapter; native synthetic parity and real SDL integration, whole-game callers still pending.
 - [x] `src/menus.h` - managed byte-label lists, selection state and public selectors; all native module functions verified.
-- [ ] `src/mouse.c`
-- [ ] `src/mouse.h`
-- [ ] `src/mtrand.c`
-- [ ] `src/mtrand.h`
+- [x] `src/mouse.c` — cursor capture, filtered/unfiltered drawing and restore
+  are mapped to `MouseCursor`; native cursor traces verify clipping, scanline
+  bounds, sprite output and restoration.
+- [x] `src/mouse.h` — cursor/button state and enum declarations are represented
+  by `MouseCursor` and `InputState`; SDL-backed input/presentation integration
+  and the native cursor oracle pass.
+- [x] `src/mtrand.c` — all four RNG functions are mapped to
+  `MersenneTwister`; default/published vectors, seed truncation, repeatability,
+  state wraparound and float-bit behavior are verified.
+- [x] `src/mtrand.h` — `MT_RAND_MAX` and the four native function declarations
+  are represented by managed 32-bit RNG APIs/constants; regression vectors
+  verify the public behavior.
 - [ ] `src/musmast.c`
 - [ ] `src/musmast.h`
 - [ ] `src/network.c` - all functions verified, including graphical halt/request reset; shared gameplay globals and main/menu/gameplay caller integration remain.
@@ -1927,15 +2013,24 @@ these implementation inventories:
 - [ ] `src/player.h`
 - [ ] `src/shots.c`
 - [ ] `src/shots.h`
-- [ ] `src/sizebuf.c`
-- [ ] `src/sizebuf.h`
+- [x] `src/sizebuf.c` — all seven buffer operations are mapped to
+  `SizeBuffer`; regression tests cover bounded reads/writes, error propagation,
+  seek modes, cursor updates and little-endian word decoding.
+- [x] `src/sizebuf.h` — the native `sizebuf_t` state and function declarations
+  are represented by the managed owned-memory buffer API; all operations pass
+  the dedicated size-buffer regression cases.
 - [ ] `src/sndmast.c`
 - [ ] `src/sndmast.h`
 - [ ] `src/sprite.c`
 - [ ] `src/sprite.h`
 - [x] `src/starlib.c` - `JukeboxStarfield` and typed stars; complete native state/pixel/RNG parity; empty color stub omitted.
 - [x] `src/starlib.h` - `JukeboxStar`/`JukeboxStarfield` replace declarations and global state.
-- [ ] `src/tinydir.h`
+- [x] `src/tinydir.h` - replaced by the managed `TinyDirectory` entry/list
+  model. All callers and inline helpers use managed directory enumeration,
+  indexed metadata, extension extraction, sorting, and file/subdirectory
+  lookup; native-specific dirent buffer sizing is delegated to the CLR's
+  directory enumerator because that helper is not built in the supported
+  native configuration (`TINYDIR_USE_READDIR`).
 - [ ] `src/tyrian2.c`
 - [ ] `src/tyrian2.h`
 - [ ] `src/varz.c`
@@ -2028,7 +2123,9 @@ these implementation inventories:
 
 ### `src/config_file.c`
 
-- [ ] `config_oom`
+- [x] `config_oom` - `Configuration.ThrowOutOfMemory`; emits the native
+  diagnostic and raises managed `OutOfMemoryException` instead of terminating
+  the process, verified with captured error output.
 - [x] `string_init_len` - Managed strings replace the native inline/heap
   `ConfigString` storage; quoted, unquoted and empty-string fixtures pass.
 - [x] `string_deinit` - Garbage-collected strings replace explicit frees;
@@ -2093,7 +2190,7 @@ these implementation inventories:
 
 ### `src/destruct.c`
 
-- [ ] `get_unit_by_name`
+- [x] `get_unit_by_name` - `DestructUnitNames.GetUnitByName`; exact case-sensitive native names and `UNIT_NONE` fallback.
 - [ ] `load_destruct_config`
 - [ ] `JE_destructGame`
 - [ ] `JE_destructMain`
@@ -2244,83 +2341,250 @@ these implementation inventories:
 
 ### `src/game_menu.c`
 
-- [ ] `playeritem_map`
-- [ ] `JE_cashLeft`
-- [ ] `draw_item_screen_load_save`
-- [ ] `draw_item_screen_keyboard_config`
-- [ ] `draw_item_screen_joystick_config`
-- [ ] `draw_item_screen_upgrade_menu`
-- [ ] `draw_item_screen_status`
-- [ ] `draw_item_screen_data_cubes`
-- [ ] `draw_item_screen_footer`
-- [ ] `prepare_item_screen_frame`
-- [ ] `draw_item_screen`
-- [ ] `move_item_screen_selection`
-- [ ] `adjust_joystick_config_setting`
-- [ ] `change_two_player_input_device`
-- [ ] `change_upgrade_weapon_power`
-- [ ] `handle_item_screen_horizontal_key`
-- [ ] `activate_item_screen_selection`
-- [ ] `cancel_item_screen_selection`
-- [ ] `show_item_screen_help`
-- [ ] `handle_item_screen_key`
-- [ ] `update_item_screen_frame`
-- [ ] `initialize_item_screen`
-- [ ] `open_quick_save_menu`
-- [ ] `wait_for_item_screen_input`
-- [ ] `adjust_item_screen_volume`
-- [ ] `get_item_screen_mouse_selection`
-- [ ] `select_item_screen_menu_option`
-- [ ] `adjust_item_screen_weapon_power`
-- [ ] `handle_item_screen_mouse_input`
-- [ ] `handle_item_screen_input`
-- [ ] `JE_itemScreen`
-- [ ] `draw_ship_illustration`
-- [ ] `load_cubes`
-- [ ] `load_cube`
-- [ ] `JE_drawItem`
-- [ ] `JE_drawMenuHeader`
-- [ ] `get_menu_choice_y`
-- [ ] `draw_menu_choice`
-- [ ] `JE_drawMenuChoices`
-- [ ] `JE_updateNavScreen`
-- [ ] `JE_drawLines`
-- [ ] `JE_drawNavLines`
-- [ ] `JE_drawDots`
-- [ ] `JE_drawPlanet`
-- [ ] `JE_scaleBitmap`
-- [ ] `JE_initWeaponView`
-- [ ] `JE_computeDots`
-- [ ] `JE_partWay`
-- [ ] `JE_doShipSpecs`
-- [ ] `JE_drawMainMenuHelpText`
-- [ ] `JE_quitRequest`
-- [ ] `JE_genItemMenu`
-- [ ] `JE_scaleInPicture`
-- [ ] `JE_drawScore`
-- [ ] `setup_next_level_menu`
-- [ ] `start_current_level`
-- [ ] `request_menu_quit`
-- [ ] `return_to_options_menu`
-- [ ] `rebind_keyboard_key`
-- [ ] `handle_keyboard_config_selection`
-- [ ] `assign_joystick_control`
-- [ ] `handle_joystick_config_selection`
-- [ ] `handle_full_game_selection`
-- [ ] `handle_two_player_menu_selection`
-- [ ] `handle_one_player_menu_selection`
-- [ ] `handle_limited_options_selection`
-- [ ] `handle_super_tyrian_menu_selection`
-- [ ] `handle_upgrade_menu_selection`
-- [ ] `handle_options_menu_selection`
-- [ ] `handle_next_level_menu_selection`
-- [ ] `handle_upgrade_submenu_selection`
-- [ ] `handle_load_save_menu_selection`
-- [ ] `handle_data_cube_menu_selection`
-- [ ] `JE_menuFunction`
-- [ ] `JE_drawShipSpecs`
-- [ ] `JE_weaponSimUpdate`
-- [ ] `JE_weaponViewFrame`
+- [x] `playeritem_map` - `PlayerItems.GetMenuItemId`/`SetMenuItemId`; tests
+  verify all seven menu slots map to the correct ID fields without changing
+  weapon power, and invalid indices fail explicitly.
+- [x] `JE_cashLeft` - `PlayerProgression.CashLeft`; all seven upgrade menu
+  item types, Windows/Unix unsigned-long cash boundaries, weapon powers and
+  ushort cumulative surcharge wrapping verified against the native C oracle.
+- [x] `draw_item_screen_load_save` - `ItemScreenLoadSaveDrawing.Draw`; save/
+  load pages, create-save and return rows, player-filtered list retrieval,
+  selection shades, bounded episode labels, empty slots, and repeated header
+  drawing verified against native traces.
+- [x] `draw_item_screen_keyboard_config` - `ItemScreenKeyboardConfigurationDrawing.Draw`;
+  all ten label rows, selected/unselected action and scancode shades, menu gate,
+  and resulting choice count verified against native traces.
+- [x] `draw_item_screen_joystick_config` - `ItemScreenJoystickConfigurationDrawing.Draw`;
+  all 16 rows, no-device disabling, analog values/shading, two-slot assignment
+  names, joystick selection, menu gating and choice count compared with native.
+- [x] `draw_item_screen_upgrade_menu` - `ItemScreenUpgradeMenuDrawing.Draw`;
+  affordable-selection correction and wrapping, selected-item updates and Done
+  rollback, weapon power affordability, sidekick charge/style/animation resets,
+  custom-ship labels, owned markers, item icons, cost shades, and localized
+  title/Done rendering compared with native traces across all seven item types.
+- [x] `load_cubes` - `DataCubeTextLoader.LoadCubes`; per-cube archive reads,
+  one-based cube indices, ordered slot creation, and decoded/wrapped record
+  contents match the native loader on a multi-record encrypted fixture.
+- [x] `load_cube` - `DataCubeTextLoader.LoadCube`; encrypted Pascal records,
+  marker/face parsing, metadata, paragraph spacing, tiny-font word wrapping,
+  fixed 90-line storage and termination match the unchanged native C routine.
+- [x] `JE_drawItem` - `ItemIconDrawing.Draw`; native item-type catalog mapping,
+  normal and custom ship sheet/frame selection, omitted zero/unsupported icons,
+  and 2x2 draw coordinates verified using synthetic item definitions.
+- [x] `draw_ship_illustration` - `ShipIllustrationDrawing.Draw`; ship fallback,
+  generator, optional front/rear weapons, sidekick icons, shield hue/brightness,
+  component placement, and native draw ordering verified on a synthetic catalog.
+- [x] `draw_item_screen_status` - `ItemScreenStatusDrawing.Draw`; cash/armor/
+  shield status gating, two-player and SuperArcade/SuperTyrian labels, ship
+  illustration routing, music/effects volume bars, and help-box state changes
+  compared with native traces across supported menu states.
+- [x] `draw_item_screen_data_cubes` - `ItemScreenDataCubeDrawing.Draw`; zero/
+  multiple-cube layouts, highlighted help boxes, selection and submenu re-entry,
+  face positioning, and face-palette color updates compared with native traces.
+- [x] `draw_item_screen_footer` - `ItemScreenFooterDrawing.Draw`; two-player
+  input-device labels and fallback assignments, frame-state resets, score/help
+  ordering, palette restoration, and selected data-cube title placement matched
+  against native traces.
+- [x] `prepare_item_screen_frame` - `ItemScreenFramePreparation.Prepare`; full-game
+  mode precedence, menu-frame buffer restore and data-cube exception,
+  upgrade-power initialization, state resets, and next-level navigation setup
+  verified against native traces.
+- [x] `draw_item_screen` - `ItemScreenDrawing.Draw`; header/choice gates,
+  data-cube icon coordinates and draw order, and delegated item-panel order
+  compared with native traces across supported menu IDs.
+- [x] `move_item_screen_selection` - `ItemScreenSelectionMovement.Move`; cursor
+  wrapping, cursor sound suppression on data-cube text, selected weapon power/
+  mode updates, and non-analog joystick row skips verified against native traces.
+- [x] `handle_item_screen_horizontal_key` - `ItemScreenInputHandlers.HandleHorizontal`;
+  option volume and resume behavior, joystick/device routing, and upgrade-power
+  boundary dispatch verified against the native C trace.
+- [x] `activate_item_screen_selection` - `ItemScreenInputHandlers.ActivateSelection`;
+  keyboard-use state, upgrade "Done" power snapshot, and menu dispatch ordering
+  verified against the native C trace.
+- [x] `cancel_item_screen_selection` - `ItemScreenInputHandlers.CancelSelection`;
+  quick-save restoration, upgrade rollback/cash recalculation, escape-menu
+  routing, and palette retention for the data-cube page verified against the
+  native C trace; root-quit handoff covered by a direct managed regression.
+- [x] `show_item_screen_help` - `ItemScreenHelp.Show`; network no-op, help/
+  music/picture order, next-level palette override, background/palette restore,
+  presentation, and return flags compared against the native trace.
+- [x] `handle_item_screen_key` - `ItemScreenKeyHandler.Handle`; shot-pattern
+  debug adjustments with 16-bit wrapping, rear weapon-mode cycling, activation/
+  cancel/help/movement/horizontal dispatch, and data-cube Home/End scrolling
+  verified against the native trace.
+- [x] `update_item_screen_frame` - `ItemScreenFrameUpdate.Update`; animation
+  color reversal, data-cube scroll clamping/text/progress and mouse cursors,
+  next-level redraw, selected-cube flash, weapon-simulation and regular-frame
+  event/palette/presentation ordering compared with native traces.
+- [x] `initialize_item_screen` - `ItemScreenInitializer.Initialize`; cached and
+  first-time sprite loading, cube/song/picture/palette/presentation ordering,
+  menu-state reset, owned-item insertion/replacement, frame-buffer copy, and
+  inventory sorting verified against native traces.
+- [x] `open_quick_save_menu` - `ItemScreenInputHandlers.OpenQuickSave`; data-cube
+  parent redirection and complete quick-save/save-page/palette state verified
+  against the native C trace.
+- [x] `wait_for_item_screen_input` - `ItemScreenInputWait.WaitForInput`; event and
+  mouse polling, Alt-S/Alt-L quick-save exclusion and sequential precedence,
+  data-cube cursor/page/keyboard/joystick scrolling, directional precedence,
+  input suppression, and both scroll clamps verified against native traces.
+- [x] `adjust_item_screen_volume` - `ItemScreenVolumeAdjustment.Adjust`; slider
+  hit ranges, volume quantization/clamps, disable-flag clearing, resume-song
+  ordering, final volume application and cursor sound verified natively.
+- [x] `get_item_screen_mouse_selection` - `ItemScreenInputHandlers.GetMouseSelection`;
+  all supported menus and negative/boundary/large mouse-Y inputs, including
+  full-game, two-player, and next-level special row rules, match native traces.
+- [x] `select_item_screen_menu_option` - `ItemScreenMenuSelection.SelectOption`;
+  invalid-row no-op, upgrade Done cash return, repeated-choice dispatch,
+  affordability rejection, weapon-mode switch, and selected power sync compared
+  against native traces.
+- [x] `adjust_item_screen_weapon_power` - `ItemScreenInputHandlers.AdjustWeaponPowerOnMouse`;
+  all pointer hitbox edges, unavailable-power feedback, weapon-power mutation,
+  sounds, and mouse-release waits verified against the native trace.
+- [x] `handle_item_screen_mouse_input` - `ItemScreenMouseInput.Handle`; cursor
+  button/position refresh, empty-cube/menu-page transitions, option hit testing,
+  volume/selection/wait/weapon-adjust ordering verified against native traces.
+- [x] `handle_item_screen_input` - `ItemScreenInputHandlers.DispatchInput`;
+  positive mouse buttons take precedence over keyboard input, with no action
+  for absent input, verified against native traces.
+- [x] `JE_itemScreen` - `ItemScreenLoop.Run`; initialization, preparation and
+  drawing, constant-play versus animated input loops, event clearing, keyboard
+  state reset, game/jump exit conditions, network wait/synchronization packets,
+  and loaded-game fade ordering verified with deterministic host traces.
+- [x] `draw_ship_illustration`
+- [x] `load_cubes`
+- [x] `load_cube`
+- [x] `JE_drawItem`
+- [x] `JE_drawMenuHeader`
+- [x] `get_menu_choice_y` - `MainMenuChoiceLayout.GetChoiceY`; full byte-value
+  tests for choices, menu special cases, and the live next-level selection
+  matched the extracted native function.
+- [x] `draw_menu_choice` - `MainMenuChoiceLayout.DrawChoices`; selected
+  tilde-prefixed labels, fixed X/small-font rendering, and row placement
+  verified against the extracted native routine.
+- [x] `JE_drawMenuChoices` - `MainMenuChoiceLayout.DrawChoices`; choice
+  iteration/order and presentation callbacks match the native C oracle.
+- [x] `JE_drawMenuHeader` - `MainMenuChoiceLayout.DrawHeader`; data-cube,
+  save/load, and default header lookup, centering, font, and draw calls match
+  native branches across every menu ID and representative selections.
+- [x] `JE_updateNavScreen` - `NavigationMapScreen.Update`; grid/dot/planet
+  ordering, sprite interface, selection-centered scroll target, smooth
+  viewport convergence and animation/dot timers match native frame traces.
+- [x] `JE_drawLines` - `NavigationMapGrid.DrawBackground`; crosshatch,
+  strict boundaries, and dark/light color/offset callbacks match native.
+- [x] `JE_drawNavLines` - `NavigationMapGrid.DrawViewport`; signed viewport
+  half-offsets and all dark/light rectangle and crosshatch callbacks match
+  native at signed-coordinate boundaries.
+- [x] `JE_drawDots` - `NavigationMapDots.Draw`; viewport translation,
+  strict clipping edges, selected-path progression highlighting and sprite
+  call order match the native trace.
+- [x] `JE_drawPlanet` - `NavigationMapPlanets.Draw`; base-frame centering,
+  animated frame selection, signed viewport offsets and strict clipping match
+  the native sprite-call trace.
+- [x] `JE_drawMainMenuHelpText` - `MainMenuHelpLayout.Draw`; joystick,
+  keyboard, power, completion/cube, and indexed-help branches match native
+  text selection and draw coordinates.
+- [x] `JE_scaleBitmap` - `SelectionBitmapScaler.Scale`; destination pitch,
+  source-pitch horizontal sampling, native row-stride behavior and float
+  accumulation match native hashes across padded and tightly packed surfaces.
+- [x] `JE_initWeaponView` - `WeaponViewInitializer.Initialize`; screen clear,
+  player/sidekick preview coordinates, projectile arrays, power-bar state and
+  starfield initialization match the native setup trace.
+- [x] `JE_scaleInPicture` - `ShipSpecificationsPresentation.ScaleInPicture`;
+  expanding rectangle bounds, integer-rounded height, per-frame scaling,
+  button interruption, presentation and delay order match the native trace.
+- [x] `JE_doShipSpecs` - `ShipSpecificationsPresentation.Run`; input gating,
+  ship-spec rendering, temporary picture reload, spring sound, zoom animation
+  and final input wait match the native call/frame trace.
+- [x] `JE_drawScore` - `MainMenuScore.Draw`; upgrade-submenu-only display,
+  signed 32-bit cash formatting, text coordinates and shade parameters match
+  native for negative and boundary values.
+- [x] `setup_next_level_menu` - `NextLevelMenuSetup.Initialize`; route dots,
+  palette, origin viewport, choice bounds, selected choice, planet labels and
+  completion label match one- and five-destination native traces.
+- [x] `start_current_level` - `NextLevelMenuState.StartCurrentLevel`;
+  section selection uses the final route destination and enables section jump,
+  matching the native trace.
+- [x] `return_to_options_menu` - `NextLevelMenuState.ReturnToOptions`;
+  normal and network mode choose their respective options menus, matching the
+  native trace.
+- [x] `JE_computeDots` - `NavigationMapDots.Compute`; all origins and
+  deterministic five-destination routes matched the native fourth-root
+  distance, dot cap, and fixed-width interpolated coordinates.
+- [x] `JE_partWay` - `MainMenuChoiceLayout.PartWay`; 8,192 deterministic
+  signed-coordinate and byte-parameter samples match native division and
+  16-bit result narrowing.
+- [x] `JE_quitRequest` - `QuitConfirmationScreen.Run`; yes/no keyboard,
+  escape, irrelevant-key retry, mouse hit-box boundaries, highlight sounds,
+  frame brightness/reset, cursor presentation and network quit packet/halt
+  traces match native.
+- [x] `JE_genItemMenu` - `UpgradeSubmenuBuilder.Build`; all seven shop
+  categories match native labels, choice counts, duplicate/current item
+  selection, byte-name encoding and untouched menu-buffer entries.
+- [x] `request_menu_quit` - `MenuQuitRequest.Run`; declined requests preserve
+  state, confirmed requests optionally halt network play before setting the
+  loaded flag and clearing the main level.
+- [x] `rebind_keyboard_key` - `KeyboardConfigurationSelection.Rebind`;
+  prompt placement, pulsing selection bounds, input capture, duplicate-binding
+  swaps, reserved Escape/F11/P handling, click feedback and mouse cancellation.
+- [x] `handle_keyboard_config_selection` -
+  `KeyboardConfigurationSelection.Handle`; default bindings, local/network
+  options-menu destination and control-row rebinding dispatch.
+- [x] `assign_joystick_control` - `JoystickConfigurationSelection.Assign`;
+  detected duplicate removal, first free-slot assignment, oldest-assignment
+  rollover, native row highlight and post-change joystick polling.
+- [x] `adjust_joystick_config_setting` -
+  `JoystickConfigurationSelection.AdjustSetting`; joystick index wrapping,
+  analog toggle and analog-only sensitivity/threshold cycling.
+- [x] `handle_joystick_config_selection` - `JoystickConfigurationSelection.Handle`;
+  no-device gating, reset, local/network options return and assignment dispatch.
+- [x] `handle_full_game_selection` - `MainMenuActionHandlers.SelectFullGame`;
+  data-cube, ship-specification, upgrades, options, next-level and quit routes.
+- [x] `handle_two_player_menu_selection` - `MainMenuActionHandlers.SelectTwoPlayer`;
+  start/options/quit routes and distinct input-device cycling with no-device
+  peer adjustment.
+- [x] `change_two_player_input_device` -
+  `MainMenuActionHandlers.ChangeTwoPlayerInputDevice`; forward/backward device
+  wrap, zero-joystick peer adjustment, row validation and cursor-sound ordering,
+  matched in twelve native traces.
+- [x] `change_upgrade_weapon_power` -
+  `MainMenuActionHandlers.ChangeUpgradeWeaponPower`; affordability feedback,
+  selected temporary power adjustment and native byte narrowing match 24
+  unchanged-C traces.
+- [x] `handle_one_player_menu_selection` - `MainMenuActionHandlers.SelectOnePlayer`;
+  start, local/network options return and quit routes.
+- [x] `handle_limited_options_selection` - `MainMenuActionHandlers.SelectLimitedOptions`;
+  joystick, keyboard and one-player destinations.
+- [x] `handle_super_tyrian_menu_selection` - `MainMenuActionHandlers.SelectSuperTyrian`;
+  start, ship specifications, options and network-aware quit callback routes.
+- [x] `handle_upgrade_menu_selection` - `MainMenuActionHandlers.SelectUpgrade`;
+  Done return and upgrade snapshot/submenu/weapon-view/cash transition order.
+- [x] `handle_options_menu_selection` - `MainMenuActionHandlers.SelectOptions`;
+  save/load flags/page reset and game/keyboard/joystick destinations.
+- [x] `handle_next_level_menu_selection` - `MainMenuActionHandlers.SelectNextLevel`;
+  map-section jump or Done return/palette transition.
+- [x] `handle_upgrade_submenu_selection` -
+  `MainMenuActionHandlers.SelectUpgradeSubmenu`; unaffordable-selection Done
+  correction or item-sound/cash commit/menu return.
+- [x] `handle_data_cube_menu_selection` - `MainMenuActionHandlers.SelectDataCube`;
+  Done/empty return and selected cube subpage/scroll initialization.
+- [x] `handle_load_save_menu_selection` - `MainMenuActionHandlers.SelectLoadSave`;
+  Done and quick-save restoration, save-name entry, player-aware save-list
+  indexing, save/load dispatch and deterministic list disposal.
+- [x] `JE_menuFunction` - `MainMenuFunction.Dispatch`; central click/color
+  setup, menu-specific argument routing, data-cube submenu transition, and
+  unconditional post-dispatch item snapshot match all native menu cases.
+- [x] `JE_drawShipSpecs` - `ShipSpecificationsDrawing.Draw`; matching screen
+  initialization, border/line order, ship-name/help/footer text layout, fallback
+  ship selection, sprite placement, and four-neighbor low-nibble greenification
+  verified with a synthetic catalog and compressed sprite fixture.
+- [x] `JE_weaponSimUpdate` - `WeaponSimulationDrawing.Update`; frame handoff,
+  affordability/disabled controls, per-level power-bar pixels, equipped weapon
+  shot label, fallback hidden controls and final ship draw coordinates verified
+  with synthetic item catalogs and ordered presentation traces.
+- [x] `JE_weaponViewFrame` - `WeaponViewFrame.Update`; weapon and sidekick firing,
+  repeat timing, sidekick positioning/animation/charge, shot simulation,
+  starfield/interface order, and power-bar pixels verified with parsed item fixtures,
+  a controlled player-shot effects host, and a screen/HUD state fixture.
 
 ### `src/helptext.c`
 
@@ -2381,7 +2645,10 @@ these implementation inventories:
 
 ### `src/loudness.c`
 
-- [ ] `init_audio`
+- [x] `init_audio` - `SdlAudioDevice.TryInitializeOpl`; native disabled-audio
+  short circuit, SDL init/open failure policy, negotiated sample-rate OPL2
+  initialization, LDS player/mixer creation, and actual dummy SDL callback
+  playback are verified. The platform supplies rhythm-noise randomness.
 - [x] `audioCallback` - `AudioMixer.Mix`; exact native PCM/channel/fractional update parity, required OPL service.
 - [x] `deinit_audio` - `SdlGameShutdownHost.DeinitializeAudio` disposes the SDL
   audio device, clears sample channels and frees the owned `LdsPlayer`; dummy
@@ -2410,7 +2677,9 @@ these implementation inventories:
 - [x] `JE_outCharGlow` - `CharacterGlow.Draw`/`CharacterGlowHost`; character map/width/16-bit positions, brightness wave, shadow, skip/escape/warning/network/timing order in 1,024 native scenarios; real glyph/input/PIT/warning pixels verified. Oversized native buffers fail explicitly.
 - [x] `JE_drawPortConfigButtons` - `PlayerWeapons.DrawModeButtons`; single-player sprite locations/lit/unlit frames and two-player suppression verified against unchanged native draw calls.
 - [x] `JE_helpSystem` - `HelpSystem.Run`/`HelpSystemHost`; 304 native complete menu scripts including all topic starts, keyboard wrap and 160 exact row/click/hover/mouse-over-key edges; music/background/fades/cursor and actual SDL title/help/title return verified.
-- [ ] `saveGameNamePopup`
+- [x] `saveGameNamePopup` - `SavedGameNamePopup.Run`; mouse/key/text input,
+  filtering, uppercase and 28-character limit, backspace/accept/cancel, trailing
+  space trimming, and save/load dispatch verified with scripted host tests.
 - [x] `helpSystemPage` - `HelpSystem.ShowPages`/`DrawPage`; 144 native page scripts cover all eight layouts, per-topic/global footers, page boundary/menu return, left/right cursor and key/mouse precedence, fade/text-style restore; padded managed drawing, SDL full eight-page navigation and cancellation verified.
 - [x] `weapon_upgrade_cost` - `PlayerProgression.WeaponUpgradeCost`; triangular costs, power 0..11 and platform-width signed long overflow verified with 72 native cases.
 - [x] `JE_getCost` - `PlayerProgression.GetCost`; native item-type tables, special ship >90 cost, player-one upgrade ownership and ushort cost narrowing.
@@ -2447,7 +2716,8 @@ these implementation inventories:
 - [x] `JE_playCredits` - `Credits.Run`; 24,483 frames match native scrolling, text/shadow layout, picture fades/wraps, seeded ship motion/banking, audio transitions, held final frame, input/network ordering and cleanup. Concrete managed sprite/font/palette/file/input/timer routing also verified; top-level game wiring remains pending.
 - [x] `JE_endLevelAni` - `LevelResults.Run`; all unlock/snapshot/difficulty/alive/timer/score/editor/cube/skip/wait/audio/fade behavior in 512 native cases plus actual glow/input/palette/timing integration. Checksum-overlap unlocks use transient scratch; invalid native-buffer indices fail explicitly.
 - [x] `JE_drawCube` - `GameHud.DrawCube`/`GameHudPresentation.Cube`; exact ordered dark shadows and signed brightness hue conversion with real sprite adapter pixels.
-- [ ] `JE_handleChat`
+- [x] `JE_handleChat` - `InGameChat.Handle`; preserves the original explicit
+  no-op stub, invoked and verified with the level-network compatibility tests.
 - [x] `JE_inGameDisplays` - `GameHud.Draw`; cash/special/lives/name/bombs/cheat ordering, all 256 life values including unsigned underflow and signed display, local/network name width and mode gates verified in 4,096 native traces and actual sprite/font adapter tests.
 - [x] `JE_mainKeyboardInput` - `GameKeyboard.Run`; 4,096 native mode/chord cases verify ordered custom-ship selection/armor preservation, help/NortShip requests, cheat/skip/debug/pause/menu behavior, smoothing/filter/speed toggles, key consumption and RNG/music. Actual gamma, ship/combat HUD, help/text, network request state and PIT settings are integrated; enclosing playable level loop remains pending.
 - [x] `JE_pauseGame` - `GamePause.Run`/`GamePausePresentation`; twelve native control/presentation/input/timing/volume traces, actual SDL font/input and real two-peer SDL2_net pause/resume; explicit failures and cancellation restore audio/mouse.
@@ -2573,31 +2843,37 @@ these implementation inventories:
 
 ### `src/opl.c`
 
-- [ ] `operator_advance`
-- [ ] `operator_advance_drums`
-- [ ] `operator_output`
-- [ ] `operator_off`
-- [ ] `operator_sustain`
-- [ ] `operator_release`
-- [ ] `operator_decay`
-- [ ] `operator_attack`
-- [ ] `change_attackrate`
-- [ ] `change_decayrate`
-- [ ] `change_releaserate`
-- [ ] `change_sustainlevel`
-- [ ] `change_waveform`
-- [ ] `change_keepsustain`
-- [ ] `change_vibrato`
-- [ ] `change_feedback`
-- [ ] `change_frequency`
-- [ ] `enable_operator`
-- [ ] `disable_operator`
-- [ ] `adlib_init`
-- [ ] `adlib_write`
-- [ ] `adlib_reg_read`
-- [ ] `adlib_write_index`
-- [ ] `clipit16`
-- [ ] `adlib_getsample`
+- [x] `operator_advance` - `OplOperatorTimingState.Advance`; fixed-point waveform/vibrato/generator advancement with unsigned wraparound and negative division tests.
+- [x] `operator_advance_drums` - `OplOperatorTimingState.AdvanceDrums`; hihat/snare/cymbal phase selection and a single injected RNG-bit read are tested.
+- [x] `operator_output` - `OplOperatorTimingState.Render`; native off-state behavior, unsigned modulated waveform indexing/masking, floating-point sample scaling and feedback output are tested.
+- [x] `operator_off` - `OplEnvelopeState.AdvanceOff`; preserves the native empty handler, with a regression verifying that no envelope state changes.
+- [x] `operator_sustain` - `OplEnvelopeState.AdvanceSustain`; consumes complete 16.16 samples, retains fractional generator position and uses the native pointer-width signed envelope counter.
+- [x] `operator_release` - `OplEnvelopeState.AdvanceRelease`; release attenuation, native envelope-step masking, fractional generator position, silent cutoff and release-only off transition are covered.
+- [x] `operator_decay` - `OplEnvelopeState.AdvanceDecay`; sustain threshold transitions with/without sustain hold, decay attenuation, native envelope-step masking and fractional generator position are covered.
+- [x] `operator_attack` - `OplEnvelopeState.AdvanceAttack`; polynomial attack, envelope-step masks, cyclic step skipping, full-level clamp and decay transition are covered.
+- [x] `change_attackrate` - `OplEnvelopeState.ConfigureAttack`; polynomial coefficients, envelope-step/skip masks, disabled rate and OPL2/OPL3 immediate attack thresholds are tested.
+- [x] `change_decayrate` - `OplEnvelopeState.ConfigureDecayRate`; all 16 register rates exercise attenuation factors and native envelope-step masks.
+- [x] `change_releaserate` - `OplEnvelopeState.ConfigureReleaseRate`; all 16 register rates exercise attenuation factors and native envelope-step masks.
+- [x] `change_sustainlevel` - `OplEnvelopeState.ConfigureSustainLevel`; all 16 register levels and high-nibble extraction are tested.
+- [x] `change_waveform` - `OplOperatorTimingState.ConfigureWaveform`/`OplWaveforms`; all eight native waveform start/mask selections and generated table samples are tested.
+- [x] `change_keepsustain` - `OplEnvelopeState.ConfigureSustainKeep`; both direction changes between sustain modes and unrelated-mode preservation are tested.
+- [x] `change_vibrato` - `OplOperatorTimingState.ConfigureVibrato`; vibrato/tremolo flag decoding is exhaustively tested for all 256 register bytes.
+- [x] `change_feedback` - `OplOperatorTimingState.ConfigureFeedback`; feedback amount is exhaustively checked for all 256 channel register bytes.
+- [x] `change_frequency` - `OplOperatorTimingState.ConfigureFrequency` and `OplFrequencyTables`; frequency/octave/note-select/KSR/key-level calculations and dependent envelope-rate recalculation are tested.
+- [x] `enable_operator` - `OplOperatorTimingState.Enable`; waveform start, attack transition, and already-active handling are tested.
+- [x] `disable_operator` - `OplOperatorTimingState.Disable`; shared activity bits and final active-to-release transition are tested.
+- [x] `adlib_init` - `OplChipState.Initialize`; OPL2/OPL3 reset state, operator/envelope initialization, clock and modulation increments, vibrato/tremolo tables and buffers are regression-tested against the native initialization logic.
+- [x] `adlib_write` - `OplChipState.WriteRegister`; control/status reset, operator parameter mapping, frequency and envelope updates, key transitions, percussion triggers, OPL2 waveform gating, OPL3 second-bank routing, four-operator channel pairing and panning are regression-tested.
+- [x] `adlib_reg_read` - `OplPortState.Read`; OPL2 status mask and both
+  register-detection port values, plus OPL3 status/read behavior.
+- [x] `adlib_write_index` - `OplPortState.WriteIndex`; primary/secondary
+  register bank selection with OPL3 mode and register-5 detection.
+- [x] `clipit16` - `OplSample.ClipInt16`; signed-16 saturation boundaries and integer extremes.
+- [x] `adlib_getsample` - `OplChipState.Render`; OPL2 sample rendering is
+  checked against native PCM vectors for FM/additive output, tremolo, feedback,
+  multiple channels, 512-sample block boundaries, and deterministic percussion.
+  The active native build does not define `OPLTYPE_IS_OPL3`; conditional OPL3
+  four-operator sample output remains an explicit compatibility gap.
 
 ### `src/palette.c`
 
@@ -2901,21 +3177,43 @@ these implementation inventories:
 
 #### `src/tinydir.h`
 
-- [ ] `tinydir_open`
-- [ ] `tinydir_open_sorted`
-- [ ] `tinydir_close`
-- [ ] `tinydir_next`
-- [ ] `tinydir_readfile`
-- [ ] `tinydir_readfile_n`
-- [ ] `tinydir_open_subdir_n`
-- [ ] `tinydir_file_open`
-- [ ] `_tinydir_get_ext`
-- [ ] `_tinydir_file_cmp`
-- [ ] `_tinydir_dirent_buf_size`
+- [x] `tinydir_open` - `Directory.EnumerateFiles` in the managed item-bundle
+  loader and save catalog supplies the regular-file entries those callers
+  consume; missing-directory behavior and native parsed results are tested.
+- [x] `tinydir_open_sorted` - managed file enumeration plus explicit ordering
+  in `ItemDefinitions.LoadAll` and `SavedGameCatalog.BuildList`; native mod
+  ordering and saved-list traces match.
+- [x] `tinydir_close` - managed enumeration scopes dispose their iterators on
+  completion through `foreach`/LINQ enumerator disposal; both callers are
+  exercised by their directory-loading and catalog tests.
+- [x] `tinydir_next` - `foreach` iteration over `Directory.EnumerateFiles`
+  replaces native directory-entry advancement; native bundle/catalog outputs
+  match.
+- [x] `tinydir_readfile` - `FileInfo` values from managed enumeration replace
+  native entry metadata for the callers' file filtering and naming needs.
+- [x] `tinydir_readfile_n` - `TinyDirectory.TryReadFileAt` copies indexed
+  entries and recomputes extensions; `DirectoryInfo.EnumerateFiles` supplies
+  save-catalog regular-file entries, and native traces confirm same-suffix
+  directories are excluded.
+- [x] `tinydir_open_subdir_n` - `TinyDirectory.OpenSubdirectory`; directories-first ordered listing, index/type errors, and native empty-directory failure behavior.
+- [x] `tinydir_file_open` - `TinyDirectory.TryOpenFile`; exact path lookup, root/directory/file status, and filename extension semantics.
+- [x] `_tinydir_get_ext` - `FileInfo.Extension` and the managed suffix check
+  replace extension extraction; native save-list tests cover a leading-dot
+  save name, mixed-case suffix, and nonmatching extension.
+- [x] `_tinydir_file_cmp` - ordinal name ordering in `SavedGameCatalog.BuildList`
+  matches the native file comparator after its directory-first entries are
+  filtered; native list traces verify mixed-case order and player filters.
+- [x] `_tinydir_dirent_buf_size` - the readdir_r-only buffer-size helper is
+  excluded by the native build's `TINYDIR_USE_READDIR` configuration; managed
+  directory enumeration owns its platform buffer and exposes no equivalent
+  buffer-size operation.
 
 #### `src/config_file.h`
 
-- [ ] `config_string_to_cstr`
+- [x] `config_string_to_cstr` - Managed `ConfigOption.Value`/`Values` expose
+  immutable managed strings; `CString` applies the native NUL-terminated view.
+  Configuration regression fixtures cover embedded NUL values and round-trip
+  output.
 - [x] `config_add_section` - `Configuration.AddSection`.
 - [x] `config_set_option` - `ConfigSection.SetOption`.
 - [x] `config_get_or_set_option` - `ConfigSection.GetOrSetOption`.

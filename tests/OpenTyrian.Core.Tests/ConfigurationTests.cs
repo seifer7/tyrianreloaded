@@ -94,6 +94,18 @@ internal static class ConfigurationTests
         Equal("prefix", section.GetOption("nul")?.Value);
         config.Clear();
         Equal(0, config.Sections.Count);
+
+        using var errors = new StringWriter();
+        try
+        {
+            Configuration.ThrowOutOfMemory(errors);
+            throw new InvalidOperationException("Configuration OOM handler returned.");
+        }
+        catch (OutOfMemoryException exception)
+        {
+            Equal("out of memory", exception.Message);
+        }
+        Equal("out of memory" + Environment.NewLine, errors.ToString());
     }
 
     private static void Equal<T>(T expected, T actual)

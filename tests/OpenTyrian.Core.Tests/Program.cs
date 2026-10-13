@@ -1,6 +1,21 @@
 using OpenTyrian.Core;
 using OpenTyrian.Core.Tests;
 
+if (args.Length == 1 && args[0] == "--test-sdl-audio-device")
+{
+    try
+    {
+        SdlAudioTests.TestDevice();
+        Console.WriteLine("PASS SDL audio device initialization and lifecycle");
+        return 0;
+    }
+    catch (Exception error)
+    {
+        Console.Error.WriteLine($"FAIL SDL audio device initialization and lifecycle: {error}");
+        return 1;
+    }
+}
+
 if (args.Length == 2 && args[0] == "--sdl-shutdown-child")
 {
     GameShutdownTests.RunSdlChild(int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture));
@@ -28,6 +43,7 @@ Run("game text configuration defaults, keyboard bindings, and persistence", () =
 Run("complete legacy configuration startup and save persistence", () => SettingsStoreTests.Run());
 Run("versioned save metadata, native paths, sorting, and player filters", () => SaveMetadataTests.Run());
 Run("versioned save item payloads, state restoration, and persistence", () => VersionedSaveTests.Run());
+Run("sorted directory entries, subdirectory navigation, and file lookup", TinyDirectoryTests.Run);
 Run("animation run/skip/copy decoding", AnimationDecoderTests.Run);
 Run("animation playback frames, palette, input interruption, and PIT timing", () => AnimationPlayerTests.Run());
 Run("jukebox star patterns, depth rendering, keyboard controls, and seeded RNG", () => JukeboxStarfieldTests.Run());
@@ -93,6 +109,7 @@ Run("level HUD shields, Galaga rewards, weapon bars and power", () => LevelHudTe
 Run("level background layering, filters, enemy passes and progression", () => LevelBackgroundSceneTests.Run());
 Run("binary file format compatibility", BinaryFileTests.Run);
 Run("configuration model and text format", ConfigurationTests.Run);
+Run("Destruct unit-name mapping", DestructUnitNameTests.Run);
 Run("encrypted text and animation page loading", AssetReaderTests.Run);
 Run("indexed surface primitives", IndexedSurfaceTests.Run);
 Run("palette expansion and fades", PaletteTests.Run);
@@ -120,6 +137,7 @@ Run("complete level event dispatch and host actions", () => LevelEventDispatchTe
 Run("level completion and queued sound dispatch", () => LevelStateTests.Run());
 Run("sound banks, voice trimming, conversion, and playback routing", () => SoundBankTests.Run());
 Run("eight-channel audio mixing and music update scheduling", () => AudioMixerTests.Run());
+Run("disabled audio initialization policy", SdlAudioTests.TestDisabledInitialization);
 Run("music archive loading and synchronized song controls", () => MusicPlayerTests.Run());
 Run("LDS music sequencing, instrument effects, and OPL register routing", () => LdsPlayerTests.Run());
 Run("keyboard/mouse events, waits, text, and video coordinate mapping", () => InputTests.Run());

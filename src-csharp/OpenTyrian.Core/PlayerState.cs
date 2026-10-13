@@ -32,6 +32,33 @@ public sealed class PlayerItems
         => [Weapons[0].Id, Weapons[1].Id, SuperArcadeMode, Sidekicks[0], Sidekicks[1], Generator,
             SidekickLevel, SidekickSeries, initialEpisode, Shield, Special, Ship];
 
+    public byte GetMenuItemId(int index) => index switch
+    {
+        0 => Ship,
+        1 => Weapons[(int)WeaponPort.Front].Id,
+        2 => Weapons[(int)WeaponPort.Rear].Id,
+        3 => Shield,
+        4 => Generator,
+        5 => Sidekicks[(int)SidekickPort.Left],
+        6 => Sidekicks[(int)SidekickPort.Right],
+        _ => throw new ArgumentOutOfRangeException(nameof(index))
+    };
+
+    public void SetMenuItemId(int index, byte value)
+    {
+        switch (index)
+        {
+            case 0: Ship = value; break;
+            case 1: Weapons[(int)WeaponPort.Front].Id = value; break;
+            case 2: Weapons[(int)WeaponPort.Rear].Id = value; break;
+            case 3: Shield = value; break;
+            case 4: Generator = value; break;
+            case 5: Sidekicks[(int)SidekickPort.Left] = value; break;
+            case 6: Sidekicks[(int)SidekickPort.Right] = value; break;
+            default: throw new ArgumentOutOfRangeException(nameof(index));
+        }
+    }
+
     public byte LoadLegacyItems(ReadOnlySpan<byte> items)
     {
         if (items.Length != 12) throw new ArgumentException("Legacy player items require exactly 12 bytes.", nameof(items));

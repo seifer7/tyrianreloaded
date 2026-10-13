@@ -31,7 +31,7 @@ internal static class LevelMapShipInitializerTests
         using var mapStream = new MemoryStream(LevelMapTests.BuildLevel(0, 'A'));
         var mapShapes = LevelMapTests.BuildShapes(0);
         var map = LevelMap.Load(mapStream, _ => new MemoryStream(mapShapes));
-        map.Apply(backgrounds, level);
+        map.Apply(backgrounds, level, new LevelBackgroundSceneState());
 
         for (var mode = 0; mode < 1024; mode++)
         {

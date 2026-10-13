@@ -143,13 +143,22 @@ public sealed class LevelMap
         return Load(stream, shape => files.OpenRequired(files.Directory, $"shapes{char.ToLowerInvariant(shape)}.dat"));
     }
 
-    public void Apply(BackgroundRenderer backgrounds, LevelEvents events)
+    public void Apply(BackgroundRenderer backgrounds, LevelEvents events, LevelBackgroundSceneState scene)
     {
+        ArgumentNullException.ThrowIfNull(backgrounds);
+        ArgumentNullException.ThrowIfNull(events);
+        ArgumentNullException.ThrowIfNull(scene);
+        if (scene.LevelEnemies.Length < Header.Enemies.Length)
+            throw new ArgumentException("Level background state cannot hold the loaded enemy roster.", nameof(scene));
+
         backgrounds.First.Tiles = Maps[0];
         backgrounds.Second.Tiles = Maps[1];
         backgrounds.Third.Tiles = Maps[2];
         events.MapX = Header.FirstX;
         events.MapX3 = Header.ThirdX;
         events.Events = Header.Events;
+        Array.Clear(scene.LevelEnemies);
+        Header.Enemies.CopyTo(scene.LevelEnemies, 0);
+        scene.LevelEnemyMaximum = checked((ushort)Header.Enemies.Length);
     }
 }

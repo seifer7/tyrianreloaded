@@ -12,6 +12,12 @@ namespace OpenTyrian.Core;
 
 public sealed class SdlAudioDevice : IDisposable
 {
+    private sealed class DeviceUnavailableException(bool subsystemInitialization, string error)
+        : IOException(error)
+    {
+        public bool SubsystemInitialization { get; } = subsystemInitialization;
+    }
+
     private const uint AudioSubsystem = 0x10;
     private readonly object _gate = new();
     private readonly SdlNative.AudioCallback _callback;
@@ -25,11 +31,57 @@ public sealed class SdlAudioDevice : IDisposable
     public ushort BufferSamples { get; }
     public long CompletedCallbacks => Interlocked.Read(ref _completedCallbacks);
 
+    public static bool TryInitialize(ref bool audioDisabled, Func<int, AudioMixer> createMixer,
+        TextWriter diagnostics, out SdlAudioDevice? device)
+    {
+        ArgumentNullException.ThrowIfNull(createMixer);
+        ArgumentNullException.ThrowIfNull(diagnostics);
+        device = null;
+        if (audioDisabled) return false;
+
+        try
+        {
+            device = new SdlAudioDevice(createMixer);
+            device.Start();
+            return true;
+        }
+        catch (DeviceUnavailableException error)
+        {
+            audioDisabled = true;
+            diagnostics.WriteLine(error.SubsystemInitialization
+                ? $"error: failed to initialize SDL audio: {error.Message}"
+                : $"error: SDL failed to open audio device: {error.Message}");
+            return false;
+        }
+        catch
+        {
+            device?.Dispose();
+            device = null;
+            throw;
+        }
+    }
+
+    public static bool TryInitializeOpl(ref bool audioDisabled, TextWriter diagnostics,
+        out SdlAudioDevice? device, out LdsPlayer? player, Func<uint>? nextRandom = null)
+    {
+        LdsPlayer? createdPlayer = null;
+        var initialized = TryInitialize(ref audioDisabled, sampleRate =>
+        {
+            createdPlayer = new LdsPlayer(OplChipState.Initialize((uint)sampleRate), nextRandom);
+            return new AudioMixer(sampleRate, createdPlayer);
+        }, diagnostics, out device);
+        player = initialized
+            ? createdPlayer ?? throw new InvalidOperationException("OPL audio initialization did not create an LDS player.")
+            : null;
+        return initialized;
+    }
+
     public SdlAudioDevice(Func<int, AudioMixer> createMixer)
     {
         ArgumentNullException.ThrowIfNull(createMixer);
         _callback = Mix;
-        if (SdlNative.InitSubSystem(AudioSubsystem) != 0) throw SdlNative.Error("Failed to initialize SDL audio");
+        if (SdlNative.InitSubSystem(AudioSubsystem) != 0)
+            throw new DeviceUnavailableException(true, SdlNative.ErrorText);
         _initialized = true;
         try
         {
@@ -42,7 +94,7 @@ public sealed class SdlAudioDevice : IDisposable
                 Callback = Marshal.GetFunctionPointerForDelegate(_callback)
             };
             _device = SdlNative.OpenAudioDevice(0, 0, ref desired, out var obtained, 1 | 8);
-            if (_device == 0) throw SdlNative.Error("Failed to open SDL audio device");
+            if (_device == 0) throw new DeviceUnavailableException(false, SdlNative.ErrorText);
             if (obtained.Frequency < 139 || obtained.Format != desired.Format || obtained.Channels != 1 ||
                 obtained.Samples == 0 || obtained.Size != obtained.Samples * sizeof(short))
                 throw new InvalidDataException("SDL audio device did not retain signed-16 mono output.");

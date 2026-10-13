@@ -271,6 +271,13 @@ public sealed class Configuration
     public IReadOnlyList<ConfigSection> Sections => _sections.AsReadOnly();
     public void Clear() => _sections.Clear();
 
+    public static void ThrowOutOfMemory(TextWriter errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        errors.WriteLine("out of memory");
+        throw new OutOfMemoryException("out of memory");
+    }
+
     public ConfigSection AddSection(string type, string? name = null)
     {
         ArgumentNullException.ThrowIfNull(type);

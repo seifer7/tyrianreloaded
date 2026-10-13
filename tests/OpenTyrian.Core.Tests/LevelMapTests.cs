@@ -131,10 +131,16 @@ internal static class LevelMapTests
         var players = new[] { new PlayerState(0), new PlayerState(1) };
         var background = new BackgroundRenderer();
         var events = new LevelEvents(items, enemies, players, background, new SceneEffects(new byte[8]));
-        map.Apply(background, events);
+        var scene = new LevelBackgroundSceneState();
+        Array.Fill(scene.LevelEnemies, ushort.MaxValue);
+        map.Apply(background, events, scene);
         Check(ReferenceEquals(background.First.Tiles, map.Maps[0]) && ReferenceEquals(background.Second.Tiles, map.Maps[1]) &&
             ReferenceEquals(background.Third.Tiles, map.Maps[2]) && ReferenceEquals(events.Events, map.Header.Events) &&
             events.MapX == 65535 && events.MapX3 == map.Header.ThirdX, "Loaded map and event gameplay integration differs.");
+        Check(scene.LevelEnemyMaximum == map.Header.Enemies.Length &&
+            scene.LevelEnemies.Take(map.Header.Enemies.Length).SequenceEqual(map.Header.Enemies) &&
+            scene.LevelEnemies.Skip(map.Header.Enemies.Length).All(enemy => enemy == 0),
+            "Loaded map enemy roster or unused-slot clearing differs.");
         background.First.MapOffset = 14 * 5;
         var screen = new IndexedSurface(320, 200, 320, warnings);
         background.DrawFirst(screen);

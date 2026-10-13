@@ -588,8 +588,9 @@ service. A recording deterministic converter in the oracle verifies the exact
 conversion inputs, output counts/ownership, and playback routing; it does not
 claim SDL resampling or device parity. Managed read/conversion failures propagate
 and retain the previous complete bank instead of publishing partial or zeroed
-samples. SDL conversion, FM waveform synthesis, and hardware integration remain
-conversion/release gates.
+samples. SDL conversion and OPL2 FM waveform synthesis now have separate
+native-parity coverage; conditional OPL3 output and hardware compatibility
+remain conversion/release gates.
 The mixer oracle verifies exact signed-16 PCM output across 256 flag/volume/
 channel combinations, five sample rates, and six buffer sizes; it covers
 fractional 69.5 Hz LDS timing, clipping, channel replacement/consumption, and
@@ -600,9 +601,14 @@ leave music stopped and throw rather than replaying a stale track after a warnin
 The full LDS oracle compares 24 songs, 9,216 update frames, 1,536 direct notes,
 all packed commands, signed transpose, delayed notes, fades/jumps/loops,
 instrument effects, and ordered OPL initialization/cache/register writes.
-Synthetic OPL rendering verifies archive/controller/LDS/mixer integration but
-does not establish FM waveform parity. Invalid LDS indices/truncation throw
-instead of accessing native memory; managed teardown also stops playback.
+The OPL2 renderer is separately compared with native PCM vectors for FM and
+additive voices, tremolo, feedback, multiple channels, block boundaries, and
+deterministic percussion. `SdlAudioDevice.TryInitializeOpl` creates the OPL2
+chip at the SDL-negotiated sample rate and runs an LDS fixture through the
+actual dummy SDL callback; percussion uses an injected platform random source.
+Conditional OPL3 four-operator output remains unimplemented. Invalid LDS
+indices/truncation throw instead of accessing native memory; managed teardown
+also stops playback.
 Input parity compares 512 viewport/coordinate calculations and 1,792 state
 snapshots across 128 queued event/wait scenarios, including exact event-return
 ordering, Alt+Enter, focus-dependent relative mode and accumulator resets,
@@ -639,8 +645,12 @@ The device is deliberately created paused so the host can load music/samples
 first. Managed callback exceptions cannot cross SDL's native thread: they
 silence output and retain their exception/stack for `ThrowIfFaulted` and
 start/pause/dispose. A game host must check faults every frame and stop/close
-the device before releasing LDS/OPL state. Hardware, FM waveform generation,
-and complete game-host audio lifetime remain release gates.
+the device before releasing LDS/OPL state. OPL2 sample synthesis and startup
+are covered; physical hardware compatibility, conditional OPL3 output, and
+complete game-host audio lifetime remain release gates.
+To exercise the managed device lifecycle and initialization policy without
+building the native oracle, set `$env:SDL_AUDIODRIVER='dummy'` and run
+`dotnet run --project tests/OpenTyrian.Core.Tests -- --test-sdl-audio-device`.
 
 The game entrypoint now runs the complete native option parser behavior before
 the explicit unplayable-game exit. The option oracle compares 51 argument lists,
@@ -670,7 +680,8 @@ key/text state, resize and Alt+Enter fullscreen effects, quit callbacks, SDL
 timing, and required joystick/network services. Ignored SDL-owned drop/extended
 text pointers are freed rather than leaked. SDL video/event pumping follows
 SDL's main-thread requirement. Physical display/input/audio/controllers,
-network gameplay integration, FM synthesis, and whole-game flows remain release gates.
+conditional OPL3 synthesis, network gameplay integration and whole-game flows
+remain release gates.
 
 Joystick conversion now covers all native module functions. Its scripted
 oracle compares 22 code/partial-scan cases, 484 assignment comparisons, 640
@@ -849,8 +860,8 @@ routing, disabled audio, and volume restoration after failed presentation.
 Real dummy SDL integration drives keyboard exit, 16 presented/mixed frames,
 PIT waits and the final black palette. Native star initialization is persistent
 across jukebox runs; the empty `JE_wackyCol` stub has no managed counterpart.
-Whole-game title-menu wiring, FM waveform output and original-asset presentation
-remain outstanding.
+Whole-game title-menu wiring, conditional OPL3 waveform output and
+original-asset presentation remain outstanding.
 
 ```sh
 python3 -B tests/native/build_jukebox_stars_reference.py --output /tmp/jukebox_stars_reference.c

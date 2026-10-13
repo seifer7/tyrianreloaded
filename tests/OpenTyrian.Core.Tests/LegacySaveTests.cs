@@ -8,6 +8,7 @@ internal static class LegacySaveTests
 {
     public static void Run(string? executable = null)
     {
+        TestMenuItemMapping();
         var trace = new StringBuilder();
         for (var mode = 0; mode < 32; mode++)
         {
@@ -208,6 +209,38 @@ internal static class LegacySaveTests
                     trace.AppendLine($"game-last:{p},{player.LastItems.Weapons[0].Power},{player.LastItems.Weapons[1].Power}:{Convert.ToHexString(player.LastItems.ToLegacyItems(0))}");
                 }
             }
+    }
+
+    private static void TestMenuItemMapping()
+    {
+        var items = new PlayerItems
+        {
+            Ship = 11,
+            Shield = 44,
+            Generator = 55
+        };
+        items.Weapons[0].Id = 22;
+        items.Weapons[0].Power = 8;
+        items.Weapons[1].Id = 33;
+        items.Weapons[1].Power = 9;
+        items.Sidekicks[0] = 66;
+        items.Sidekicks[1] = 77;
+        byte[] expected = [11, 22, 33, 44, 55, 66, 77];
+        for (var index = 0; index < expected.Length; index++)
+        {
+            Check(items.GetMenuItemId(index) == expected[index], $"Menu item mapping read differs at {index}.");
+            items.SetMenuItemId(index, (byte)(expected[index] + 1));
+        }
+
+        for (var index = 0; index < expected.Length; index++)
+        {
+            Check(items.GetMenuItemId(index) == expected[index] + 1, $"Menu item mapping write differs at {index}.");
+        }
+
+        Check(items.Weapons[0].Power == 8 && items.Weapons[1].Power == 9,
+            "Menu item mapping changed weapon power while changing weapon IDs.");
+        Throws<ArgumentOutOfRangeException>(() => items.GetMenuItemId(-1));
+        Throws<ArgumentOutOfRangeException>(() => items.SetMenuItemId(7, 0));
     }
 
     private static int Bit(bool value) => value ? 1 : 0;

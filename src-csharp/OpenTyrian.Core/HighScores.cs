@@ -178,11 +178,14 @@ public sealed class HighScores(LegacyGameState game, LegacySaveArchive saves, Pl
 public sealed class HighScoreHost(IndexedSurface surface, SpriteSheet cursorSheet, SpriteTable options,
     FontRenderer font, PaletteSystem palette, PaletteColor[] colors, ReadOnlyMemory<PaletteColor> initialPalette,
     InputState input, MouseCursor cursor, DelayTimer timer, TextGlow glow, Action loadCursor,
-    Action loadPicture, Action<uint> playSong, Func<bool> playing, Action present, Action pushJoysticks) : IHighScoreHost
+    Action loadPicture, Action<uint> playSong, Func<bool> playing, Action present, Action pushJoysticks) :
+    IHighScoreHost, ISavedGameNamePopupHost
 {
     // Native score entry reads the shared mouse-position words, not mouse_x/y.
     public ushort LegacyMouseX { get; set; }
     public ushort LegacyMouseY { get; set; }
+    public Action<string>? SaveGameOperation { get; init; }
+    public Action<string>? LoadGameOperation { get; init; }
     public void EnsureCursor() { if (cursorSheet.Size == 0) loadCursor(); }
     public void WaitNoMouse(CancellationToken cancellation) => input.WaitNoInput(false, true, false, cancellation);
     public void Clear() => surface.Pixels.Span.Clear();
@@ -221,4 +224,28 @@ public sealed class HighScoreHost(IndexedSurface surface, SpriteSheet cursorShee
         glow.Draw(x, y, text, cancellation);
     }
     public void WaitInput(CancellationToken cancellation) => input.WaitInput(true, true, true, cancellation);
+
+    void ISavedGameNamePopupHost.EnsureMouseSprite() => EnsureCursor();
+    void ISavedGameNamePopupHost.WaitForNoInput(CancellationToken cancellation) =>
+        input.WaitNoInput(false, true, false, cancellation);
+    void ISavedGameNamePopupHost.DrawMessageBox() => MessageBox();
+    void ISavedGameNamePopupHost.DrawShadedText(int x, int y, ReadOnlyMemory<byte> text,
+        byte color, int brightness, bool darken)
+        => font.ShadeText(surface, x, y, text.Span, color, brightness, darken ? TextShade.Darken : TextShade.Full);
+    void ISavedGameNamePopupHost.DrawName(int x, int y, ReadOnlyMemory<byte> text) => Name(x, y, text);
+    int ISavedGameNamePopupHost.TextWidth(ReadOnlyMemory<byte> text, Font selected)
+        => font.TextWidth(text.Span, selected);
+    void ISavedGameNamePopupHost.DrawAdjustedText(int x, int y, ReadOnlyMemory<byte> text,
+        byte color, int adjustment, Font selected, bool centered)
+        => font.OutTextAdjust(surface, x, y, text.Span, color, adjustment, selected, centered);
+    void ISavedGameNamePopupHost.ReadMousePosition()
+    {
+        var position = input.MousePosition();
+        LegacyMouseX = position.X;
+        LegacyMouseY = position.Y;
+    }
+    void ISavedGameNamePopupHost.SaveGame(string name)
+        => (SaveGameOperation ?? throw new InvalidOperationException("Save-game callback is not configured."))(name);
+    void ISavedGameNamePopupHost.LoadGame(string name)
+        => (LoadGameOperation ?? throw new InvalidOperationException("Load-game callback is not configured."))(name);
 }

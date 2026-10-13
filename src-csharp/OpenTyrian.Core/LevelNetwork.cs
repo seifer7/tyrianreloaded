@@ -29,6 +29,11 @@ public sealed class LevelNetworkServices(Action pause, Func<bool, bool> setup, I
     }
 }
 
+public static class InGameChat
+{
+    public static void Handle() { }
+}
+
 public sealed partial class LevelEvents
 {
     public void UpdateNetworkState(bool isNetworkGame, NetworkSession session, PlayerCombat combat,

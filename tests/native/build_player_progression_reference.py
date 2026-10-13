@@ -41,6 +41,31 @@ static char lastLevelName[32];
 int32_t JE_getValue(JE_byte,JE_word);
 """ + "".join(extract(name) for name in
               ("weapon_upgrade_cost", "JE_getCost", "JE_getValue", "JE_totalScore", "JE_initPlayerData", "adjust_difficulty")) + r"""
+static JE_longint test_cash_left(JE_byte item_type) {
+    JE_longint cash_left = (JE_longint)player[0].cash;
+    JE_word item_num;
+    switch (item_type) {
+        case 2: item_num = player[0].items.ship; break;
+        case 3: item_num = player[0].items.weapon[0].id; break;
+        case 4: item_num = player[0].items.weapon[1].id; break;
+        case 5: item_num = player[0].items.shield; break;
+        case 6: item_num = player[0].items.generator; break;
+        case 7: item_num = player[0].items.sidekick[0]; break;
+        case 8: item_num = player[0].items.sidekick[1]; break;
+        default: return 0;
+    }
+    cash_left -= JE_getCost(item_type, item_num);
+    JE_word accumulated_upgrade_cost = 0;
+    if (item_type == 3 || item_type == 4) {
+        unsigned int port = item_type - 3;
+        for (unsigned int i = 1; i < player[0].items.weapon[port].power; ++i) {
+            accumulated_upgrade_cost += weaponPort[item_num].cost * i;
+            cash_left -= accumulated_upgrade_cost;
+        }
+    }
+    return cash_left;
+}
+""" + r"""
 int main(int argc,char **argv) {
     if(argc!=2)return 2;load_typed_items(argv[1]);
     strcpy(pickup_text[19],"Start");
@@ -80,6 +105,16 @@ int main(int argc,char **argv) {
         for(int level=1;level<10;level++)for(unsigned int j=0;j<COUNTOF(scores);j++) {
             player[0].cash=scores[j];player[1].cash=j;initialDifficulty=level;difficultyLevel=mode%11;
             adjust_difficulty();printf("difficulty:%d,%u,%d\n",level,j,difficultyLevel);
+        }
+        const ulong cash_values[]={0,1,100000,ULONG_MAX,ULONG_MAX-1};
+        const JE_byte powers[]={1,2,11};
+        for(unsigned int c=0;c<COUNTOF(cash_values);c++) {
+            player[0].cash=cash_values[c];
+            for(unsigned int p=0;p<COUNTOF(powers);p++) {
+                player[0].items.weapon[0].power=powers[p];player[0].items.weapon[1].power=powers[p];
+                for(JE_byte type=2;type<=8;type++)
+                    printf("cash-left:%d,%lu,%u,%u,%d\n",mode,player[0].cash,powers[p],type,test_cash_left(type));
+            }
         }
     }
     return 0;
