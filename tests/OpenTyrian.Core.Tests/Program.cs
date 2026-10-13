@@ -1,6 +1,12 @@
 using OpenTyrian.Core;
 using OpenTyrian.Core.Tests;
 
+if (args.Length == 2 && args[0] == "--sdl-shutdown-child")
+{
+    GameShutdownTests.RunSdlChild(int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture));
+    return 0;
+}
+
 var failures = new List<string>();
 Run("default seed", TestDefaultSeed);
 Run("published seed vectors", TestPublishedVectors);
@@ -36,6 +42,55 @@ Run("special weapons, shield/armor costs, repulsion, flares and HUD", () => Play
 Run("player keyboard, mouse, joystick, demo and network input collection", () => PlayerInputTests.Run());
 Run("demo selection, original/compact headers, item IDs and recording bytes", () => DemoSessionTests.Run());
 Run("enemy collision damage, linked destruction and shared armor pickups", () => EnemyCollisionTests.Run());
+Run("arcade/score/bonus pickups and complete player collision dispatch", () => PlayerPickupTests.Run());
+Run("in-game HUD, cube icons and concrete sprite/font presentation", () => GameHudTests.Run());
+Run("gamma correction/input publication and legacy high-score sorting", () => GameSettingsTests.Run());
+Run("new-game initialization, shop valuation and score-driven difficulty", () => PlayerProgressionTests.Run());
+Run("glowing text frames, skip input and font/timing integration", () => TextGlowTests.Run());
+Run("timed warning bars and in-game text window", () => GameTextTests.Run());
+Run("character glow frames, skip/escape and concrete font/input/timing", () => CharacterGlowTests.Run());
+Run("single/two-player in-game help presentation and input wait", () => GameHelpTests.Run());
+Run("end-level unlocks, scoring, glow, cubes and presentation", () => LevelResultsTests.Run());
+Run("episode transitions, repeated-game rewards and concrete presentation", () => EpisodeTransitionTests.Run());
+Run("episode picture loading, palette selection and fade ordering", () => EpisodePictureDisplayTests.Run());
+Run("episode warning text decryption, timing and state setup", () => EpisodeWarningDisplayTests.Run());
+Run("conditional episode-level jumps and byte narrowing", () => EpisodeLevelJumpTests.Run());
+Run("episode mode loadouts and state transitions", () => EpisodeModeConfigurationTests.Run());
+Run("episode shop item availability and encrypted records", () => EpisodeItemAvailabilityTests.Run());
+Run("episode map-transition animation frames", () => MapTransitionTests.Run());
+Run("episode presentation command dispatch", () => EpisodePresentationTests.Run());
+Run("episode completion hints and unlock presentation", () => EpisodeCompletionTests.Run());
+Run("credits scrolling, picture fades, ships and concrete presentation", () => CreditsTests.Run());
+Run("high-score qualification, name entry and concrete presentation", () => HighScoreTests.Run());
+Run("player ship initialization, custom graphics and sprite routing", () => ShipInfoTests.Run());
+Run("edited ship decryption, optional archives and sprite loading", () => EditedShipTests.Run());
+Run("in-game keyboard chords, edited ships and gameplay requests", () => GameKeyboardTests.Run());
+Run("in-game settings drawing, input, volumes and processor/speed changes", () => InGameSetupTests.Run());
+Run("local and network settings entry, peer waiting and quit synchronization", () => GameSetupSessionTests.Run());
+Run("high-score page rendering, difficulty clamping and keyboard/mouse navigation", () => HighScoreScreenTests.Run());
+Run("normal, super-arcade and SuperTyrian new-game state and selection integration", () => NewGameTests.Run());
+Run("title screen drawing, input, idle demo, dispatch and secret-code flows", () => TitleScreenTests.Run());
+Run("startup logos and SuperTyrian pixel-bleed transitions", () => GameIntroTests.Run());
+Run("saved-game loading screen drawing, paging and input", () => LoadScreenTests.Run());
+Run("help topic menus and eight-page navigation", () => HelpSystemTests.Run());
+Run("setup menu drawing, pickers, volume and settings actions", () => SetupMenuTests.Run());
+Run("local December detection and snow prompt choices", () => ChristmasPromptTests.Run());
+Run("network start presentation, selection, details and peer synchronization", () => NetworkStartScreenTests.Run());
+Run("warning text composition, character glow, prompt waits and disabled synchronization", () => WarningTextTests.Run());
+Run("ordered resource shutdown, configuration, farewell and exit codes", () => GameShutdownTests.Run());
+Run("mutable integer/reference text tokens and byte capacity", () => TextTokenTests.Run());
+Run("level game-over, demo interruption, keyboard, pause and setup dispatch", () => LevelInputTests.Run());
+Run("low-armor warning colors, sound cadence and rescue-ship drops", () => ArmorWarningTests.Run());
+Run("level viewport inversion, spotlight, timing and shared presentation flags", () => LevelPresentationTests.Run());
+Run("level debug overlays, bonus flash, Pentium pacing and countdown", () => LevelTimerTests.Run());
+Run("level startup player history, difficulty and palette initialization", () => LevelPlayerInitializerTests.Run());
+Run("level map offsets, background state, power and ship initialization", () => LevelMapShipInitializerTests.Run());
+Run("level-entry gameplay, render, warning, event and input flag initialization", () => LevelFlagsInitializerTests.Run());
+Run("level status, shield, armor, song and port initialization", () => LevelStatusDisplayInitializerTests.Run());
+Run("level combat, effects, weapons and background reset", () => LevelCombatStateInitializerTests.Run());
+Run("level transition cleanup, speed, demo and save recovery", () => LevelPreparationTests.Run());
+Run("level HUD shields, Galaga rewards, weapon bars and power", () => LevelHudTests.Run());
+Run("level background layering, filters, enemy passes and progression", () => LevelBackgroundSceneTests.Run());
 Run("binary file format compatibility", BinaryFileTests.Run);
 Run("configuration model and text format", ConfigurationTests.Run);
 Run("encrypted text and animation page loading", AssetReaderTests.Run);
@@ -122,6 +177,252 @@ for (var index = 0; index < args.Length; index += 2)
         Run("native player/enemy collision damage, linked destruction and armor compatibility", () => EnemyCollisionTests.Run(args[index + 1]));
         continue;
     }
+    if (args[index] == "--native-pickups" && index + 1 < args.Length)
+    {
+        Run("native pickups, player names, rewards and collision dispatch compatibility", () => PlayerPickupTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-hud" && index + 1 < args.Length)
+    {
+        Run("native in-game cash, lives, names, special/bomb icons and cube compatibility", () => GameHudTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-settings" && index + 1 < args.Length)
+    {
+        Run("native gamma channels, palette hotkey and high-score sorting compatibility", () => GameSettingsTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-player-progression" && index + 1 < args.Length)
+    {
+        Run("native new-game player items, costs, total scores and difficulty compatibility", () => PlayerProgressionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-text-glow" && index + 1 < args.Length)
+    {
+        Run("native glowing text frame, brightness, input and network ordering compatibility", () => TextGlowTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-text" && index + 1 < args.Length)
+    {
+        Run("native warning bars, timed sounds and in-game text window compatibility", () => GameTextTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-character-glow" && index + 1 < args.Length)
+    {
+        Run("native character glow glyph, shadow, escape, warning and wait compatibility", () => CharacterGlowTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-help" && index + 1 < args.Length)
+    {
+        Run("native in-game help drawing, input, mouse and network ordering compatibility", () => GameHelpTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-results" && index + 1 < args.Length)
+    {
+        Run("native end-level unlocks, difficulty, text, cubes and timing compatibility", () => LevelResultsTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-preparation" && index + 1 < args.Length)
+    {
+        Run("native next-level cleanup, speed, demo and save-recovery compatibility", () => LevelPreparationTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-hud" && index + 1 < args.Length)
+    {
+        Run("native level-HUD shield, Galaga reward, weapon-bar and power compatibility", () => LevelHudTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-background-scene" && index + 1 < args.Length)
+    {
+        Run("native level-background layers, filters, enemy passes and progression compatibility",
+            () => LevelBackgroundSceneTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-transition" && index + 1 < args.Length)
+    {
+        Run("native next-episode, repeat reward, credits gates and presentation compatibility", () => EpisodeTransitionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-credits" && index + 1 < args.Length)
+    {
+        Run("native credits scrolling, picture fades, ships and exit compatibility", () => CreditsTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-high-scores" && index + 1 < args.Length)
+    {
+        Run("native high-score qualification, editing and presentation compatibility", () => HighScoreTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-ship-info" && index + 1 < args.Length)
+    {
+        Run("native player ship armor, hit areas, generator power and custom graphics compatibility", () => ShipInfoTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-edited-ships" && index + 1 < args.Length)
+    {
+        Run("native edited ship archive bytes, ushort sizes and checksum failures", () => EditedShipTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-keyboard" && index + 1 < args.Length)
+    {
+        Run("native in-game keyboard chords, edited ships and gameplay request compatibility", () => GameKeyboardTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-ingame-setup" && index + 1 < args.Length)
+    {
+        Run("native in-game settings drawing, input actions and setting compatibility", () => InGameSetupTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-setup" && index + 1 < args.Length)
+    {
+        Run("native local/network settings entry, waiting and quit compatibility", () => GameSetupSessionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-high-score-screen" && index + 1 < args.Length)
+    {
+        Run("native high-score pages and input compatibility", () => HighScoreScreenTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-new-game" && index + 1 < args.Length)
+    {
+        Run("native new-game modes and presentation compatibility", () => NewGameTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-title-screen" && index + 1 < args.Length)
+    {
+        Run("native title screen, secret-code and idle/demo compatibility", () => TitleScreenTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-intro" && index + 1 < args.Length)
+    {
+        Run("native intro logos and screen-bleed compatibility", () => GameIntroTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-load-screen" && index + 1 < args.Length)
+    {
+        Run("native saved-game loading screen compatibility", () => LoadScreenTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-help-system" && index + 1 < args.Length)
+    {
+        Run("native help topic menus and page compatibility", () => HelpSystemTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-setup-menu" && index + 1 < args.Length)
+    {
+        Run("native setup menu, graphics picker and audio/gameplay settings compatibility", () => SetupMenuTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-christmas-prompt" && index + 1 < args.Length)
+    {
+        Run("native December detection and Christmas prompt compatibility", () => ChristmasPromptTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-player-init" && index + 1 < args.Length)
+    {
+        Run("native level player/palette initialization compatibility", () => LevelPlayerInitializerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-map-ship-init" && index + 1 < args.Length)
+    {
+        Run("native level map and ship state initialization compatibility", () => LevelMapShipInitializerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-flags" && index + 1 < args.Length)
+    {
+        Run("native level-entry flag and shared-state initialization compatibility", () => LevelFlagsInitializerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-status" && index + 1 < args.Length)
+    {
+        Run("native level status display initialization compatibility", () => LevelStatusDisplayInitializerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-combat-state" && index + 1 < args.Length)
+    {
+        Run("native level combat state initialization compatibility", () => LevelCombatStateInitializerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-picture" && index + 1 < args.Length)
+    {
+        Run("native episode picture loading and palette behavior compatibility", () => EpisodePictureDisplayTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-warning" && index + 1 < args.Length)
+    {
+        Run("native episode warning loading and state behavior compatibility", () => EpisodeWarningDisplayTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-level-jump" && index + 1 < args.Length)
+    {
+        Run("native conditional episode-level jump compatibility", () => EpisodeLevelJumpTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-mode" && index + 1 < args.Length)
+    {
+        Run("native episode mode and loadout compatibility", () => EpisodeModeConfigurationTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-item-availability" && index + 1 < args.Length)
+    {
+        Run("native episode shop item availability compatibility", () => EpisodeItemAvailabilityTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-map-transition" && index + 1 < args.Length)
+    {
+        Run("native episode map-transition pixel compatibility", () => MapTransitionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-presentation" && index + 1 < args.Length)
+    {
+        Run("native episode presentation command compatibility", () => EpisodePresentationTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-episode-completion" && index + 1 < args.Length)
+    {
+        Run("native episode completion and unlock compatibility", () => EpisodeCompletionTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-timer" && index + 1 < args.Length)
+    {
+        Run("native level debug, flashing notice and timer compatibility", () => LevelTimerTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-presentation" && index + 1 < args.Length)
+    {
+        Run("native level viewport and presentation compatibility", () => LevelPresentationTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-armor-warning" && index + 1 < args.Length)
+    {
+        Run("native armor warning and rescue ship compatibility", () => ArmorWarningTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-level-input" && index + 1 < args.Length)
+    {
+        Run("native level input dispatcher compatibility", () => LevelInputTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-text-tokens" && index + 1 < args.Length)
+    {
+        Run("native integer/reference text token compatibility", () => TextTokenTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-game-shutdown" && index + 1 < args.Length)
+    {
+        Run("native resource shutdown and game exit compatibility", () => GameShutdownTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-warning-text" && index + 1 < args.Length)
+    {
+        Run("native warning text and disabled synchronization compatibility", () => WarningTextTests.Run(args[index + 1]));
+        continue;
+    }
+    if (args[index] == "--native-network-start" && index + 1 < args.Length)
+    {
+        Run("native network start screen and game state compatibility", () => NetworkStartScreenTests.Run(args[index + 1]));
+        continue;
+    }
     if (args[index] == "--native-hq" && index + 1 < args.Length)
     {
         Run("native exact HQ2x/HQ3x/HQ4x output compatibility", () => HqVideoScalerTests.Run(args[index + 1]));
@@ -142,10 +443,14 @@ for (var index = 0; index < args.Length; index += 2)
         Run("native animation playback frames and ordered host compatibility", () => AnimationPlayerTests.Run(args[index + 1]));
         continue;
     }
-    if (index + 1 == args.Length || (args[index] != "--native-reference" && args[index] != "--native-extractor" && args[index] != "--native-background" && args[index] != "--native-items" && args[index] != "--native-help" && args[index] != "--native-shots" && args[index] != "--native-effects" && args[index] != "--native-combat" && args[index] != "--native-enemies" && args[index] != "--native-attacks" && args[index] != "--native-events" && args[index] != "--native-dispatch" && args[index] != "--native-level-map" && args[index] != "--native-boss-bars" && args[index] != "--native-level-state" && args[index] != "--native-sounds" && args[index] != "--native-mixer" && args[index] != "--native-music" && args[index] != "--native-lds" && args[index] != "--native-input" && args[index] != "--native-mouse" && args[index] != "--native-sdl-audio" && args[index] != "--native-game-options" && args[index] != "--native-sdl-video" && args[index] != "--native-sdl-input" && args[index] != "--native-joystick" && args[index] != "--native-selection-menus" && args[index] != "--native-ui-controls" && args[index] != "--native-legacy-saves" && args[index] != "--native-runtime-settings" && args[index] != "--native-game-config" && args[index] != "--native-settings-store" && args[index] != "--native-save-metadata" && args[index] != "--native-versioned-saves"))
+    if (index + 1 == args.Length || (args[index] != "--native-reference" && args[index] != "--native-extractor" && args[index] != "--native-background" && args[index] != "--native-items" && args[index] != "--native-help" && args[index] != "--native-shots" && args[index] != "--native-effects" && args[index] != "--native-combat" && args[index] != "--native-enemies" && args[index] != "--native-attacks" && args[index] != "--native-events" && args[index] != "--native-dispatch" && args[index] != "--native-level-map" && args[index] != "--native-boss-bars" && args[index] != "--native-level-state" && args[index] != "--native-sounds" && args[index] != "--native-mixer" && args[index] != "--native-music" && args[index] != "--native-lds" && args[index] != "--native-input" && args[index] != "--native-mouse" && args[index] != "--native-sdl-audio" && args[index] != "--native-game-options" && args[index] != "--native-sdl-video" && args[index] != "--native-sdl-input" && args[index] != "--native-joystick" && args[index] != "--native-selection-menus" && args[index] != "--native-ui-controls" && args[index] != "--native-legacy-saves" && args[index] != "--native-runtime-settings" && args[index] != "--native-game-config" && args[index] != "--native-settings-store" && args[index] != "--native-save-metadata" && args[index] != "--native-versioned-saves" && args[index] != "--native-level-combat-state" && args[index] != "--native-level-preparation" && args[index] != "--native-level-hud" && args[index] != "--native-level-background-scene" && args[index] != "--native-episode-picture" && args[index] != "--native-episode-warning" && args[index] != "--native-episode-level-jump" && args[index] != "--native-episode-mode" && args[index] != "--native-episode-item-availability" && args[index] != "--native-map-transition" && args[index] != "--native-episode-presentation" && args[index] != "--native-episode-completion"))
     {
         Console.Error.WriteLine("Usage: OpenTyrian.Core.Tests [--native-reference PATH] [--native-extractor PATH] [--native-background PATH] [--native-items PATH] [--native-help PATH] [--native-shots PATH] [--native-effects PATH] [--native-combat PATH] [--native-enemies PATH] [--native-attacks PATH] [--native-events PATH] [--native-dispatch PATH] [--native-level-map PATH] [--native-boss-bars PATH] [--native-level-state PATH] [--native-sounds PATH] [--native-mixer PATH] [--native-music PATH]         [--native-lds PATH]         [--native-input PATH]         [--native-mouse PATH]         [--native-sdl-audio PATH]         [--native-game-options PATH]         [--native-sdl-video PATH]         [--native-sdl-input PATH] [--native-joystick PATH] [--native-selection-menus PATH] [--native-ui-controls PATH] [--native-legacy-saves PATH] [--native-runtime-settings PATH] [--native-game-config PATH] [--native-settings-store PATH] [--native-save-metadata PATH] [--native-versioned-saves PATH]");
-        Console.Error.WriteLine("Additional references: [--native-animation PATH] [--native-jukebox-stars PATH] [--native-jukebox PATH] [--native-hq PATH] [--native-network PATH] [--native-sdl-net PATH] [--native-level-network PATH] [--native-pause PATH] [--native-player-lifecycle PATH] [--native-player-movement PATH] [--native-player-special PATH] [--native-player-input PATH] [--native-demo PATH] [--native-enemy-collision PATH]");
+        Console.Error.WriteLine("Additional references: [--native-animation PATH] [--native-jukebox-stars PATH] [--native-jukebox PATH] [--native-hq PATH] [--native-network PATH] [--native-sdl-net PATH] [--native-level-network PATH] [--native-pause PATH] [--native-player-lifecycle PATH] [--native-player-movement PATH] [--native-player-special PATH] [--native-player-input PATH] [--native-demo PATH] [--native-enemy-collision PATH] [--native-pickups PATH]");
+        Console.Error.WriteLine("Gameplay references: [--native-game-hud PATH] [--native-game-settings PATH] [--native-player-progression PATH] [--native-text-glow PATH] [--native-game-text PATH] [--native-character-glow PATH] [--native-game-help PATH]");
+        Console.Error.WriteLine("Transition references: [--native-level-results PATH] [--native-episode-transition PATH] [--native-episode-picture PATH] [--native-episode-warning PATH] [--native-episode-presentation PATH] [--native-episode-completion PATH] [--native-episode-level-jump PATH] [--native-episode-mode PATH] [--native-episode-item-availability PATH] [--native-map-transition PATH] [--native-credits PATH] [--native-high-scores PATH] [--native-ship-info PATH] [--native-edited-ships PATH] [--native-game-keyboard PATH] [--native-ingame-setup PATH] [--native-game-setup PATH] [--native-high-score-screen PATH]");
+        Console.Error.WriteLine("Menu references: [--native-new-game PATH] [--native-title-screen PATH] [--native-game-intro PATH] [--native-load-screen PATH] [--native-help-system PATH] [--native-setup-menu PATH] [--native-christmas-prompt PATH] [--native-network-start PATH] [--native-warning-text PATH] [--native-game-shutdown PATH] [--native-text-tokens PATH]");
+        Console.Error.WriteLine("Level references: [--native-level-input PATH] [--native-armor-warning PATH] [--native-level-presentation PATH] [--native-level-timer PATH] [--native-level-player-init PATH] [--native-level-map-ship-init PATH] [--native-level-flags PATH] [--native-level-status PATH] [--native-level-combat-state PATH] [--native-level-preparation PATH] [--native-level-hud PATH] [--native-level-background-scene PATH]");
         return 1;
     }
 

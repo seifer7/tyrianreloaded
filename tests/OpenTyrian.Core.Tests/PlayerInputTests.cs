@@ -84,7 +84,7 @@ internal static class PlayerInputTests
                 var bits = buttons.Select((value, i) => value ? 1 << i : 0).Sum();
                 trace.AppendLine($"input:{player.X},{player.Y},{oldX},{oldY},{movement.MouseX},{movement.MouseY}," +
                     $"{movement.AccelerationX},{movement.AccelerationY},{Bit(movement.AnalogLinkGun)},{BitConverter.SingleToUInt32Bits(movement.LinkGunAngle)}," +
-                    $"{bits},{Bit(requests.InGameMenu)},{Bit(requests.Pause)},{Bit(level.EndLevel)},{combat.LevelEnd},{platform.Services},{updates}");
+                    $"{bits},{Bit(requests.InGameMenuPressed)},{Bit(requests.PausePressed)},{Bit(level.EndLevel)},{combat.LevelEnd},{platform.Services},{updates}");
                 trace.AppendLine("packet:" + Convert.ToHexString(packet));
                 trace.AppendLine($"demo:{collector.DemoKeys},{collector.DemoWait}:" + Convert.ToHexString(recording.ToArray()));
             }

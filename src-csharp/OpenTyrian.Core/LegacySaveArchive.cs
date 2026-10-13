@@ -52,7 +52,7 @@ public static class LegacySaveCipher
         return payload;
     }
 
-    private static byte[] Checksums(ReadOnlySpan<byte> payload)
+    internal static byte[] Checksums(ReadOnlySpan<byte> payload)
     {
         byte add = 0, subtract = 0, multiply = 1, xor = 0;
         foreach (var value in payload)
@@ -177,6 +177,27 @@ public sealed class LegacySaveArchive
 {
     public const int SlotCount = 22, SlotSize = 109, SlotsSize = SlotCount * SlotSize;
     public LegacySaveSlot[] Slots { get; } = Enumerable.Range(0, SlotCount).Select(_ => new LegacySaveSlot()).ToArray();
+
+    public void SortHighScores()
+    {
+        for (var offset = 0; offset < 18; offset += 3) SortHighScoreGroup(offset);
+    }
+
+    public void SortHighScoreGroup(int offset)
+    {
+        if (offset < 0 || offset > Slots.Length - 3) throw new ArgumentOutOfRangeException(nameof(offset));
+        for (var a = 0; a < 2; a++)
+        {
+            for (var b = a + 1; b < 3; b++)
+            {
+                var left = Slots[offset + a]; var right = Slots[offset + b];
+                if (left.HighScore1 >= right.HighScore1) continue;
+                (left.HighScore1, right.HighScore1) = (right.HighScore1, left.HighScore1);
+                (left.HighScoreName, right.HighScoreName) = (right.HighScoreName, left.HighScoreName);
+                (left.HighScoreDifficulty, right.HighScoreDifficulty) = (right.HighScoreDifficulty, left.HighScoreDifficulty);
+            }
+        }
+    }
     public byte[] ItemAvailability { get; } = new byte[100];
     public ushort EditorLevel { get; set; } = 800;
 

@@ -6,6 +6,12 @@ performed by adding this document.
 
 ## 1. Establish the baseline
 
+- Run `python -B tests/native/check_conversion_inventory.py` after inventory
+  changes. Both CI platforms check native definitions, added file coverage and
+  summary counts. The lexical audit ignores comments/string literals, includes
+  pointer-return signatures and records conditional definitions once per file.
+  An audit restored 27 existing definitions omitted from the initial tracker;
+  all 766 native functions must receive an explicit verified disposition.
 - Build the current native game and data extractor using the supported
   Makefile and Visual Studio paths where the required toolchains are
   available.
@@ -41,13 +47,370 @@ performed by adding this document.
   test framework is justified and selected.
 - The game executable still scaffolds its entrypoint. The standalone data
   extractor is functional and compared against native C on synthetic complete
-  item-data fixtures; separately supplied real-asset verification is pending.
+  item-data fixtures and separately supplied Tyrian 2.1 assets; all eight
+  real-asset category outputs matched byte-for-byte.
 - Build with `dotnet build OpenTyrian.slnx` and run the regression harness
   with `dotnet run --project tests/OpenTyrian.Core.Tests`.
 - Verify the solution builds on each intended development platform before
   translating platform-dependent behavior.
 
 ## 3. Port in dependency order
+
+Credits playback is library-integrated and verified over 24,483 native frames,
+including scrolling completion and its held final frame. Generate
+`tests/native/build_credits_reference.py` with `--output` outside the repository,
+compile the generated C with `src/mtrand.c` and the `src` include directory,
+then pass the executable to `--native-credits`. Synthetic encrypted text and
+concrete sprite/font/palette/file/input/PIT services are also exercised.
+Playable-host credits wiring and real-asset release checks remain pending.
+
+High-score entry is library-integrated with 512 native qualification/edit/
+presentation scenarios, including signed-score boundaries and exact tie/cancel
+behavior. Generate `tests/native/build_high_scores_reference.py`, compile its
+output with `src/mtrand.c`, the `src` include directory and `-lm` on Linux,
+then use `--native-high-scores`. Native shifts copy scores/names but not
+difficulty, and cancellation preserves those prior shifts; both behaviors
+are intentionally retained. The concrete adapter preserves the captured
+cursor button and shared legacy mouse-position words rather than substituting
+current SDL mouse coordinates. Playable-host integration remains pending.
+
+Player ship initialization and optional edited-ship archives are verified with
+`--native-ship-info` and `--native-edited-ships`. Generate
+`tests/native/build_ship_info_reference.py` and
+`tests/native/build_edited_ships_reference.py` into external artifact files and
+compile them as standalone C references. The managed loader retains the
+native ushort size truncation and zero-size read rejection, but publishes
+state only after successful reads/checksums. It keeps the 150 defined record
+bytes, not the four uninitialized bytes copied from native decrypt scratch.
+The selected sheets and graphic array compose existing player-frame rendering.
+
+The complete in-game keyboard dispatcher is verified across 4,096 native
+mode/chord scenarios and concrete gamma, ship/combat HUD, help/text and PIT
+service bindings. Generate `tests/native/build_game_keyboard_reference.py`,
+compile its output with the `src` include directory and `src/mtrand.c`, then
+use `--native-game-keyboard`. Both player selection passes share key state,
+so the first pass consumes number keys before the second; native armor and
+speed-byte narrowing and chord precedence are retained. Enclosing playable
+level-loop integration remains pending.
+
+In-game settings are verified over 2,048 native draw/input/action/wait
+scenarios, 16 complete menu loops and concrete managed services.
+Generate `tests/native/build_ingame_setup_reference.py` into an external
+artifact and compile it as standalone C, then use `--native-ingame-setup`.
+Exact slider endpoints, half-open row bounds, sample/mute ordering and the
+native ushort comparison of previous mouse coordinates are retained.
+The local/network settings wrapper is verified across 64 native flag
+combinations, concrete primary-surface waiting pixels and actual SDL2_net
+two-peer resume/quit synchronization. Generate the standalone native wrapper
+with `tests/native/build_game_setup_reference.py` and use
+`--native-game-setup`. Repeated presentations during packet polling are
+coalesced in wrapper comparisons; packet primitives and actual peer
+synchronization are separately verified. Error/cancellation restores relative
+mouse mode and clears the local request. The enclosing playable loop remains
+pending.
+
+High-score page presentation and interaction are verified over 256 complete
+native scripts, every byte difficulty rank, signed score boundaries and
+actual SDL2 event/video/palette services. Generate the standalone oracle
+with `tests/native/build_high_score_screen_reference.py` and pass
+`--native-high-score-screen` to the managed harness. Preserve the native
+three-episode limit, keyboard wrap versus non-wrapping mouse paging,
+unbounded lower control hit-box Y, mouse precedence over simultaneous keys
+and unsorted archive ownership. The final title-menu caller remains pending.
+
+New-game modes are verified against 2,048 normal, 1,792 super-arcade and 256
+SuperTyrian native starts plus actual managed selection/render/palette/audio/
+input adapters. Generate `tests/native/build_new_game_reference.py`, compile
+with `src/mtrand.c` and `-lm` on Linux, and use `--native-new-game`.
+Cancellation preserves the native early ship assignment and normal-mode
+cash/difficulty side effects; do not make these flows transactional. Rich
+mode applies even after cancelled episode/difficulty selection, while normal
+initial cash requires the shared loaded flag. Final title/game-loop wiring
+remains pending.
+
+Title drawing, waits, input, dispatch, secret codes and composition are
+verified against fourteen draw traces, 4,096 inputs, 28 actions, eight wait
+scenarios, 136 secret cases and 144 complete native loops. Generate
+`tests/native/build_title_screen_reference.py` as standalone C and use
+`--native-title-screen`. Actual SDL2 integration traverses animated title,
+score viewer, title restart and normal new-game selections. Retain the strict
+30-second timeout, unsigned elapsed ticks, ushort previous mouse coordinates,
+independent click/hover positions, non-overlapping secret matching and
+native action/secret precedence. Final startup and remaining child-flow
+implementations still gate the playable executable.
+
+Startup logos and SuperTyrian screen bleed are verified using
+`tests/native/build_game_intro_reference.py` and `--native-game-intro`.
+The standalone oracle checks 1,264 frames at native/padded pitches and six
+exit timings, including full final bytes of primary and both scratch
+buffers. Preserve in-place neighbor updates, scratch swap ordering and the
+native asymmetric copy length (size minus bottom border, not both borders).
+Managed geometry/alias validation replaces raw-pointer assertions.
+Actual SDL integration traverses logo fades, input waits and screen bleed
+before the animated title/high-score/new-game path.
+
+The saved-game load screen is covered by
+`tests/native/build_load_screen_reference.py` and `--native-load-screen`:
+960 drawing states, 8,192 inputs, 7,680 actions, eight waits and 160 full
+loops. Retain sparse-page selection, separate hover/click coordinates,
+mouse/key precedence, truncated labels and the native load-result behavior
+(return the existing game-loaded flag rather than the loader result).
+Actual SDL tests traverse title -> load -> next page -> persisted versioned
+save, verifying catalog enumeration, loaded player/level/episode state and
+perform-save clearing. Managed list lifetime replaces explicit native free.
+
+Help topic menus and all eight pages are verified by
+`tests/native/build_help_system_reference.py` and `--native-help-system`.
+The oracle covers 144 page scripts and 304 complete menu scripts, including
+160 row-edge/independent hover-and-click/simultaneous key snapshots.
+Preserve topic-boundary returns, directional cursors, footer text, original
+page layouts and brightness/line-height restoration before fades/input.
+Actual SDL coverage traverses title -> help -> all eight pages -> menu ->
+title exit with the expected music, palette and help-style state.
+
+Setup menus are verified using `tests/native/build_setup_menu_reference.py`
+and `--native-setup-menu`. The standalone fixture retains all sixteen native
+functions and the volume helper, covering 16 catalogs, 256 draws, 16,384
+menu/picker inputs, 1,024 picker actions, 156 activations, 2,816 menu actions,
+eight waits and 64 complete loops. Retain the native picker click-Y/X-limit
+quirk and volume/toggle sample ordering. Failed scaler selection must restore
+the previous scaler or report an explicit failure. SDL texture failures
+already preserve the old texture/scaler and propagate platform diagnostics.
+Real SDL coverage traverses title/setup, fullscreen/window and scaler/layout
+changes, audio toggles/volume, jukebox, shop settings/save and title return;
+reload the persisted configuration to verify active and stored settings.
+
+Christmas detection and snow prompts are verified by
+`tests/native/build_christmas_prompt_reference.py` and
+`--native-christmas-prompt`: twelve local-month cases, 300 complete prompt
+scripts and twelve long 350-frame waits that exercise snowflake respawn.
+Keep the original fixed-point snow accumulator/layering and the distinct
+drawn-choice versus clickable-choice positions. The oracle explicitly
+injects the same reproducible random service on both sides; do not treat
+that as platform C-runtime `rand()` verification. Final startup must supply
+the platform-compatible random stream, seasonal asset fallback and mode
+ownership without replacing `rand()` with the gameplay Mersenne Twister.
+
+Network startup is verified using `tests/native/build_network_start_reference.py`
+and `--native-network-start` over 112 controller/peer flows, signed difficulty/
+wire truncation and canceled selectors. The fixture accepts the managed
+Silver Ship index as its sole argument to avoid assuming item-table layout.
+Real SDL2_net tests compose the existing connection handshake with start-screen
+details and peer initialization, and exercise both canceled episode and canceled
+difficulty selection. Preserve native initial-difficulty-before-increment
+ordering and final acknowledgment synchronization; do not clear unrelated
+mode/game-loaded/input-device flags during this screen.
+
+Warning text composition uses `tests/native/build_warning_text_reference.py`
+and `--native-warning-text` across 2,816 line/prompt/warning/escape/halt/skip
+traces. Concrete host checks compose the existing character glow, warning bars,
+fonts, input and PIT services; actual SDL checks cover mouse continuation and
+Return/Escape animation skips. Preserve the native `wasAnimated` snapshot
+*after* the warning lines, the unconditional prompt call and do/while wait.
+Escape key input is an ordinary skip button; it does not automatically mutate
+the separate legacy escape flag. Native text synchronization is entirely
+disabled and remains a no-op, not an invented network exchange.
+
+Game shutdown is verified with the standalone
+`tests/native/build_game_shutdown_reference.py` and `--native-game-shutdown`
+over all 256 byte exit codes and both farewell flags. Real SDL teardown checks
+run in isolated managed child processes so global `SDL_Quit` cannot invalidate
+the regression runner's other live windows. They verify device disposal,
+zero initialized subsystems, cleared shapes/sounds, configuration reload,
+code-9 skip-save, failed-save cleanup and warning-text halt composition.
+Managed cleanup failures propagate explicitly after mandatory platform/SDL
+cleanup; no successful exit is synthesized on failure. The final executable
+must catch `GameTerminationException` and return its exit code rather than
+reporting it as a crash. The concrete shutdown host assumes sole application
+ownership of SDL; do not use it for a single menu or borrowed video device.
+
+Shared text tokens use `tests/native/build_text_tokens_reference.py` and
+`--native-text-tokens`. Preserve C whitespace for decimal numbers but only
+space/tab separators for references, NUL termination, prefix consumption and
+native `strtol` saturation before narrowing to int. Windows uses 32-bit long;
+Linux/macOS use 64-bit long and retain two's-complement int narrowing.
+The 192 native scripts compare repeated reads and byte-capacity errors.
+Typed item arrays/references reuse the reader; reference capacity is a byte
+limit, including for UTF-8 mod identifiers, not a managed character count.
+
+Level input uses `tests/native/build_level_input_reference.py` and
+`--native-level-input` over 32,768 complete native dispatch snapshots.
+Keyboard/joystick producers set `PausePressed`/`InGameMenuPressed`; only the
+dispatcher turns those latches into network requests or local modal calls.
+Preserve keyboard-help early return, game-over input clearing, demo interruption,
+focus-loss pause and local settings presentation skip. Actual SDL tests compose
+the existing keyboard/pause/settings implementations. The dummy video backend
+cannot enable relative mouse mode while focused, so modal exit fixtures send
+focus loss before return; logical relative-mode restoration remains verified.
+
+Next-level preparation is checked against the unchanged `prepare_next_level`
+routine using `tests/native/build_level_preparation_reference.py` and
+`--native-level-preparation`. Its 49,152 traces cover every combination of
+Galaga/two-player state, demo flags/file ownership, player survival, normal and
+bonus levels, end-level and save-recovery flags, across all six fast-play
+settings. Preserve relative-mouse/keyboard/sprite cleanup order, normal-speed
+reset, demo close/stop/wait behavior, old-difficulty restoration, bonus/game-over
+routing, and the deliberate distinction between a normal level transition and
+bonus-level level-number restoration after loading a recovery save.
+
+The in-level HUD routine is compared to the unchanged `draw_level_hud` through
+`tests/native/build_level_hud_reference.py` and `--native-level-hud`. Its 4,096
+traces verify end-level early returns, message-bar expiry, Galaga shield/reward
+and two-player normalization, byte-sized shield regeneration timing, mutable
+weapon-bar values and ordered rectangles, power-bar arithmetic, and final map
+offset/enemy state. Preserve unsigned power wrap before the 900 cap and the
+Galaga reward threshold's unsigned narrowing.
+
+The level-background composition routine is checked against unchanged
+`draw_level_backgrounds` with `tests/native/build_level_background_scene_reference.py`
+and `--native-level-background-scene`. Its 4,096 traces exercise map-delay and
+wrap arithmetic, layer order/priority/blending, starfield and filter ordering,
+enemy strata and spawn selection, wild-background darkening, sound selection,
+and screen/map/enemy state. Rendering, filters, enemy drawing/spawning and RNG
+remain explicit host operations so the frame orchestration can be integrated
+with the game loop without obscuring their ordering.
+
+Armor warnings use `tests/native/build_armor_warning_reference.py` compiled
+with `src/mtrand.c` and the `src` include path, and `--native-armor-warning`.
+The 16,384 traces cover byte color arithmetic, sound cadence, allocation/RNG,
+multiplayer ownership and Galaga. Preserve the first low-armor player's
+warning intensity even when only player two receives a local network warning.
+The host composes real enemy creation, item-ID resolution, velocity narrowing
+and warning rectangle/font rendering; full-pool creation does not consume
+drop RNG and still resets the 500-frame rescue delay.
+
+Level presentation uses `tests/native/build_level_presentation_reference.py`
+and `--native-level-presentation`. Its 2,048 cases cover padded/asymmetric
+surfaces, aliased buffers, inversion, searchlight coordinates, PIT timing,
+processor gating and skipped frames. The searchlight deliberately preserves
+the native primary-pitch source stride, unlike normal/inverted copies.
+`LevelPresentation` shares the keyboard/setup skip/quit flags directly; real
+SDL presentation and invalid-viewport/failed-present propagation are checked.
+
+Level debug/timer overlays use `tests/native/build_level_timer_reference.py`
+(link `-lm` on Unix) and `--native-level-timer`. The 16,384 multi-frame traces
+cover native float FPS rounding/formatting and signed high ticks, pickup flashes,
+timer warnings/clicks/expiration, and Pentium frame-count alternation. Concrete
+checks cover real event jumps, fonts/SDL, invariant-culture output, failure
+propagation and shared frame-count delivery to the presentation PIT timer.
+Do not duplicate keyboard debug histories or pickup display-time state.
+
+Level player/display initialization is compared with the native function by
+`tests/native/build_level_player_init_reference.py` and
+`--native-level-player-init`. The 512 cases capture player trail histories,
+last-shot positions, alive flags, old/current demo difficulty and clamping,
+plus two-player picture selection and display/gamma/fade/lazy-shape ordering.
+Its concrete host uses the shared indexed font/palette and the corrected
+palette across the native 50-step fade. Preserve sequential mutations if a
+later presentation or asset-loading action fails.
+
+Level map/ship-state initialization is verified against the unchanged
+`initialize_level_map_and_ship_state` body using
+`tests/native/build_level_map_ship_init_reference.py` and
+`--native-level-map-ship-init`. The 1,024 cases compare row-relative map
+pointers at each native layer stride, retained map X indices, background
+positions and delays, music fade, shot power, starfield speed, and both player
+velocity/invulnerability resets. Current and third-layer player-frame camera
+accumulators are reset while previous and secondary accumulators remain
+untouched. Keep map loading/application separate from this reset routine and
+preserve the loaded tile arrays.
+
+Level-entry flags are compared against the unchanged
+`initialize_level_flags` body by `tests/native/build_level_flags_reference.py`
+and `--native-level-flags`. Its 16,384 cases cover all reset fields, signed and
+unsigned state boundaries, shared quit-request ownership, button clearing and
+boss-link resets while preserving boss armor/color. Keep these reset fields on
+their existing gameplay, input, renderer, event, warning and player-frame
+owners rather than introducing duplicate global state.
+
+Level status initialization is compared with the unchanged
+`initialize_level_status_display` body through
+`tests/native/build_level_status_display_reference.py` and
+`--native-level-status`. The 256 startup traces cover byte-narrowed shield
+recharge timing, both players' shield state, armor clamping, superbomb/cube/
+flash/notice resets, and text/song/port-button host-action order. Preserve the
+native `levelSong - 1` conversion to an unsigned song index, including the
+zero-byte wraparound, and reuse the existing combat, player, pickup, timer and
+save-state owners.
+
+Episode picture display is compared with the unchanged
+`show_episode_picture` routine through
+`tests/native/build_episode_picture_reference.py` and
+`--native-episode-picture`. Its 256 cases preserve the constant-play early
+return, C-style decimal-prefix parsing, PCX palette selection above picture
+900, PCX-versus-archive loading for other values, and clear/present/fade order.
+Keep the native PCX-palette index mapping and do not access it for unsupported
+picture identifiers.
+
+Episode warning loading is compared with the unchanged
+`show_episode_warning` routine through
+`tests/native/build_episode_warning_reference.py` and
+`--native-episode-warning`. Its 256 cases preserve both early-return gates,
+warning-state initialization, native decimal parsing and 16-bit narrowing,
+decrypted Pascal warning lines, and display/key-clear order. Keep the warning
+text presenter behind its existing host boundary and reject inputs that would
+overrun the native fixed-size line buffers.
+
+Episode completion and super-arcade unlock presentation are compared with the
+unchanged `show_episode_completion` routine through
+`tests/native/build_episode_completion_reference.py` and
+`--native-episode-completion`. Its 48 cases verify encrypted hint-section
+selection, score/cash warning text, line counts and stream position, early
+returns, SuperTyrian difficulty mapping, unlock text and ship graphics,
+presentation/fade/input order, and network synchronization. Keep special-name
+and ship tables supplied through the completion data object, and preserve
+native table indexing rather than translating the legacy one-based-looking
+values as managed indices.
+
+Conditional episode-level jumps are compared with the unchanged
+`handle_episode_level_jump` routine through
+`tests/native/build_episode_level_jump_reference.py` and
+`--native-episode-level-jump`. The 2,048 cases cover all six conditional jump
+codes, unknown-code preservation, the `H`-specific argument offset, native
+decimal-prefix parsing, byte narrowing, and the original state when a gate
+fails.
+
+Episode mode configuration is compared with the unchanged
+`configure_episode_mode` routine through
+`tests/native/build_episode_mode_reference.py` and `--native-episode-mode`.
+The 256 seeded traces cover Galaga loadout copying (including independent item
+arrays), alternate-ship reset, extra-game and SuperTyrian flags, and all
+modified player item/cash fields.
+
+Episode shop availability is compared with the unchanged
+`read_episode_item_availability` routine through
+`tests/native/build_episode_item_availability_reference.py` and
+`--native-episode-item-availability`. The 15 traces cover encrypted Pascal
+rows, all shop-setting gates, typed item lookup and aliases, the ten-item row
+limit, state clearing, stream consumption, and item-screen handoff. Random
+offers remain supplied by the existing typed item database helper, with an
+additional deterministic managed integration case confirming that generated
+offers update the row contents and count.
+
+The episode map transition is compared with the unchanged
+`play_map_transition` routine through
+`tests/native/build_map_transition_reference.py` and `--native-map-transition`.
+Sixteen complete traces compare every presented frame and final pixel buffers
+for upper, lower, horizontal and fallback reveals, two surface pitches,
+constant-play early exit, key skipping, picture loading and event/timing order.
+
+Episode presentation dispatch is compared with the unchanged
+`handle_episode_presentation` routine through
+`tests/native/build_episode_presentation_reference.py` and
+`--native-episode-presentation`. Forty cases verify command routing to picture,
+map-transition, warning and completion services; network fade gates; clear,
+present and palette ordering; completion return propagation; and unknown
+command behavior.
+
+Combat-state initialization is compared with the unchanged
+`initialize_level_combat_state` body through
+`tests/native/build_level_combat_state_reference.py` and
+`--native-level-combat-state`. The 256 traces cover the gameplay-owned combat,
+player/enemy projectile, enemy payload, effects, special-weapon, level, and
+background reset groups; network-only enemy availability; Galaga difficulty;
+the option-draw callback; and all three map wrap boundaries. Keep enemy
+availability separate from enemy payload clearing, and route reset state
+through its existing subsystem owners.
 
 Keep each change small enough to compare with the C baseline. Convert the
 corresponding C functions and update their checkboxes as behavior is verified.
@@ -617,6 +980,113 @@ cc -std=c99 -Wall -Wextra -I src /tmp/demo_reference.c src/mtrand.c -o /tmp/demo
 dotnet run --project tests/OpenTyrian.Core.Tests -- --native-demo /tmp/demo_reference
 ```
 
+`--native-game-hud` compares 4,096 unchanged native HUD/cube rendering traces:
+cash, special icons, lives (including unsigned underflow and signed display),
+local/network names and text widths, superbombs and cheating text. Managed
+tests also exercise actual compressed sprites, option shapes and font shadows.
+
+```sh
+python3 -B tests/native/build_game_hud_reference.py --output /tmp/game_hud_reference.c
+cc -std=c99 -Wall -Wextra /tmp/game_hud_reference.c -o /tmp/game_hud_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-game-hud /tmp/game_hud_reference
+```
+
+`--native-text-glow` compares 2,048 consecutive glow calls: shadow ordering,
+all three fonts, initial/pressed-button skipping, ascending/descending
+brightness, warning hue, empty text, network keep-alive and delay/presentation
+ordering. Actual managed font/input/PIT integration is also exercised.
+
+```sh
+python3 -B tests/native/build_text_glow_reference.py --output /tmp/text_glow_reference.c
+cc -std=c99 -Wall -Wextra /tmp/text_glow_reference.c -o /tmp/text_glow_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-text-glow /tmp/text_glow_reference
+```
+
+`--native-game-text` compares 32,768 timed warning updates and 40 text-window
+updates, including signed color-change wrapping, full stripe pixel hashes,
+sound cadence, erase ordering, lifetime and Latin-1/NUL text. Concrete window
+font/option-shape pixels are also exercised.
+
+```sh
+python3 -B tests/native/build_game_text_reference.py --output /tmp/game_text_reference.c
+cc -std=c99 -Wall -Wextra /tmp/game_text_reference.c -o /tmp/game_text_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-game-text /tmp/game_text_reference
+```
+
+`--native-game-help` compares 32 single/two-player help scenarios: exact panel/
+sprite/help-box/text layout and repeated keyboard/mouse/cursor/joystick/network
+wait ordering. Managed help/font/shape pixels and real input/timing integration
+are also checked. Explicit primary-surface ownership replaces temporary global
+screen-pointer switching.
+
+```sh
+python3 -B tests/native/build_game_help_reference.py --output /tmp/game_help_reference.c
+cc -std=c99 -Wall -Wextra /tmp/game_help_reference.c -o /tmp/game_help_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-game-help /tmp/game_help_reference
+```
+
+`--native-level-results` compares 512 end-level flows with actual item
+progression/difficulty: unlock bytes, snapshots, completed/exiting/bonus
+messages, cash/kill percentages, editor-level wrapping, cube cap and animation,
+skip/continue waits and audio/fade order. Real managed glow/font/palette/input/
+PIT services are also exercised. Unlock offsets overlapping regenerated
+checksum bytes are retained as transient scratch, not persisted as item data.
+
+```sh
+python3 -B tests/native/build_level_results_reference.py --output /tmp/level_results_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/level_results_reference.c src/mtrand.c -lm -o /tmp/level_results_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-level-results /tmp/level_results_reference
+```
+
+`--native-episode-transition` compares 1,024 next-episode transitions:
+availability/wrap/repeated-game flags, credits/high-score gates, exact RNG
+and SuperCarrot/BananaBlast rewards, snapshots and title/audio/input/fade
+ordering. Real synthetic episode archives and concrete palette/font/input
+services are exercised. Credits and high-score entry are explicit callbacks;
+their playback implementations and full host integration remain pending.
+
+```sh
+python3 -B tests/native/build_episode_transition_reference.py --output /tmp/episode_transition_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/episode_transition_reference.c src/mtrand.c -lm -o /tmp/episode_transition_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-episode-transition /tmp/episode_transition_reference
+```
+
+`--native-character-glow` compares 1,024 character-wave scenarios: width and
+16-bit position handling, glyph/shadow order, hue/brightness, missing/Latin-1
+glyphs, skip/escape, warnings, network and waits. Concrete managed input/font/
+PIT/warning integration verifies the delay already scheduled before a skip
+button, full pixels and warning sound-delay state. Text beyond the native
+60-character arrays is rejected explicitly.
+
+```sh
+python3 -B tests/native/build_character_glow_reference.py --output /tmp/character_glow_reference.c
+cc -std=c99 -Wall -Wextra /tmp/character_glow_reference.c -o /tmp/character_glow_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-character-glow /tmp/character_glow_reference
+```
+
+`--native-game-settings` checks all byte gamma levels/channel values, 1,024
+F11/palette states and 512 selected/full high-score sorting cases. It verifies
+real managed palette publication without modifying the source picture palette.
+
+```sh
+python3 -B tests/native/build_game_settings_reference.py --output /tmp/game_settings_reference.c
+cc -std=c99 -Wall -Wextra /tmp/game_settings_reference.c -lm -o /tmp/game_settings_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-game-settings /tmp/game_settings_reference
+```
+
+`--native-player-progression` compares 512 new-game/shop/score cases, 72 signed
+upgrade arithmetic cases and 147,456 threshold-driven difficulty evaluations.
+It preserves native-width long/unsigned long arithmetic, snapshots before power
+reset, player-two defaults, real known-item lookup, RNG and nondecreasing
+difficulty. Undefined native zero-power loops and out-of-range score conversion
+are explicit managed errors, not silent approximations.
+
+```sh
+python3 -B tests/native/build_player_progression_reference.py --output /tmp/player_progression_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/player_progression_reference.c src/mtrand.c -lm -o /tmp/player_progression_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-player-progression /tmp/player_progression_reference
+```
+
 `--native-enemy-collision` compares 8,192 player/enemy collision damage,
 linked destruction and armor pickup scenarios at pitches 320/327. It uses
 unchanged native player damage, HUD and explosion setup, comparing both
@@ -624,7 +1094,17 @@ players, all 100 enemies, 200 explosions, 20 repeating explosions, sounds,
 HUD hashes and RNG. Coverage includes armor 255, capped damage, signed
 velocity impulses, collision-specific link rules, ground/large effects,
 pickup rounding and armor caps. Pickup dispatch and the enclosing player
-collision loop remain pending.
+collision loop are now covered by `--native-pickups`, which compares 8,192
+direct pickup and complete collision dispatch scenarios. It preserves player
+name selection, text/song/options ordering, item-ID versus raw-name lookup,
+arcade tables, sidekick tiers, unsigned negative linked cash rewards, exact
+projectile-slot clearing, actual combat/HUD/explosion state and RNG.
+
+```sh
+python3 -B tests/native/build_pickups_reference.py --output /tmp/pickups_reference.c
+cc -std=c99 -Wall -Wextra -I src /tmp/pickups_reference.c src/mtrand.c -lm -o /tmp/pickups_reference
+dotnet run --project tests/OpenTyrian.Core.Tests -- --native-pickups /tmp/pickups_reference
+```
 
 ```sh
 python3 -B tests/native/build_enemy_collision_reference.py --output /tmp/enemy_collision_reference.c
@@ -695,7 +1175,7 @@ The conversion is not complete until all of the following are true:
 - Automated tests pass, and documented manual parity scenarios have been
   exercised on the supported platforms.
 - Every baseline file has a verified converted/replaced disposition or an
-  explicit, reviewed reason to remain unchanged; all 739 baseline function
+  explicit, reviewed reason to remain unchanged; all 766 baseline function
   entries are accounted for.
 - Runtime assets remain external and are neither required in source control
   nor redistributed by the build.

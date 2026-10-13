@@ -58,6 +58,32 @@ public sealed class SceneEffects
         SoundQueue = soundQueue;
     }
 
+    public void ResetLevelState()
+    {
+        foreach (var explosion in Explosions)
+        {
+            explosion.Lifetime = 0;
+            explosion.X = explosion.Y = explosion.DeltaX = explosion.DeltaY = 0;
+            explosion.FixedPosition = explosion.FollowPlayer = false;
+            explosion.Sprite = 0;
+        }
+        foreach (var repeating in Repeating)
+        {
+            repeating.Delay = repeating.Lifetime = repeating.X = repeating.Y = 0;
+            repeating.Big = false;
+        }
+        foreach (var pixel in SuperPixels)
+        {
+            pixel.X = pixel.Y = pixel.Z = 0;
+            pixel.DeltaX = pixel.DeltaY = 0;
+            pixel.Color = 0;
+        }
+        LastSuperPixel = 0;
+        EnemyStillExploding = false;
+        Array.Clear(SoundQueue);
+        SoundQueue[3] = 33;
+    }
+
     public void SetupExplosion(int x, int y, int deltaY, uint type, bool fixedPosition, bool followPlayer)
     {
         if (y <= -16 || y >= 190) return;

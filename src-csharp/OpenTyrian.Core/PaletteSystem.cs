@@ -49,6 +49,22 @@ public sealed class PaletteSystem
 
     private static byte Expand(byte color) => unchecked((byte)((color << 2) | (color >> 4)));
 
+    public static byte GammaChannel(byte color, float factor)
+    {
+        if (!float.IsFinite(factor) || factor < 0)
+            throw new ArgumentOutOfRangeException(nameof(factor));
+        return (byte)MathF.Min(255, MathF.Round(color * factor, MidpointRounding.AwayFromZero));
+    }
+
+    public static void CorrectGamma(Span<PaletteColor> colors, byte gamma)
+    {
+        if (colors.Length != ColorCount) throw new ArgumentException("Gamma correction requires 256 colors.", nameof(colors));
+        var factor = 1f + gamma / 10f;
+        for (var i = 0; i < ColorCount; i++)
+            colors[i] = new PaletteColor(GammaChannel(colors[i].Red, factor),
+                GammaChannel(colors[i].Green, factor), GammaChannel(colors[i].Blue, factor));
+    }
+
     public void SetPalette(ReadOnlySpan<PaletteColor> colors, int first, int last)
     {
         ValidateRange(first, last);

@@ -64,7 +64,7 @@ internal static class LevelMapTests
         }
     }
 
-    private static byte[] BuildLevel(int mode, char shapeFile)
+    internal static byte[] BuildLevel(int mode, char shapeFile)
     {
         using var output = new MemoryStream();
         output.WriteByte((byte)'M'); output.WriteByte((byte)shapeFile);
@@ -103,7 +103,7 @@ internal static class LevelMapTests
         return output.ToArray();
     }
 
-    private static byte[] BuildShapes(int mode)
+    internal static byte[] BuildShapes(int mode)
     {
         using var output = new MemoryStream();
         for (var index = 1; index <= 600; index++)

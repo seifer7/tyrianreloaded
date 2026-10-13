@@ -1,17 +1,21 @@
 # C# conversion progress
 
 This inventory is the baseline of **126 files tracked before this setup**:
-50 `.c` files, 50 `.h` files, and 26 other tracked files. It records **707
-function definitions in C files** plus **32 inline function definitions in
-headers**, for **739 baseline functions**. Function names are listed once per
+50 `.c` files, 50 `.h` files, and 26 other tracked files. It records **723
+function definitions in C files** plus **43 inline function definitions in
+headers**, for **766 baseline functions**. Function names are listed once per
 source file; the two function-like initializer macros in `src/episodes.c`
 (`ITEM_INT` and `ITEM_REF`) are not functions and are intentionally omitted.
+The inventory audit restored sixteen existing OPL definitions and eleven
+existing inline directory helpers omitted by the original scanner; these are
+not newly added native functions and remain unchecked until dispositioned.
 
-**Baseline conversion status: 21/126 files dispositioned; 466/739 functions
+**Baseline conversion status: 23/126 files dispositioned; 585/766 functions
 converted and verified.** The C# foundation also adds one solution, shared
-build properties, four projects, eighty-one application source files, sixty-six
-managed test sources, four native harnesses, forty-four oracle generators,
-and one managed kernel generator (203 added implementation/build/test files).
+build properties, four projects, one hundred twenty-eight application source
+files, one hundred thirteen managed test sources, four native harnesses,
+ninety-one oracle generators, one inventory checker, and one managed kernel
+generator (351 added implementation/build/test files).
 The game entrypoint parses native
 options but remains unplayable; the data extractor has synthetic native parity.
 
@@ -160,8 +164,10 @@ options but remains unplayable; the data extractor has synthetic native parity.
   CLI/options/messages, category preservation, and temporary-file finalization.
   Byte-for-byte native checks cover 1,785 synthetic records, high-bit/name/NUL
   bytes, signed values, embedded text newlines, and hardcoded lookup tables.
+  All eight category outputs were also byte-for-byte compared with unchanged
+  native extraction from the separately supplied Tyrian 2.1 `tyrian.hdt`.
   Failure handling removes incomplete temporary output and refuses concurrent
-  overwrites; real-asset verification remains pending.
+  overwrites; generated categories and source assets remain outside the repo.
 - [x] `tests/OpenTyrian.Core.Tests/ExtractorTests.cs` - synthetic complete
   asset generation, exact category counts, native byte/CLI comparisons,
   preservation, directory lookup/cache, malformed offsets/truncation, missing
@@ -869,7 +875,7 @@ options but remains unplayable; the data extractor has synthetic native parity.
   damage caps and impulses, invulnerable enemy armor, linked enemy destruction
   and linked/unlinked armor pickups, composed with actual player combat/HUD
   and small/large/repeating explosion state. Pickup dispatch and enclosing
-  player collision iteration remain pending; no projectile-kill reward logic
+  player collision iteration now use `PlayerPickups`; no projectile-kill reward logic
   is incorrectly reused for collision destruction.
 - [x] `tests/OpenTyrian.Core.Tests/EnemyCollisionTests.cs` - 8,192 native
   scenarios compare both player states, all 100 enemies, 200 explosions,
@@ -881,6 +887,200 @@ options but remains unplayable; the data extractor has synthetic native parity.
   damage, linked destruction and armor pickup functions with actual native
   player damage, armor/shield drawing and explosion setup. Deterministic
   enemy definitions/state require no original assets.
+- [x] `src-csharp/OpenTyrian.Core/PlayerPickups.cs` - network/local player
+  names, arcade/sidekick/special/front/rear rewards, score items, bonus-level
+  triggers and the complete ordered player collision dispatcher. Composes
+  actual combat, armor HUD, item-ID resolution, weapon upgrades, shot creation,
+  explosions, and shared enemy state. Text/options/song presentation uses
+  explicit callbacks; the enclosing playable level loop remains pending.
+- [x] `tests/OpenTyrian.Core.Tests/PlayerPickupTests.cs` - 8,192 native
+  direct reward and complete collision-loop scenarios compare names/text,
+  song/draw ordering, both players and last-item snapshots, enemy availability,
+  actual effects, projectiles, sound queues, padded HUD pixels and RNG.
+  Includes unsigned negative shared rewards, wrapped cash, Galaga recruitment,
+  all arcade rows, sidekick tiers, unconsumed rear-weapon rewards, Latin-1 names,
+  and explicit malformed text/table/index checks.
+- [x] `tests/native/build_pickups_reference.py` - unchanged native player
+  names, pickup routines and collision dispatch, composed with actual weapon
+  upgrades, player damage, armor drawing, shots and explosion setup. Retains
+  the native unsigned `COUNTOF` promotion rather than size_t division.
+- [x] `src-csharp/OpenTyrian.Core/GameHud.cs` - complete in-game cash,
+  special icon, lives, local/network names, superbombs and cheating display
+  ordering plus cube shadows/hue. `GameHudPresentation` composes actual
+  compressed sprites, option shapes and font/shadow rendering. Native life
+  subtraction underflow and signed numeric display are retained.
+- [x] `tests/OpenTyrian.Core.Tests/GameHudTests.cs` - 4,096 unchanged native
+  HUD/cube call traces across mode combinations, all byte life counts,
+  native-width cash, bombs, special icons and name precedence. Synthetic
+  compressed sprites/font tables additionally verify concrete presentation
+  pixels, full shadows, text width and NUL termination; invalid ownership and
+  special indices fail explicitly.
+- [x] `tests/native/build_game_hud_reference.py` - unchanged native
+  `JE_getName`, `JE_inGameDisplays`, `JE_drawCube` with deterministic drawing
+  and width traces, no original assets.
+- [x] `src-csharp/OpenTyrian.Core/GameGamma.cs` - consumes F11 once,
+  resets `NewKey`, cycles gamma and republishes a corrected copy of the
+  current picture palette through actual managed palette RGB/YUV mapping.
+  `PaletteSystem.GammaChannel`/`CorrectGamma` preserve roundf half-away-from-zero,
+  float arithmetic, clamping and all 256 byte gamma values.
+- [x] `tests/OpenTyrian.Core.Tests/GameSettingsTests.cs` - all 256 gamma
+  settings across every channel byte, 1,024 palette/hotkey states and 512
+  high-score sorting scenarios compared against unchanged C. Verifies ties,
+  signed scores, selected three-slot groups, six full groups and retention
+  of unrelated slot fields. Invalid palettes/factors/group bounds fail explicitly.
+- [x] `tests/native/build_game_settings_reference.py` - unchanged native
+  gamma/channel/hotkey and score-group/full-table sorting routines; exact
+  palette hashes, key flags and score/name/difficulty/retained-field traces.
+- [x] `src-csharp/OpenTyrian.Core/PlayerProgression.cs` - new-game player
+  initialization, snapshot ordering, native-width shop costs and triangular
+  upgrades, full item-inclusive scores and score-driven difficulty increases.
+  Uses existing save-state/player/item ownership and preserves RNG, initial
+  mode resets and player-two rear/sidekick defaults. Invalid weapon power,
+  item indices and undefined native adjusted-score overflow are explicit errors.
+- [x] `tests/OpenTyrian.Core.Tests/PlayerProgressionTests.cs` - 512 native
+  new-game/cost/score scenarios and 147,456 difficulty evaluations across
+  nine initial difficulties and score threshold boundaries. Verifies real
+  known-item resolution, last-item timing, life aliases, retained cash,
+  wrapped totals, ship armor, RNG and 72 signed/native-long upgrade cases.
+- [x] `tests/native/build_player_progression_reference.py` - unchanged
+  native initialization, shop cost/value, triangular upgrades, total scores
+  and difficulty functions composed with real typed-item loading and RNG.
+- [x] `src-csharp/OpenTyrian.Core/TextGlow.cs` - ordered four-direction
+  glow shadows, complete rising/falling brightness loops, warning hue,
+  input-controlled frame delays, network keep-alive and brightness reset.
+  Concrete `TextGlowHost` composes actual font, input and PIT timer services.
+- [x] `tests/OpenTyrian.Core.Tests/TextGlowTests.cs` - 2,048 consecutive
+  native glow calls cover initial skipped animation, all three fonts,
+  brightness gates, warning hue, button timing, empty text and complete
+  ordered delay/draw/input/network/present/wait traces. Concrete synthetic
+  glyph/input/timer integration verifies pixels and skip timing; cancellation
+  is explicit.
+- [x] `tests/native/build_text_glow_reference.py` - unchanged native
+  `JE_outTextGlow` with deterministic presentation/input/network services.
+- [x] `src-csharp/OpenTyrian.Core/GameTextEffects.cs` - native timed
+  warning stripes, color/direction wrapping, presentation and warning-sound
+  countdown through actual surfaces/PIT timers; text-window erase ordering,
+  lifetime reset and real option-shape/font presentation.
+- [x] `tests/OpenTyrian.Core.Tests/GameTextTests.cs` - 32,768 native
+  warning updates cover every initial color and signed change, timer gates,
+  sound cadence and full padded-surface hashes. Forty text-window updates
+  compare erase/draw ordering, empty/NUL/Latin-1 text and lifetime state;
+  concrete sprite/font window pixels are independently checked.
+- [x] `tests/native/build_game_text_reference.py` - unchanged
+  `JE_updateWarning` and `JE_drawTextWindow`, actual rectangular fills,
+  PIT-derived timer targets, warning state and text presentation traces.
+- [x] `src-csharp/OpenTyrian.Core/CharacterGlow.cs` - character-position
+  and brightness wave animation, missing glyphs/spaces, native 16-bit
+  position narrowing, black shadows, shared glow delay/warning hue state,
+  skip input, escape, warning updates and network/presentation ordering.
+  Concrete host uses actual font/sprite/input/PIT/warning services; text
+  beyond the native 60-character capacity is an explicit error.
+- [x] `tests/OpenTyrian.Core.Tests/CharacterGlowTests.cs` - 1,024 native
+  traces across fast/animated, warning/last banks, initial/dynamic escape,
+  input skipping, unsupported/high-byte glyphs, long spaces and 60 characters.
+  Actual managed glyph/shadow pixels, input consumption, scheduled-delay
+  retention after skip, warning stripes/timing and fast partial shading
+  are verified together.
+- [x] `tests/native/build_character_glow_reference.py` - unchanged
+  `JE_outCharGlow` and original font character map with deterministic
+  glyph/width/shadow/input/warning/timer/network presentation traces.
+- [x] `src-csharp/OpenTyrian.Core/GameHelp.cs` - complete single/two-player
+  in-game help layouts, help-box state, shaded panel, sprite labels, centered
+  continue text and ordered input/mouse/presentation/joystick/network wait.
+  Concrete host composes actual help/font/shape/input/cursor services on an
+  explicit primary surface instead of temporarily changing a global screen
+  pointer; text-window erase ticks become one after successful completion.
+- [x] `tests/OpenTyrian.Core.Tests/GameHelpTests.cs` - 32 native help
+  scenarios cover both layouts, keyboard/mouse completion and repeated
+  wait frames with exact drawing/input/cursor/network order. Concrete
+  font/help/shape pixels, help-box state and actual input/timing integration
+  are checked; cancellation is explicit.
+- [x] `tests/native/build_game_help_reference.py` - unchanged native
+  `JE_inGameHelp`, deterministic presentation/input traces, help-box state,
+  text-window lifetime and screen-pointer restoration.
+- [x] `src-csharp/OpenTyrian.Core/LevelResults.cs` - complete end-level
+  unlocks, difficulty adjustment, item/level snapshots, completed/exiting/
+  bonus text, cash/kill percentages, wrapped editor-level rewards, cube
+  animations, skip/continue waits, audio selection and fade/clear flow.
+  Composes actual progression, glow, font/sprites, palette, input and timers.
+  Native unlock offsets that overlap the four regenerated checksum bytes
+  use explicit transient scratch rather than corrupting managed save state.
+- [x] `tests/OpenTyrian.Core.Tests/LevelResultsTests.cs` - 512 unchanged
+  native result traces compare all mode/alive/timer/episode gates, item
+  snapshots/unlock bytes, integer kill percentage, cube cap/frame sequence,
+  skip input and final waits. Concrete font/glow/palette/input/timing/audio
+  integration and explicit invalid unlock bounds are checked.
+- [x] `tests/native/build_level_results_reference.py` - unchanged
+  `JE_endLevelAni` with actual native typed-item progression/difficulty
+  routines; deterministic unlock, glow/cube/input/network/audio traces.
+- [x] `src-csharp/OpenTyrian.Core/EpisodeTransition.cs` - next-episode
+  availability/wrap selection, high-score/credits gates, random SuperCarrot/
+  BananaBlast reward, item snapshots and new-level flags; concrete title/
+  palette/song/input/fade presentation. Real `EpisodeState` archive loading
+  is integrated; high-score entry and credits playback remain explicit
+  callbacks until their own conversions are complete.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodeTransitionTests.cs` - 1,024
+  unchanged native transitions compare availability masks, repeat/high-score/
+  credits gates, random reward/item snapshots, exact RNG and ordered
+  title/input/network/fade calls. Uses real synthetic episode archives;
+  concrete font/title pixels, palette fading and input/audio callbacks
+  are checked without original assets.
+- [x] `tests/native/build_episode_transition_reference.py` - unchanged
+  `JE_nextEpisode` and `JE_findNextEpisode` plus actual typed-item/RNG
+  integration; deterministic transition presentation and item-state traces.
+- [x] `src-csharp/OpenTyrian.Core/EpisodePictureDisplay.cs` - episode picture
+  and PCX-palette branch, including native constant-play and host-action order.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodePictureDisplayTests.cs` - 256
+  section parsing, palette mapping, picture loading and presentation traces.
+- [x] `tests/native/build_episode_picture_reference.py` - standalone oracle
+  generated from the unchanged native episode-picture routine.
+- [x] `src-csharp/OpenTyrian.Core/EpisodeWarningDisplay.cs` - encrypted
+  episode-warning lines, native frame-count parsing/narrowing, warning state
+  setup and presenter handoff.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodeWarningDisplayTests.cs` - 256
+  early-return, state, encrypted-line and presentation-order cases.
+- [x] `tests/native/build_episode_warning_reference.py` - standalone oracle
+  generated from the unchanged native episode-warning routine.
+- [x] `src-csharp/OpenTyrian.Core/EpisodeLevelJump.cs` - conditional episode
+  jump gates, C-style destination parsing and native byte narrowing.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodeLevelJumpTests.cs` - 2,048
+  command, state, parser and jump-gate compatibility cases.
+- [x] `tests/native/build_episode_level_jump_reference.py` - standalone
+  oracle generated from the unchanged native episode-level jump routine.
+- [x] `src-csharp/OpenTyrian.Core/EpisodeModeConfiguration.cs` - Galaga,
+  extra-game and SuperTyrian flags and player loadout configuration.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodeModeConfigurationTests.cs` - 256
+  seeded mode, player-item and state-transition compatibility cases.
+- [x] `tests/native/build_episode_mode_reference.py` - standalone oracle
+  generated from the unchanged native episode mode routine.
+- [x] `src-csharp/OpenTyrian.Core/EpisodeItemAvailability.cs` - encrypted
+  episode shop rows, typed ID lookup, optional random offers, and item-screen
+  callback.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodeItemAvailabilityTests.cs` - 15
+  shop-setting/input-length scenarios, unchanged-native state/stream traces,
+  and a deterministic random-offer integration case.
+- [x] `tests/native/build_episode_item_availability_reference.py` - standalone
+  oracle generated from the unchanged native episode shop reader.
+- [x] `src-csharp/OpenTyrian.Core/MapTransition.cs` - upper, lower, and
+  horizontal picture reveals using the native per-frame indexed-pixel order.
+- [x] `tests/OpenTyrian.Core.Tests/MapTransitionTests.cs` - 16 native frame
+  traces across both common pitches, all transition branches, key skipping,
+  constant-play short-circuiting, and network mode.
+- [x] `tests/native/build_map_transition_reference.py` - standalone oracle
+  generated from the unchanged native map-transition function.
+- [x] `src-csharp/OpenTyrian.Core/EpisodePresentation.cs` - episode
+  presentation command routing and native fade/clear/palette ordering.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodePresentationTests.cs` - 40
+  command, network-state, constant-play, callback and completion-result traces.
+- [x] `tests/native/build_episode_presentation_reference.py` - standalone
+  oracle generated from the unchanged native episode presentation dispatcher.
+- [x] `src-csharp/OpenTyrian.Core/EpisodeCompletion.cs` - encrypted completion
+  hints, score/cash lines, SuperTyrian unlock state and presentation callbacks.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodeCompletionTests.cs` - 48 native
+  scenarios covering hint offsets, scores, early returns, unlocks, graphics,
+  network synchronization and presentation order.
+- [x] `tests/native/build_episode_completion_reference.py` - standalone oracle
+  generated from the unchanged native episode-completion routine.
 - [x] `tests/native/core_reference.c` - asset-free reference harness linked
   with the unchanged native parser and RNG; compiled with MSVC x64.
 
@@ -891,14 +1091,17 @@ regression harness, not yet into playable game flows. Module file dispositions
 identify verified counterparts, not completion of their remaining gameplay
 callers; whole-game integration remains a separate release gate.
 Full native game builds and runtime parity still require the SDL
-development dependencies and separately supplied Tyrian assets. MSVC is
+development dependencies and separately supplied Tyrian assets. The supplied
+Tyrian 2.1 assets have verified real-asset extractor parity, but end-to-end
+gameplay and whole-game runtime parity remain outstanding. MSVC is
 installed outside PATH and can compile asset-free reference programs via
 `vcvars64.bat`. The unchanged full native SDL2/SDL2_net Windows game build and
 asset-free `--help` path have been verified; gameplay still requires external
 assets and the outstanding runtime gates.
-The standalone managed extractor is integrated end-to-end and its native
-source-region oracle needs no SDL runtime, but original-asset verification has
-not been performed. See the workflow for intentional output-failure deviations.
+The standalone managed extractor is integrated end-to-end; its native
+source-region oracle needs no SDL runtime. Real-asset extraction was compared
+against the unchanged native extractor for all eight categories. See the
+workflow for intentional output-failure deviations.
 
 The RNG's native float expressions can round to 1.0f even in `mt_rand_lt1`.
 Preserve this rather than clamping or changing the sequence. The animation
@@ -967,7 +1170,7 @@ these implementation inventories:
 | `SceneEffects.cs` | Constructor, `SetupExplosion`, `SetupLarge`, both `UpdateExplosions` overloads, `SpawnSuperPixels`, `DrawSuperPixels`, `CreateProjectileEffects`, `Blend`; `Explosion`, `RepeatingExplosion`, `SuperPixel` models |
 | `SceneEffectsTests.cs` | `Run`, `Execute`, `Dump`, `Check` |
 | `build_effects_reference.py` | `build_source`, `main`; generated sprite shims, `dump_state`, `main` |
-| `PlayerCombat.cs` | Constructor, `Damage`, `WipeBars`, `DrawShield`, `DrawArmor`, `PortConfigurations`, `DrawBar`, `RoundedGauge` |
+| `PlayerCombat.cs` | Constructor, `Damage`, `WipeBars`, `DrawShield`, `DrawArmor`, `PortConfigurations`, `DrawBar`, `RoundedGauge`; level-end effect wait state |
 | `PlayerCombatTests.cs` | `Run`, `Execute`, `Check` |
 | `build_combat_reference.py` | `build_source`, `main`; generated `SDL_FillRect`, `main` |
 | `EnemyState.cs` | `EnemyState` and `BossBar` runtime model properties and fixed-size arrays |
@@ -975,7 +1178,7 @@ these implementation inventories:
 | `EnemyAttacks.cs` | `AimShot`, `CreateEnemyShot`, `ApplyWeaponSpecial`, `FireShots`, `ProcessAttacks`, `LaunchFromParent`, `DrawAndUpdate`, `RandomSoundChannel`, both `UpdateEnemyShots` overloads; `EnemyShot` runtime model |
 | `EnemyAttackTests.cs` | `Run`, `Fixture`, `Execute`, `ExecuteSpecials`, `Create`, `UpdateShots`, `Dump`, `Check` |
 | `build_enemy_attacks_reference.py` | `build_source`, `main`; generated `JE_playerDamage`, `dump_attacks`, oracle `main` |
-| `LevelEvents.cs` | Constructor, `Current` accessor, `Jump`, `SearchEnemy`, `CreateEnemy`, `CreateEnemyAtY`, `ResolveEnemyLink`, `ApplyRandomSpecialDrop`, `SetEnemyDeath`, `GlobalMove`, `GlobalAcceleration`, `GlobalAnimation`, `GlobalDamage`, `ReverseAcceleration`, `OverrideFire`, `HandleDeath`, `HandleEnemyEvent`; `LevelEvent` typed record properties |
+| `LevelEvents.cs` | Constructor, `Current` accessor, `Jump`, `SearchEnemy`, `CreateEnemy`, `CreateEnemyAtY`, `ResolveEnemyLink`, `ApplyRandomSpecialDrop`, `SetEnemyDeath`, `GlobalMove`, `GlobalAcceleration`, `GlobalAnimation`, `GlobalDamage`, `ReverseAcceleration`, `OverrideFire`, `HandleDeath`, `HandleEnemyEvent`; `LevelEvent` typed record properties; level-entry flag state and shared quit-request backing |
 | `LevelEventActions.cs` | `HandleEnvironmentEvent`, `PositiveByte`, `SetBackgroundMoves`, `HandleLevelEvent`, `HandleMiscEvent`, `AssignRandomLink`, `Dispatch`, `UpdateEndState`, `ResumeBackgrounds`, `PlaySounds`; `ILevelEventServices` shape/text/song/volume contract and event-flow state properties |
 | `LevelEventTests.cs` | `Run`, `Fixture`, `Execute`, `Create`, `Check` |
 | `LevelEventDispatchTests.cs` | `Run`, `Execute`, `Flag`, `Dump`, `TestInvalidActions`, `ThrowsInvalid`; services `LoadEnemySheet`, `DrawTextWindow`, `PlaySong`, `SetVolume` |
@@ -989,7 +1192,7 @@ these implementation inventories:
 | `build_boss_bar_reference.py` | `build_source`, `main`; generated `fill_rectangle_xy`, native oracle `main` |
 | `LevelStateTests.cs` | `Run`, `Flag`, `TestAudioFailures`, `CompareNative` |
 | `build_level_state_reference.py` | `build_source`, `main`; generated `multiSamplePlay`, native oracle `main` |
-| `SoundBank.cs` | Both `Load` overloads, `ReadBank`, `PlaySample`, `Play`; `IAudioSampleConverter.Convert` contract and managed sample ownership |
+| `SoundBank.cs` | Both `Load` overloads, `ReadBank`, `PlaySample`, `Play`, `Clear`; `IAudioSampleConverter.Convert` contract and managed sample ownership |
 | `SoundBankTests.cs` | `Run`, `BuildBank`, `TestSoundDispatch`, `TestFailures`, `Hash`, `CompareNative`, `Throws`, `Check`; recording and failure converters `Convert` |
 | `build_sound_bank_reference.py` | `build_source`, `main`; generated audio conversion/read/playback shims, `hash_bytes`, native oracle `main` |
 | `AudioMixer.cs` | Constructor, synchronized mode/state accessors, `RemainingSamples`, `SetVolume`, `Play`, `ClearChannels`, `ChangeMusic`, `Mix`, `Clamp`; `IMusicSynthesizer.Update`/`Render` contract |
@@ -1010,7 +1213,7 @@ these implementation inventories:
 | `MouseCursor.cs` | Constructor/state, `Start`, `StartFiltered`, `StartCore`, `Replace`, `Capture`, `CopyBlock`, `Validate`; exact pointer metadata initialization |
 | `MouseCursorTests.cs` | `Run`, `Fixture`, `Hash`, `CompareNative`, `Check`, `Throws`; queue platform with explicit unexpected-service failures |
 | `build_mouse_reference.py` | `function`, `build_source`, `main`; generated `hash`, synthetic sprites/surface and native oracle `main` |
-| `SdlNative.cs` | Static resolver registration, `Resolve`, `Error`; cdecl `GetError`, `BuildAudioConverter`, `ConvertAudio`, `InitSubSystem`, `QuitSubSystem`, `OpenAudioDevice`, `PauseAudioDevice`, `CloseAudioDevice`; ABI `AudioSpec`/`AudioCallback` |
+| `SdlNative.cs` | Static resolver registration, `Resolve`, `Error`; cdecl `GetError`, `BuildAudioConverter`, `ConvertAudio`, `InitSubSystem`, `QuitSubSystem`, `Quit`, `OpenAudioDevice`, `PauseAudioDevice`, `CloseAudioDevice`; ABI `AudioSpec`/`AudioCallback` |
 | `SdlNative.cs` video/input members | `Rectangle` constructor, window/display/fullscreen/renderer/texture/presentation/readback cdecl services, `PollEvent`, `PushEvent`, `GetTicks`, `Delay`, `ShowCursor`, `SetRelativeMouseMode`, `SetHint`, `Free` |
 | `SdlAudioSampleConverter.cs` | Constructor, `Convert`; bounded native CVT buffer ownership and cleanup |
 | `SdlAudioDevice.cs` | Constructor, `CompletedCallbacks`, `Start`, `Pause`, `ThrowIfFaulted`, `Mix`, `Dispose`, `Release` |
@@ -1040,7 +1243,7 @@ these implementation inventories:
 | `IndexedSurface.cs` UI members | `ShadowedGauge`; native unsigned dimension/position/color wrapping and pre-multiplication partial division |
 | `SdlNative.cs`/`SdlInputPlatform.cs` menu members | Cdecl `GetModState`; disposed-guarded live `Modifiers` property |
 | `LegacySaveArchive.cs` | `LegacySaveCipher.Encrypt`, `Decrypt`, `Checksums`, `XorCString`; `LegacySaveSlot.Read`, `Write`, `ReadPascal`, `WritePascal` and all serialized properties; `LegacySaveArchive.Read`, `Write`, fixed-size slot/tail inventory |
-| `LegacySaveGame.cs` | `LegacyGameState` typed modes, players, episode/level/cube/difficulty/input state; `LegacySaveGame.Save`, `Load`, `Slot`, `IsCompleted` |
+| `LegacySaveGame.cs` | `LegacyGameState` typed modes, players, episode/level/cube/difficulty/input state including `OldDifficulty`; `LegacySaveGame.Save`, `Load`, `Slot`, `IsCompleted` |
 | `PlayerState.cs` legacy members | `PlayerItems.ToLegacyItems`, `LoadLegacyItems`; exact twelve-byte item/episode layout without overwriting weapon power |
 | `LegacySaveTests.cs` | `Run`, `GameOperations`, `FilePersistence`, `Failures`, `RunNative`, `Bit`, `Throws`, `Check`; persistence and episode fixture callbacks |
 | `build_legacy_saves_reference.py` | `build_source`, `main`; native `serialize`, `deserialize`, `hex`, fixture persistence/episode callbacks and oracle `main` |
@@ -1095,7 +1298,7 @@ these implementation inventories:
 | `build_player_movement_reference.py` | `build_source`, `main`; native trail/SDL rectangle/pattern-sprite fixtures, original combo tables/recognition and exhaustive typed-item/projectile/motion/main-weapon/superbomb/charge/sidekick/HUD/weapon-mode/ship/command oracle `main` |
 | `PlayerWeapons.cs` | Constructor; charge/mode state, `SpecialCodeProgress`, `ExecutedSpecial`, native `KeyboardCombos`/`ShipCombos`/`SuperShipCombos` tables; `DrawOptions` icon/callback overloads, `DrawOptionLevel`, `UpdateAttacks`, `RecognizeSpecial`, `ChangeMode`/`Special`, `DrawModeButtons` callback/icon overloads, `FireMain`, `FireSuperbomb`, `UpdateCharge`/`Bar`, `FireSidekicks`/`Fire`/`ResetCharge`/`Gauge`, `DrawSidekicks`, `Validate` |
 | `PlayerSpecialWeapons.cs` | Constructor and native wait/duration/flare/filter/weapon/cost/arcade state; `Complete`/`Create`/`Zinglon`, `Update` callback/sprite overloads |
-| `PlayerFrame.cs` | `PlayerFramePresentation` required surfaces/drawing services; `PlayerFrame` constructor, buttons/episode/render/demo/network/device/graphic/old-position/parallax state; `Update`/`Replay`, `UpdatePlayers` |
+| `PlayerFrame.cs` | `PlayerFramePresentation` required surfaces/drawing services; `PlayerFrame` constructor, buttons/episode/render/demo/network/device/graphic/old-position/parallax state; `Update`/`Replay`, `UpdatePlayers`; camera offsets share explicit initialization/restore state |
 | `PlayerSpecialWeaponsTests.cs` | `Run`, `TestPresentation`, `TestFrameFailures`, `Throws`, `FillFramePacket`, `Hash`, `Bit`; `FrameTransport.Send`/`Receive`, `FramePlatform` input guards; complete/special/attack/individual/paired frame fixtures and full state/projectile/pixel/RNG native comparison; guarded `ShotEffects` |
 | `build_player_special_reference.py` | `build_source`, `main`; generated native full special/ordered attack/sidekick initialization/player/paired-frame/death/purple-ball oracle `main`, full-frame `hash`, and bounded input/demo-text/network-packet/deferred explosion shims |
 | `PlayerInput.cs` | Constructor; native input/device/demo/constant/inversion state; `Collect`, `ReplayDemo` and `Down` |
@@ -1107,10 +1310,514 @@ these implementation inventories:
 | `EnemyCollisions.cs` | `EnemySystem.DestroyOnCollision`, `DamageOnCollision`, `CollectArmorPickup`, `ValidateCollisionIndex` |
 | `EnemyCollisionTests.cs` | `Run`, `TestFailures`, `Throws`, `Bit`; complete native collision/enemy/player/effect/HUD/RNG state comparison |
 | `build_enemy_collision_reference.py` | `build_source`, `main`; generated enemy collision/definition/player fixtures, oracle `main`, unchanged collision/combat/HUD/effect routines |
+| `PlayerPickups.cs` | `GetName`, `DefaultName`, `CollectBonusLevel`, `CollectScore`, `CollectArcade`, `Collide`, `UpgradeText`, `PickupText`, `Text`, `Secondary`, `CString`, `Index`, `RawName`, `Validate` |
+| `PlayerPickupTests.cs` | `Run`, local `Dump`, `TestFailures`, `Throws`, `Bit`, `ShotEffects.Draw`, `DrawSpecial`, `Explosion`, `SuperPixels`; complete pickup/collision state traces |
+| `build_pickups_reference.py` | `build_source`, `main`; generated `dump_items`, oracle `main`, unchanged pickup/collision/combat/effect functions |
+| `GameHud.cs` | `GameHud.Draw`, `DrawCube`; `IGameHudPresentation` and `GameHudPresentation.Text`, `TextWidth`, `Icon`, `Cube` |
+| `GameHudTests.cs` | `Run`, `TestPresentation`, `Throws`; `TracePresentation.Text`, `TextWidth`, `Icon`, `Cube`; `UnusedEffects.Draw`, `DrawSpecial`, `Explosion`, `SuperPixels` |
+| `build_game_hud_reference.py` | `build_source`, `main`; generated drawing/width trace helpers, oracle `main` and unchanged HUD/name/cube routines |
+| `GameGamma.cs` | `Check`; managed input and palette publication |
+| `GameSettingsTests.cs` | `Run`, `Hash`, `Bit`, `Throws`; `NoInput` platform guards; gamma and high-score state traces |
+| `build_game_settings_reference.py` | `build_source`, `main`; generated `set_palette`, oracle `main`, unchanged gamma and score sorting routines |
+| `PlayerProgression.cs` | `WeaponUpgradeCost`, `GetCost`, `GetValue`, `TotalScore`, `Initialize`, `AdjustDifficulty`, `Known`, `BaseCost`, `NativeLong`, `NativeUnsignedLong` |
+| `PlayerProgressionTests.cs` | `Run`, local `Dump`, `TestFailures`, `Bit`, `Throws`; complete player/progression traces |
+| `build_player_progression_reference.py` | `build_source`, local `extract`, `main`; unchanged native progression functions, generated oracle `main` |
+| `TextGlow.cs` | `TextGlow.Draw`, local `Frame`; `ITextGlowHost`/`TextGlowHost.Draw`, `SetDelay`, `AnyButton`, `KeepAlive`, `Present`, `Wait` |
+| `TextGlowTests.cs` | `Run`, `TestHost`; `TraceHost.Draw`, `SetDelay`, `AnyButton`, `KeepAlive`, `Present`, `Wait`; `Platform` input/timer guards |
+| `build_text_glow_reference.py` | `build_source`, `main`; native glow, generated draw/input/network/timer traces and oracle `main` |
+| `GameTextEffects.cs` | `WarningBars.Update`, `GameTextWindow.Show`, concrete text-window presentation constructor |
+| `GameTextTests.cs` | `Run`, `TestWindowPresentation`; `Clock.Delay`, `ServiceEvents`, `PollJoysticks`; warning and text-window traces |
+| `build_game_text_reference.py` | `build_source`, `main`; native warning/window routines, timer/fill/text trace services and oracle `main` |
+| `CharacterGlow.cs` | `CharacterGlow.Draw`; `ICharacterGlowHost`/`CharacterGlowHost.Width`, `Shade`, `Glyph`, `Shadow`, `SetDelay2`, `SetDelay`, `Remaining`, `AnyButton`, `KeepAlive`, `UpdateWarning`, `Delay`, `Present` |
+| `CharacterGlowTests.cs` | `Run`, `TestHost`, `Bit`; `TraceHost` presentation/input/timer services; `UnusedGlowHost` full-text guards |
+| `build_character_glow_reference.py` | `build_source`, `main`; original character map and character glow, generated glyph/input/timer/warning traces and oracle `main` |
+| `GameHelp.cs` | `GameHelp.Run`; `IGameHelpHost`/`GameHelpHost.ClearKeyboard`, `WipeKey`, `Shade`, `Fill`, `Option`, `Box`, `TextWidth`, `Text`, `ServiceEvents`, `MouseStart`, `Present`, `MouseReplace`, `Delay`, `PushJoysticks`, `KeepAlive` |
+| `GameHelpTests.cs` | `Run`, `TestHost`, `Bit`; `TraceHost` full help presentation/input/mouse/network services |
+| `build_game_help_reference.py` | `build_source`, `main`; native help routine, generated presentation/input/cursor/network trace helpers and oracle `main` |
+| `LevelResults.cs` | `LevelResults.Run`, local `Show`/`CubeFrame`, `Unlock`, `Text`, `Cash`, `CString`, `Join`; `ILevelResultsHost`/`LevelResultsHost` audio/glow/cube/input/palette/presentation services |
+| `LevelResultsTests.cs` | `Run`, `TestHost`; `TraceHost` result presentation/input services; `TraceGlow`/`UnusedShots` guards |
+| `build_level_results_reference.py` | `build_source`, `main`; native end-level/progression functions, generated result presentation/audio/input helpers and oracle `main` |
+| `EpisodeTransition.cs` | `EpisodeTransition.Run`, `Known`; `IEpisodeTransitionHost`/`EpisodeTransitionHost` score/credits/title/palette/audio/input services |
+| `EpisodeTransitionTests.cs` | `Run`, local `Dump`, `TestHost`, `Bit`; `TraceHost` transition services |
+| `build_episode_transition_reference.py` | `build_source`, `main`; native next-episode selection/transition, generated title/input/credits/score callbacks and oracle `main` |
+| `EpisodePictureDisplay.cs` | `EpisodePictureDisplay.Show`, `ParseAtoi`; picture/PCX palette selection, clear/present and fade host actions |
+| `EpisodePictureDisplayTests.cs` | `Run`, `AssertSequence`, `ParseExpected`; 256 extracted-native section/palette/action traces |
+| `build_episode_picture_reference.py` | `build_source`, `main`; extracts the unchanged native episode-picture routine and traces screen/palette actions |
+| `EpisodeWarningDisplay.cs` | `EpisodeWarningDisplay.Show`, `ParseAtoi`; warning state, decrypted lines, native word frame-count parsing and presenter handoff |
+| `EpisodeWarningDisplayTests.cs` | `Run`, `AssertState`, `MakeEpisode`, `WriteEncryptedString`, `HexLines`, `ParseExpected`; trace presenter/glow/input fixtures and 256 native warning traces |
+| `build_episode_warning_reference.py` | `build_source`, `main`; extracts the unchanged native episode-warning routine and traces state, input position and decrypted lines |
+| `EpisodeLevelJump.cs` | `EpisodeLevelJump.Handle`, `ParseAtoi`; six conditional jump codes, section offset, signed decimal-prefix parsing and byte destination |
+| `EpisodeLevelJumpTests.cs` | `Run`, `AssertState`, `ParseExpected`, `AppendState`; 2,048 native jump-gate/state traces |
+| `build_episode_level_jump_reference.py` | `build_source`, `main`; extracts the unchanged native conditional jump routine and traces byte-level state |
+| `EpisodeModeConfiguration.cs` | `EpisodeModeConfiguration.Configure`; Galaga loadout copy, extra-game flag and SuperTyrian loadout reset |
+| `EpisodeModeConfigurationTests.cs` | `Run`, `SeedPlayer`, `AssertState`, `SnapshotPlayer`, `Dump`, `DumpPlayer`; 256 seeded native mode/loadout traces |
+| `build_episode_mode_reference.py` | `build_source`, `main`; extracts the unchanged native episode mode routine and traces flags/player fields |
+| `EpisodeItemAvailability.cs` | `EpisodeItemAvailability.Read`, `EpisodeItemAvailabilityState`; encrypted 9-row shop parsing, typed lookups, optional random item offers and item-screen handoff |
+| `EpisodeItemAvailabilityTests.cs` | `Run`, `MakeEpisode`, `WriteEncryptedString`, `Dump`, `AssertState`, `RowType`; 15 shop-setting traces and native comparisons |
+| `build_episode_item_availability_reference.py` | `build_source`, `main`; extracts the unchanged native episode availability reader and generates encrypted episode data/oracle output |
+| `MapTransition.cs` | `MapTransition.Play`, `MapTransition.ParseAtoi`; upper/lower/horizontal indexed-surface reveals, event and frame timing handoff |
+| `MapTransitionTests.cs` | `Run`, `FillPattern`, `Hash`, `TraceHost.LoadPicture`/`ServiceEvents`/`SetDelay`/`Present`/`WaitDelay`; per-frame native pixel hashes across 16 scenarios |
+| `build_map_transition_reference.py` | `build_source`, `main`; extracts the unchanged native picture-reveal function and generates per-frame pixel hashes |
+| `EpisodePresentation.cs` | `EpisodePresentation.Handle`, `IEpisodePresentationHost`; command dispatch for pictures, map transitions, fades, palette changes, warnings and completion |
+| `EpisodePresentationTests.cs` | `Run`, `Bool`, `Section`, `TraceHost` fade/clear/present/palette services; 40 extracted-native dispatcher and host-order cases |
+| `build_episode_presentation_reference.py` | `build_source`, `main`; extracts the unchanged native episode presentation dispatcher with traced dependent routines |
+| `EpisodeCompletion.cs` | `EpisodeCompletion.Show`; encrypted hint-section selection, score/cash warning lines, unlock presentation, ship graphics, network sync and SuperTyrian return state |
+| `EpisodeCompletionTests.cs` | `Run`, `MakeData`, `MakeEpisode`, `WriteEncryptedString`, `DumpLines`, `TestMalformedInput`, trace host; 48 unchanged-native completion and unlock scenarios |
+| `build_episode_completion_reference.py` | `build_source`, `main`; extracts the unchanged native completion routine with deterministic encrypted sections and presentation traces |
+| `Credits.cs` | `Credits.Run`; `ICreditsHost`/`CreditsHost` picture/text/file/font/palette/ship/audio/input/timer and cleanup services |
+| `CreditsTests.cs` | `Run`, `TextData`, `TestHost`, `Throws`; `TraceHost` credits services |
+| `build_credits_reference.py` | `build_source`, `main`; native credits playback and generated synthetic service oracle |
+| `HighScores.cs` | `HighScores.Run`, local `Rank`/`Title`, `Number`, `CString`, `Join`; `HighScoreInput`, `IHighScoreHost`/`HighScoreHost` cursor/palette/input/text/shape/glow/audio/timer services |
+| `HighScoreTests.cs` | `Run`, `TestEditing`, `TestHost`, local `LoadCursor`; `TraceHost` and local `Key`/`Text` scripted input |
+| `build_high_scores_reference.py` | `build_source`, `main`; native sorting/qualification/name entry and generated service oracle |
+| `PlayerShipInfo.cs` | `Initialize`, `ExtraGraphic`, `Draw`; shared frame graphics, selected sprite sheets and generator power |
+| `ShipInfoTests.cs` | `Run`, local `SheetId`, `Sheet`, `TestDraw`, `Throws` |
+| `build_ship_info_reference.py` | `build_source`, `main`; native ship state/graphics initialization oracle |
+| `EditedShips.cs` | `Decrypt`, `Load(string)`, `Load(Stream)`; owned custom records/sprite sheet and transactional publication |
+| `EditedShipTests.cs` | `Run`, `Encrypt`, `Compare`, `Throws` |
+| `build_edited_ships_reference.py` | `build_source`, `main`; native archive/decryption and file/checksum exit oracle |
+| `GameKeyboard.cs` | `GameKeyboard.Run`, local `Held`/`Known`/`Edit`; `IGameKeyboardHost`/`GameKeyboardHost` gamma/ship/HUD/help/text/timer/audio integration |
+| `GameKeyboardTests.cs` | `Run`, `TestHost`, `Bit`; `TraceHost` ordered keyboard services; `UnusedEffects` explicit unexpected-shot guards |
+| `build_game_keyboard_reference.py` | `SCANCODES`, `build_source`, `main`; native keyboard dispatcher and generated mode/chord/state oracle |
+| `InGameSetup.cs` | `InGameSetup.Run`, `Draw`, `Wait`, `ReadMouse`, `ReadKeyboard`, `Adjust`, `ChangeVolume`, `Apply`, `ValidateSelected`; `SetupInput`, `InGameSetupAction`, `IInGameSetupHost`/`InGameSetupHost` and `Copy` surface/input/audio/settings services |
+| `InGameSetupTests.cs` | `Run`, `TestMouseBoundaries`, `TestHost`, `Fill`, `Bit`; `Silence` fixture; `TraceHost` services, `ResetWait`, `RunScan` |
+| `build_ingame_setup_reference.py` | `build_source`, `main`; native draw/read/apply/wait/full-menu and volume oracle |
+| `GameSetupSession.cs` | `GameSetupWaiting.Draw`; `GameSetupSession.Run` and local `Send`; bound input/settings/level/network flags and explicit primary presentation; `QuitRequested` aliases shared level state |
+| `GameSetupSessionTests.cs` | `Run`, `RunSdlNetwork`, `CreateLevel`, `TestFailure`, `TestWaiting`, `Bit`, `Normalize`; scripted `Transport`, `Platform`, `Host` boundary services |
+| `build_game_setup_reference.py` | `build_source`, `main`; unchanged native wrapper/ordered send/wait/flag oracle |
+| `HighScoreScreen.cs` | `HighScoreScreen.Run`; `IHighScoreScreenHost`/`HighScoreScreenHost.EnsureCursor`, `LoadBackground`, `RestoreBackground`, `Header`, `Shaded`, `Arrow`, `Help`, `FadeIn`, `PresentCursor`, `PushJoysticks`, `Sample`, `FadeBlack` |
+| `HighScoreScreenTests.cs` | `Run`, `RunSdl`, `TestHost`, `Fill`, `CreateShapes`, `SpriteBytes`; `Auxiliary`, trace `Host` and scripted `Platform` input services |
+| `build_high_score_screen_reference.py` | `build_source`, `main`; unchanged native score-page drawing/input oracle |
+| `NewGame.cs` | `NewGame.Run`, `RunSuperArcade`, `RunSuperTyrian`, `Known`, `Index`, `CString`; `INewGameHost`/`NewGameHost` selection, rendering, palette, input, audio and episode services; `Labels` |
+| `NewGameTests.cs` | `Run`/local `Create`, `Dump`; `Reset`, `TestHost`, `Bit`; trace `TraceHost` and actual selection `MenuHost` services |
+| `build_new_game_reference.py` | `build_source`, `main`; unchanged native normal/super-arcade/SuperTyrian flow oracle |
+| `TitleScreen.cs` | `TitleScreen.Run`, `Draw`, `Wait`, `Read`, `Dispatch`, `Secrets`, `ValidateSelected`; `TitleScreenInput`, `TitleScreenResult`; `ITitleScreenHost`/`TitleScreenHost` rendering/input/actions and `Copy` |
+| `TitleScreenTests.cs` | `Run`, `Create`, `SetInput`, `TestInputEdges`, `TestHost`, `RunSdl`, `Bit`; `Auxiliary`, trace `Host` and scripted `Platform` services |
+| `build_title_screen_reference.py` | `build_source`, `main`; unchanged native title drawing/wait/input/dispatch/secrets/full-loop oracle |
+| `GameIntro.cs` | `IIntroLogoHost`/`IntroLogoHost.Clear`, `FadeWhite`, `LoadPicture`, `Present`, `FadeIn`, `WaitInput`, `FadeBlack`; `IntroLogos.Run`/local `Show`; `ScreenBleed.Run` |
+| `GameIntroTests.cs` | `Run`, `TestHost`, `TestFailures`, `Hash`; `TraceHost`, scripted `Platform` input/timing services |
+| `build_game_intro_reference.py` | `build_source`, `main`; unchanged native startup/bleed and full-buffer byte oracle |
+| `LoadScreen.cs` | `LoadScreen.Draw`, `WaitInput`, `ReadInput`, `HandleAction`, `Run`, `Label`; `ILoadScreenHost`/`LoadScreenHost.GameLoaded`, `EnsureCursor`, `BuildSaves`, `LoadBackground`, `RestoreBackground`, `Header`, `Shaded`, `Arrow`, `Help`, `FadeIn`, `PresentCursor`, `PushJoysticks`, `Sample`, `LoadSave`, `FadeBlack`; `LoadScreenInput`, `LoadScreenResult` |
+| `LoadScreenTests.cs` | `Run`, `Compare`, `Create`, `Text`, `SetInput`, `TestInputEdges`, `TestHost`, `RunSdl`, `Bit`; `Auxiliary`, trace `Host`, scripted `Platform`; local cursor, unexpected-action and persisted-save callbacks |
+| `build_load_screen_reference.py` | `build_source`, `main`; native saved-game count/drawing/input/action/wait/full-loop oracle |
+| `HelpSystem.cs` | `HelpSystem.Run`, `ShowPages`, `DrawPage`, `Format`; `IHelpSystemHost`/`HelpSystemHost.EnsureCursor`, `PlaySong`, `LoadBackground`, `RestoreBackground`, `ClearFooter`, `TextWidth`, `Header`, `Footer`, `TextStyle`, `Box`, `Cursor`, `FadeIn`, `PresentCursor`, `PushJoysticks`, `Sample`, `FadeBlack` |
+| `HelpSystemTests.cs` | `Run`, `Text`, `Create`, `TestHost`, `RunSdl`, `Bit`; `Auxiliary`, trace `Host`, scripted `Platform`/`Key`/`Drain`/`Mouse`; local cursor and unexpected title-child callbacks |
+| `build_help_system_reference.py` | `build_source`, `main`; native help topic-menu/page rendering and navigation oracle |
+| `SetupMenu.cs` | `SetupMenu.PickerCount`, `PickerItem`, `Draw`, `WaitInput`, `CollectMenuInput`, `CollectPickerInput`, `ApplyPicker`, `Activate`, `ApplyMenu`, `ChangeVolume`, `Run`; `SetupMenuState`, `SetupMenuInput`, `SetupMenuId`, `SetupItemId`, `SetupAction`; `ISetupMenuHost`/`SetupMenuHost` video/scaling/shop/audio properties and rendering/input/video/configuration/child service methods |
+| `SetupMenuTests.cs` | `Run`, `Compare`, `Create`, `State`, `Item`, `Dump`, `DumpInput`, `Bit`, `SetInput`, `TestFailures`, `RunSdl`, `TestRendering`; `Player`, `Auxiliary`, trace `Host`, scripted `Platform`; local cursor/background/save/jukebox/unexpected-child callbacks |
+| `build_setup_menu_reference.py` | `build_source`, `main`; native setup/picker/render/input/action/volume/full-loop oracle |
+| `ChristmasPrompt.cs` | `ChristmasPrompt.IsChristmasTime`, `Run`; managed `Flake` ownership; `IChristmasPromptHost`/`ChristmasPromptHost.EnsureCursor`, `Fill`, `Flake`, `Label`, `FadeIn`, `PresentCursor`, `PushJoysticks`, `FadeBlack` |
+| `ChristmasPromptTests.cs` | `Run`, `TestHost`, `RunSdl`, `Bit`; `RandomService.Next`, `Auxiliary`, trace `Host`, scripted `Platform` |
+| `build_christmas_prompt_reference.py` | `build_source`, `main`; native date and snow-prompt oracle with explicit random/input/clock services |
+| `NetworkStartScreen.cs` | `NetworkStartScreen.Run`; `INetworkStartChannel`/`NetworkStartChannel.Packet`, `Synchronized`, `SendDetails`, `SendQuit`, `Update`, `Check`, `Quit`; `INetworkStartHost`/`NetworkStartHost.LoadPicture`, `Capture`, `Restore`, `Copy`, `Message`, `Present`, `FadeIn`, `FadeBlack`, `Connect`, `SelectEpisode`, `SelectDifficulty`, `InitializeEpisode` |
+| `NetworkStartScreenTests.cs` | `Run`, `Items`, `Game`, `TestHost`, `RunSdlNetwork`, `Bit`; trace `Host`, scripted `Channel`, synthetic/real-time `Platform`; concrete two-peer connection/selection/init/termination callbacks |
+| `build_network_start_reference.py` | `build_source`, `main`; native start-screen service/selection/packet/state oracle |
+| `WarningTextDisplay.cs` | `WarningTextDisplay.Run`, `Synchronize`; `IWarningTextPresenter`; `IWarningTextHost`/`WarningTextHost.EscapePressed`, `HaltGame`, `WarningEnabled`, `Draw`, `Center`, `Halt`, `UpdateWarning`, `SetDelay`, `KeepAlive`, `Wait`, `AnyButton` |
+| `WarningTextTests.cs` | `Run`, `TestHost`, `TestValidation`, `RunSdl`, `Bit`; native-trace `TraceHost`, exception marker `Halted`, shared-state `UnusedGlowHost`, SDL `Auxiliary` |
+| `build_warning_text_reference.py` | `build_source`, `main`; native warning display and disabled synchronization oracle |
+| `GameShutdown.cs` | `GameTerminationException.ExitCode`; `GameShutdown.Halt`, `ReleaseResources`; `IGameShutdownHost`/`SdlGameShutdownHost.Output`, `DeinitializeAudio`, `DeinitializeVideo`, `DeinitializeJoysticks`, `ClearMainShapes`, `ClearShopShapes`, `ClearExplosionShapes`, `ClearDestructShapes`, `ClearSounds`, `SaveConfiguration`, `QuitSdl`, `Exit` |
+| `GameShutdownTests.cs` | `Run`, `TestFailures`, `RunSdl`, `RunSdlChild`, `Throws`; native trace `TraceHost`, synthetic `Converter`/`SilentMusic` and SDL subsystem `Initialized` query |
+| `build_game_shutdown_reference.py` | `build_source`, `main`; native ordered shutdown/resource/save/farewell/exit oracle |
+| `check_conversion_inventory.py` | `definitions`, `main`; native function/added-path inventory and summary consistency checks |
+| `TextTokenReader.cs` | `Remaining`, `CString`, `TryReadInt32`, `TryReadToken`; native byte token/capacity and platform long/int conversion |
+| `TextTokenTests.cs` | `Run`, `Hex`, `Bit`; repeated reads, native byte/overflow/capacity and UTF-8 reference limits |
+| `build_text_tokens_reference.py` | `build_source`, `main`; native token/byte/overflow/error oracle |
+| `LevelInput.cs` | `LevelInput.Handle`, `NormalBonusLevel`, `BonusLevel`, `StoppedDemo`; `ILevelInputHost`/`LevelInputHost.SkipPresentation`, `DrawGameOver`, `PlayGameOver`, `SetVolume`, `PushJoysticks`, `Keyboard`, `Pause`, `Setup`; shared `NetworkRequests.PausePressed`/`InGameMenuPressed` distinguish local input from protocol requests |
+| `LevelInputTests.cs` | `Run`, `RunSdl`, `Bit`; native `Host`/`Platform`, real SDL `Auxiliary`, `SilentMusic` and local presentation callback |
+| `build_level_input_reference.py` | `build_source`, `main`; native level game-over/demo/key/modal/request oracle |
+| `LevelPreparation.cs` | `LevelPreparation.Prepare`; `LevelPreparationState`; `ILevelPreparationHost` for relative-mouse release, keyboard/sprite cleanup, speed reset, demo teardown, level transitions and save recovery |
+| `LevelPreparationTests.cs` | `Run`, `DumpState`, `Bit`, `Bool`; 49,152 native preparation traces across demo, game-over, bonus, Galaga, save-recovery and speed modes |
+| `build_level_preparation_reference.py` | `build_source`, `main`; unchanged native next-level cleanup and routing oracle |
+| `LevelHud.cs` | `LevelHud.Draw`; `LevelHudState`; `ILevelHudHost` for HUD surface, message erase, rectangle and shield drawing |
+| `LevelHudTests.cs` | `Run`, `AppendState`, `Bit`, `Bool`, `TestInvalidWeaponBars`; 4,096 complete state, host-call and old-weapon-bar traces |
+| `build_level_hud_reference.py` | `build_source`, `main`; unchanged native shield regeneration, Galaga reward, weapon-bar and power HUD oracle |
+| `LevelBackgroundScene.cs` | `LevelBackgroundScene.Draw`, `DrawBackground2`; `LevelBackgroundSceneState`; `ILevelBackgroundSceneHost` for ordered layer, filter, enemy and random operations |
+| `LevelBackgroundSceneTests.cs` | `Run`, `AppendState`, `Bit`, `Bool`; trace `TraceHost` for 4,096 native background/filter/enemy composition scenarios |
+| `build_level_background_scene_reference.py` | `build_source`, `main`; unchanged native level-background composition and state oracle |
+| `ArmorWarning.cs` | `ArmorWarning.Draw`, `ShipDelay`; `IArmorWarningHost`/`ArmorWarningHost.CreateShip`, `ConfigureShip`, `Fill`, `Label`; shared `WarningBars` color/sound state |
+| `ArmorWarningTests.cs` | `Run`, `TestHost`; trace `Host.CreateShip`, `ConfigureShip`, `Fill`, `Label`, `Drop`, `Speed`, `Armor` |
+| `build_armor_warning_reference.py` | `build_source`, `main`; native low-armor rescue/color/sound/owner/RNG oracle |
+| `LevelPresentation.cs` | `Show`, `SpecialCode`, `PlayerEndLevel`; shared keyboard `SkipPresentation` and setup `QuitRequested` |
+| `LevelPresentationTests.cs` | `Run`, `RunSdl`, `Hash`, `TestFailures`; concrete `Fixture` keyboard/settings/setup hosts and timer; trace `Platform` and `SilentMusic` |
+| `build_level_presentation_reference.py` | `build_source`, `main`; native pixel hash, inversion, searchlight, aliasing, padded stride and PIT timing oracle |
+| `LevelTimerDisplay.cs` | `Draw`, `Flash`, `FlashChange`, `DebugTime`; `ILevelTimerDisplayHost`/`LevelTimerDisplayHost.Ticks`, `DebugText`, `Notice`, `TimerLabel`, `TimerValue` |
+| `LevelTimerTests.cs` | `Run`, `RunSdl`, `TestHost`, `TestFailure`, `TestDebug`; native trace host and shared `LevelPresentationTests.Fixture` |
+| `build_level_timer_reference.py` | `build_source`, `main`; native debug/FPS, flash, shared timer/sound state and alternating frame-count oracle |
+| `LevelPlayerInitializer.cs` | `Initialize`; `ILevelPlayerInitializationHost`; concrete `LevelPlayerInitializationHost.LoadPicture`, `DrawOptions`, `DrawLevelName`, `Present`, `CorrectGamma`, `FadePalette`, `LoadExplosionShapes` |
+| `LevelPlayerInitializerTests.cs` | `Run`, `TestFailure`, `TestConcreteHost`; native trace `TraceHost` |
+| `build_level_player_init_reference.py` | `build_source`, `main`; native player histories, difficulty clamp, display/palette/load ordering |
+| `LevelMapShipInitializer.cs` | `Initialize`; resets loaded map row/pixel offsets, current and third-layer player-frame camera accumulators, layer pacing, music fade, player shots, starfield speed and ship/player startup state |
+| `LevelMapShipInitializerTests.cs` | `Run`, `Seed`; compares 1,024 extracted-native startup traces including preserved old/secondary camera accumulators and retains loaded map layers/header indices |
+| `build_level_map_ship_init_reference.py` | `build_source`, `main`; extracts the unchanged native map/ship initializer and captures row pointers, layer offsets, delays, music, power, starfield and player state |
+| `LevelFlagsInitializer.cs` | `Initialize`; resets shared gameplay/input/map/background/effect/warning/event/boss-bar flags at level entry |
+| `LevelFlagsInitializerTests.cs` | `Run`, `Seed`; 16,384 extracted-native state traces for entry flags and retained boss-bar fields |
+| `build_level_flags_reference.py` | `build_source`, `main`; extracts the native level-flag initializer and captures all reset and preserved state |
+| `LevelStatusDisplayInitializer.cs` | Host contract/adapter; `Initialize` resets shields, armor/HUD, superbombs, cube/flash/notice state, music and port buttons |
+| `LevelStatusDisplayInitializerTests.cs` | `Run`; 256 extracted-native traces for narrowed shield timing, both players' shields/armor, reset state and host-call order |
+| `build_level_status_display_reference.py` | `build_source`, `main`; extracts the native status initializer and captures state and explicit host calls |
+| `LevelCombatStateInitializer.cs` | `Initialize`; resets gameplay-owned combat, projectile, enemy, effect, weapon, level and background state |
+| `LevelCombatStateInitializerTests.cs` | `Run`, `Fixture`, `AssertState`, `AppendState`; 256 seeded reset cases and extracted-native trace comparison |
+| `build_level_combat_state_reference.py` | `build_source`, `main`; extracts the unchanged native combat-state initializer and traces all reset groups |
+| `GameKeyboard.cs` additions | `RecordDebugFrame`; shares debug histories with keyboard toggle/reset and updates last tick only after overlay drawing succeeds |
+| `GameRuntimeSettings.cs` additions | `AdvancePentiumFrame`; alternates the shared `FrameCountMax` only in Pentium mode |
+| `GameRuntimeSettings.cs` additions | `SetFrameCountMax`; sets the native episode-warning frame-count remainder |
+| `GameRuntimeSettings.cs` additions | `RestoreLevelTransitionSpeed`; restores smooth scrolling and forwards the native speed value to the timer host |
 | `SdlNative.cs` configuration members | Cdecl UTF-8 `GetScancodeFromName`, `GetScancodeName` |
 | `EnemySystem.cs` | Constructor, `ProcessShot`, `ShotHits`, `MarkLinked`, `AnimateDamaged`, `DestroyLinked`, `FindSpriteSheet`, `CreateLegacy`, `Create`, `Initialize`, `ScaleScore`, `ScaleArmor`, `InitializeScoreAndArmor`, `RandomStart` |
 | `EnemySystemTests.cs` | `Run`, `Fixture`, `Execute`, `DumpEffects`, `Normalize`, `Dump`, `IndexOfReference`, `Check`; `TraceEffects.Draw`, `DrawSpecial`, `Explosion`, `SuperPixels` |
 | `build_enemy_reference.py` | `build_source`, `main`; generated `sprite_identity`, `dump_enemy`, `dump_effects`, `JE_eventJump`, sprite shims, oracle `main` |
+
+- [x] `src-csharp/OpenTyrian.Core/Credits.cs` - complete credits playback:
+  encrypted text loading, scrolling/shadows, timed picture fades, seeded ship
+  selection/banking, song transitions, input/network waits and cleanup.
+  Uses actual managed sprite/font/palette/input/PIT/file services.
+- [x] `tests/OpenTyrian.Core.Tests/CreditsTests.cs` - 24,483 native-matched
+  frames across six exit timings and four picture-table sizes, including
+  end-of-scroll frame holding; concrete pixels, timers, palette/input/audio,
+  malformed text and cancellation cleanup.
+- [x] `tests/native/build_credits_reference.py` - unchanged native
+  `JE_playCredits` with synthetic text/pictures and ordered service traces.
+
+- [x] `src-csharp/OpenTyrian.Core/HighScores.cs` - score qualification and
+  entry for both players, native signed-score narrowing, sorting/shifting,
+  ASCII glyph-filtered names, keyboard/mouse cancellation and full blinking/
+  cursor/glow/results flow with actual managed services.
+- [x] `tests/OpenTyrian.Core.Tests/HighScoreTests.cs` - 512 native-matched
+  qualification/edit/presentation scenarios, threshold ties and signed
+  narrowing boundaries; concrete sprite/font/palette/input/cursor/timer
+  routing, 28-character cap, trailing spaces and cancel semantics.
+- [x] `tests/native/build_high_scores_reference.py` - unchanged native
+  high-score checking/sorting and real total-score calculations with
+  scripted input and ordered presentation traces.
+
+- [x] `src-csharp/OpenTyrian.Core/PlayerShipInfo.cs` - generator power,
+  primary/secondary armor and hit areas, all fifteen custom graphic selectors,
+  native sheet-pointer preservation and concrete player sprite routing.
+  Shares the graphic array used by `PlayerFrame`.
+- [x] `tests/OpenTyrian.Core.Tests/ShipInfoTests.cs` - 1,024 native-matched
+  ship initialization cases and 10,240 custom lookups, all normal/custom
+  combinations, selector/sheet behavior, concrete pixels and invalid records.
+- [x] `tests/native/build_ship_info_reference.py` - unchanged native
+  `JE_getShipInfo`/`JE_SGr` and correctly sized synthetic edited-ship records.
+- [x] `src-csharp/OpenTyrian.Core/EditedShips.cs` - optional user archive,
+  native ushort shape-size wrapping and four-checksum decryption. Reuses
+  legacy checksum arithmetic and integrates `SpriteSheet`; failures throw
+  without publishing partial state. Only 150 defined decrypted bytes are
+  retained, not the native uninitialized four-byte scratch tail.
+- [x] `tests/OpenTyrian.Core.Tests/EditedShipTests.cs` - 256 decryption
+  vectors, all checksum failures, 24 native archive cases including wrapped/
+  zero sizes, optional absence, malformed/reload ownership and sprite pixels.
+- [x] `tests/native/build_edited_ships_reference.py` - unchanged native
+  archive/decrypt functions, real stdio reads and defined-payload tracing.
+
+- [x] `src-csharp/OpenTyrian.Core/GameKeyboard.cs` - complete ordered
+  keyboard dispatcher, custom ships, help/network requests, NortShip chord,
+  cheating/skip/debug/pause/menu controls, smoothie/filter/speed toggles and
+  random music. Concrete adapter composes gamma, ship/combat HUD, help/text
+  and PIT settings with shared gameplay/network state.
+- [x] `tests/OpenTyrian.Core.Tests/GameKeyboardTests.cs` - 4,096 native
+  mode/chord cases, key consumption, two-player custom selection precedence,
+  armor preservation, speed byte wrapping and full state/RNG traces; concrete
+  gamma/ship/combat/help/text/speed/audio service integration.
+- [x] `tests/native/build_game_keyboard_reference.py` - unchanged native
+  dispatcher with synthetic keyboard/edited data, real RNG and ordered host
+  calls; item indices are supplied from the actual managed test database.
+
+- [x] `src-csharp/OpenTyrian.Core/InGameSetup.cs` - complete in-game
+  settings menu, saved-surface ownership, labels/gauges/help, mouse hover/
+  sliders, keyboard navigation, ordered volume/mute/detail/speed changes and
+  local/network quit flags. Concrete adapter binds fonts, indexed surfaces,
+  cursor/input, audio mixer, DOS configuration and runtime/PIT settings.
+- [x] `tests/OpenTyrian.Core.Tests/InGameSetupTests.cs` - 2,048 native
+  draw/action/wait cases, 16 complete menu loops, exact mouse/slider
+  boundaries, negative-coordinate ushort wait comparisons, quit/mute/W
+  commands and actual rendering/audio/input/configuration/timer integration.
+- [x] `tests/native/build_ingame_setup_reference.py` - seven unchanged
+  native setup functions and real volume adjustment with scripted input,
+  synthetic text and ordered draw/audio/setting traces.
+
+- [x] `src-csharp/OpenTyrian.Core/GameSetupSession.cs` - local/network
+  settings entry and exit, acknowledged menu rendezvous, waiting/quit packet
+  handling, local quit/Escape flags and finally-based mouse/request cleanup.
+  Peer-wait presentation takes the primary surface explicitly without
+  mutating a global surface pointer.
+- [x] `tests/OpenTyrian.Core.Tests/GameSetupSessionTests.cs` - 64 native
+  wrapper flag combinations with the real managed settings menu/network
+  queues, failure/cancellation cleanup, exact peer-wait pixels, and actual
+  SDL2_net two-peer resume and quit synchronization.
+- [x] `tests/native/build_game_setup_reference.py` - unchanged native
+  setup wrapper with scripted settings/packet boundary services; ordered
+  messages, waiting draws and exact flag state. Only repeated presentations
+  during protocol polling are coalesced; packet primitives are verified
+  separately and through actual SDL2_net peers.
+
+- [x] `src-csharp/OpenTyrian.Core/HighScoreScreen.cs` - complete three-episode
+  high-score viewer: saved picture/header/black strip, disabled-episode
+  headings, unsorted signed score/name/difficulty rows, arrow visibility,
+  keyboard wrap and mouse edge/precedence behavior, help/cursor and fades.
+- [x] `tests/OpenTyrian.Core.Tests/HighScoreScreenTests.cs` - 256 native
+  full-page scripts covering every byte difficulty rank, signed score
+  boundaries, paging hit boxes, unavailable episodes, simultaneous mouse/key
+  input, all exit keys and exact draw/audio/wait ordering; archive immutability,
+  concrete pixels/services/cancellation and full actual SDL2 screen loop.
+- [x] `tests/native/build_high_score_screen_reference.py` - unchanged
+  native score-page loop with synthetic saved scores, localized labels,
+  scripted mouse/keyboard/joystick input and complete presentation trace.
+
+- [x] `src-csharp/OpenTyrian.Core/NewGame.cs` - normal/two-player/rich,
+  seven super-arcade modes and SuperTyrian initialization; native item-ID
+  resolution, selection short circuit/cancellation side effects, signed
+  difficulty changes and intro text/ship/audio/palette/input services.
+  Concrete adapter synchronizes the existing selection menus with shared
+  game state, preserving prior state when selections cancel.
+- [x] `tests/OpenTyrian.Core.Tests/NewGameTests.cs` - 2,048 native normal
+  starts, 1,792 super-arcade starts and 256 SuperTyrian starts; byte/signed
+  wrapping, cancelled selections, rich/cash precedence, all mode loadouts,
+  exact intro service ordering and concrete selection/render/audio/palette/
+  wait/cancellation integration.
+- [x] `tests/native/build_new_game_reference.py` - three unchanged
+  native new-game functions with the real typed item parser, known indices,
+  super-arcade tables and scripted selection/presentation boundary services.
+
+- [x] `src-csharp/OpenTyrian.Core/TitleScreen.cs` - title picture/version/
+  animated logo, split palette fades, saved menu and selected labels, exact
+  mouse/key/text waits with idle demo, all seven action branches, nine
+  streaming secret-code counters and mode flags. Concrete adapter binds
+  indexed surfaces, fonts, planet sprites, filtered cursor, palette and PIT
+  services plus explicit child-flow delegates.
+- [x] `tests/OpenTyrian.Core.Tests/TitleScreenTests.cs` - fourteen native
+  draw cases, 4,096 input snapshots, 28 dispatch states, eight wait/timeout/
+  unsigned-wrap/negative-coordinate scenarios, 136 secret cases and 144
+  full loops; exact hit boundaries, cancellation, concrete rendering/
+  service integration and actual SDL2 title animation -> high scores ->
+  title restart -> gameplay/episode/difficulty selection -> new-game state.
+- [x] `tests/native/build_title_screen_reference.py` - six unchanged
+  native title functions with exact synthetic menu/secret tables,
+  scripted input/ticks and ordered rendering/action traces.
+
+- [x] `src-csharp/OpenTyrian.Core/GameIntro.cs` - original startup picture/
+  white/black fade/input sequence and title logo flag; concrete palette/PIT
+  host. `ScreenBleed` retains the exact native in-place neighbor processing,
+  two scratch buffers, asymmetric copy length, frame/input exit and warning
+  reset while validating geometry and non-overlapping managed memory.
+- [x] `tests/OpenTyrian.Core.Tests/GameIntroTests.cs` - native startup
+  ordering, 1,264 screen-bleed frames at two pitches/six exit timings,
+  per-frame primary/scratch fingerprints and full final buffer byte
+  comparisons for every timing; concrete fades/input and invalid geometry/
+  cancellation checks. Actual SDL intro/bleed is integrated by title tests.
+- [x] `tests/native/build_game_intro_reference.py` - unchanged native
+  startup and bleed functions with synthetic surfaces, per-frame pixel/
+  scratch hashes, complete final buffer bytes and scripted exits.
+
+- [x] `src-csharp/OpenTyrian.Core/LoadScreen.cs` - saved-game viewer
+  drawing/paging, exact row/control input precedence and boundaries, PIT/
+  palette/cursor/audio presentation and save-operation host integration.
+  Native signed-count clamp is replaced by nonnegative typed-list count;
+  managed list ownership replaces the native allocation/free.
+- [x] `tests/OpenTyrian.Core.Tests/LoadScreenTests.cs` - 960 native draw
+  states, 8,192 input states, 7,680 action states, eight mouse/key/negative-
+  coordinate waits and 160 full loops, plus row edges/cancellation/
+  concrete padded-surface rendering. Actual SDL title -> load -> next-page
+  -> persisted versioned-save loading verifies catalog and game/episode
+  restoration, perform-save clearing and palette exit.
+- [x] `tests/native/build_load_screen_reference.py` - six unchanged
+  load-screen functions, signed/empty/partial/multiple-page saved lists,
+  short-circuit action precedence and existing game-loaded preservation.
+
+- [x] `src-csharp/OpenTyrian.Core/HelpSystem.cs` - five-entry topic menu,
+  eight original help-page layouts, per-topic/global footers, page boundary
+  return to menu, cursor direction and exact mouse/key/hover/click precedence;
+  concrete font/help/palette/SDL services and text-style restoration.
+- [x] `tests/OpenTyrian.Core.Tests/HelpSystemTests.cs` - 144 native page
+  scripts and 304 full-menu scripts (including 160 row-boundary/independent
+  click/hover/simultaneous key snapshots), all topic starts/eight layouts,
+  concrete padded-surface heading/footer/wrapping/cursor/fade checks and
+  cancellation/topic validation. Actual SDL title -> help -> all eight
+  pages -> topic menu -> title exit verifies music and style restoration.
+- [x] `tests/native/build_help_system_reference.py` - unchanged native
+  help menu and page functions, full rendering/service/input traces, topic/
+  page boundary behavior and exact text-style values at fades/presentation.
+
+- [x] `src-csharp/OpenTyrian.Core/SetupMenu.cs` - title settings and
+  graphics/audio/gameplay submenus, native display/scaler/scaling/shop
+  pickers, volume/toggle behavior and ordering, parent/back navigation,
+  jukebox child integration and rendering/input/PIT services. Concrete SDL
+  host synchronizes active video configuration and persisted shop settings.
+- [x] `tests/OpenTyrian.Core.Tests/SetupMenuTests.cs` - 16 picker catalogs,
+  256 draw states, 8,192 menu and 8,192 picker inputs, 1,024 picker actions,
+  156 activations, 2,816 menu actions, eight waits and 64 full native loops.
+  Includes clamped volume extremes, native picker click-coordinate quirk,
+  scaler failure/restore and cancellation. Actual SDL title -> setup ->
+  display/scaler/scaling -> audio toggles/volume -> real jukebox -> shop
+  settings/save -> title return verifies rendering and configuration reload.
+- [x] `tests/native/build_setup_menu_reference.py` - all sixteen
+  unchanged setup/picker functions and native volume helper, synthetic
+  display catalog, service/audio/video/settings traces and full loops.
+
+- [x] `src-csharp/OpenTyrian.Core/ChristmasPrompt.cs` - local-time
+  December detection, native 80-flake fixed-point snow updates/layer order,
+  choice hover/click/key/cancel semantics and concrete blended sprite/full-
+  shadow font/palette/PIT/input host. Platform C-runtime random service is
+  explicit, not silently substituted with the gameplay Mersenne Twister.
+- [x] `tests/OpenTyrian.Core.Tests/ChristmasPromptTests.cs` - 12 native
+  month cases/local timezone boundary and 300 complete prompt scenarios,
+  including 12 long 350-frame waits exercising snowflake respawn; explicit
+  reproducible RNG stream/state, every flake/frame/service trace, choice
+  edges/precedence, cancellation and padded-surface rendering verified.
+  Actual SDL snow/choice/fade/presentation path is exercised.
+- [x] `tests/native/build_christmas_prompt_reference.py` - unchanged
+  native date/prompt bodies with synthetic local months and an explicitly
+  injected shared reproducible random service (not a platform-rand claim).
+
+- [x] `src-csharp/OpenTyrian.Core/NetworkStartScreen.cs` - network-start
+  waiting presentation, connection/selection/details/quit flow, fixed-width
+  difficulty/episode state and cash/Silver Ship setup; concrete palette/
+  font/surface/selection host and existing network-session packet adapter.
+- [x] `tests/OpenTyrian.Core.Tests/NetworkStartScreenTests.cs` - 112 native
+  controller/peer flows with selection cancellation, signed difficulty and
+  wire-value truncation, exact polling/fades/state preservation; concrete
+  padded surfaces/palette/host and input validation/cancellation verified.
+  Actual SDL2_net two-peer handshake/details/episode state synchronization
+  and both episode/difficulty cancellation-to-quit propagation covered.
+- [x] `tests/native/build_network_start_reference.py` - unchanged native
+  start-screen body with packet/selection/presentation mocks, delayed
+  details/acks and real 16-bit network-byte encoding.
+
+- [x] `src-csharp/OpenTyrian.Core/WarningTextDisplay.cs` - line/continue-prompt
+  composition, red/non-red layout, animation skip and warning wait/cleanup;
+  concrete shared character glow, fonts, input, PIT and network keep-alive.
+  The disabled native text synchronization remains a verified no-op.
+- [x] `tests/OpenTyrian.Core.Tests/WarningTextTests.cs` - 2,816 native traces
+  over zero through ten lines, animation/escape/warning/termination states;
+  concrete padded pixels, shared state, timing and validation/cancellation;
+  actual SDL mouse/Return/Escape prompt input and presentation.
+- [x] `tests/native/build_warning_text_reference.py` - original warning
+  display and disabled synchronization bodies with scripted glow/input/
+  halt/clock services and complete wait/presentation-state traces.
+
+- [x] `src-csharp/OpenTyrian.Core/GameShutdown.cs` - ordered platform/resource
+  shutdown, save/skip and farewell behavior, exit-code normalization and typed
+  nonreturning termination; concrete owned SDL device/shape/sound/settings host.
+- [x] `tests/OpenTyrian.Core.Tests/GameShutdownTests.cs` - 512 native ordered
+  resource/save/farewell/exit traces and ten explicit cleanup-failure cases;
+  isolated real SDL device/subsystem teardown, configuration reload, skip-save
+  and save-failure checks; real warning-text halt-to-shutdown composition.
+- [x] `tests/native/build_game_shutdown_reference.py` - original shutdown
+  body with resource/sample/configuration/SDL/process-exit mocks, all byte exit
+  codes and both farewell flags.
+
+- [x] `tests/native/check_conversion_inventory.py` - lexical native function
+  audit covering comments/literals, pointer-return signatures and conditional
+  definitions; checks per-file function coverage, completion totals, and every
+  added implementation/build/test path and total on both CI platforms.
+
+- [x] `src-csharp/OpenTyrian.Core/TextTokenReader.cs` - byte-oriented integer/
+  reference token consumption, native platform-long saturation/int narrowing,
+  C whitespace/NUL and reference capacity behavior; typed item arrays and
+  references reuse the reader without mutable pointer/string-buffer emulation.
+- [x] `tests/OpenTyrian.Core.Tests/TextTokenTests.cs` - 192 repeated-read native
+  cases covering signs, numeric prefixes, platform overflow, whitespace,
+  NUL/non-ASCII bytes and reference capacities/errors; UTF-8 byte limits.
+- [x] `tests/native/build_text_tokens_reference.py` - original integer/
+  reference parsing bodies, hex byte traces and trapped native capacity errors.
+
+- [x] `src-csharp/OpenTyrian.Core/LevelInput.cs` - game-over/demo/keyboard/
+  pause/setup dispatcher and concrete existing keyboard/pause/settings host;
+  local pressed latches are distinct from queued network requests.
+- [x] `tests/OpenTyrian.Core.Tests/LevelInputTests.cs` - 32,768 native
+  mode/input/game-over/skip/request traces; actual SDL game-over/demo,
+  keyboard/help, pause/resume, setup/return and network-request dispatch.
+- [x] `tests/native/build_level_input_reference.py` - original level input
+  body with state/input/presentation/modal mocks and complete state traces.
+- [x] `src-csharp/OpenTyrian.Core/LevelPreparation.cs` - next-level cleanup,
+  Galaga mode normalization, demo teardown, difficulty reset, bonus/game-over
+  routing, level transition and failed-save recovery.
+- [x] `tests/OpenTyrian.Core.Tests/LevelPreparationTests.cs` - 49,152 native
+  traces cover all preparation flags and six speed settings.
+- [x] `tests/native/build_level_preparation_reference.py` - unchanged native
+  preparation body with ordered service and state traces.
+- [x] `src-csharp/OpenTyrian.Core/LevelHud.cs` - shield regeneration, Galaga
+  rewards, weapon-bar and power display, and end-of-frame state updates.
+- [x] `tests/OpenTyrian.Core.Tests/LevelHudTests.cs` - 4,096 complete native
+  state/host-call comparisons and short weapon-bar validation.
+- [x] `tests/native/build_level_hud_reference.py` - unchanged native level HUD
+  body with ordered host-call, player, shield, reward, power and bar traces.
+- [x] `src-csharp/OpenTyrian.Core/LevelBackgroundScene.cs` - background
+  composition order, filters, enemy strata/spawning, darkening and map/screen
+  state through explicit host operations.
+- [x] `tests/OpenTyrian.Core.Tests/LevelBackgroundSceneTests.cs` - 4,096
+  native state and ordered host-call comparisons.
+- [x] `tests/native/build_level_background_scene_reference.py` - unchanged
+  native background-composition body with mocked rendering and enemy passes.
+
+- [x] `src-csharp/OpenTyrian.Core/ArmorWarning.cs` - low-armor rescue spawning,
+  native byte color/sound cadence and multiplayer owner rules; shared warning
+  state and concrete enemy/item/font/surface host.
+- [x] `tests/OpenTyrian.Core.Tests/ArmorWarningTests.cs` - 16,384 native state/
+  RNG/spawn/render traces; real enemy allocation/drop/speed/armor, padded
+  warning pixels, full-pool and missing-drop validation.
+- [x] `tests/native/build_armor_warning_reference.py` - unchanged armor warning
+  body with mocked creation/rendering and actual native Mersenne Twister.
+
+- [x] `src-csharp/OpenTyrian.Core/LevelPresentation.cs` - native viewport copy,
+  inversion, searchlight, smooth-scroll timing and shared keyboard/setup flags.
+- [x] `tests/OpenTyrian.Core.Tests/LevelPresentationTests.cs` - 2,048 native
+  viewport pixel/timing/state traces including padded/asymmetric pitches and
+  aliased buffers; SDL presentation, skipped frames and failure propagation.
+- [x] `tests/native/build_level_presentation_reference.py` - unchanged native
+  viewport presenter with buffer hashes, aliasing and PIT timing traces.
+
+- [x] `src-csharp/OpenTyrian.Core/LevelTimerDisplay.cs` - debug text/FPS,
+  pickup bonus flash, alternating Pentium frame pacing and countdown expiration.
+- [x] `tests/OpenTyrian.Core.Tests/LevelTimerTests.cs` - 16,384 native
+  debug/notice/pacing/timer traces; real event jumps and padded font/SDL pixels,
+  shared pickup/keyboard/settings state, invariant formatting and error handling.
+- [x] `tests/native/build_level_timer_reference.py` - original native debug
+  and countdown function with controlled ticks and exact overlay/state traces.
+- [x] `src-csharp/OpenTyrian.Core/LevelPlayerInitializer.cs` - reset both
+  player histories/positions, adjust demo difficulty, and sequence native
+  level picture/options/name/presentation/gamma/fade/explosion-shape setup.
+- [x] `tests/OpenTyrian.Core.Tests/LevelPlayerInitializerTests.cs` - 512
+  native player/history/startup traces; concrete gamma/palette fade/font,
+  conditional explosion-sheet load and sequential failure behavior.
+- [x] `tests/native/build_level_player_init_reference.py` - unchanged native
+  level player/display initializer with state and host-call traces.
+- [x] `src-csharp/OpenTyrian.Core/LevelMapShipInitializer.cs` - initialize
+  three native map row pointers/offsets, reset the current and third-layer
+  player-frame camera accumulators, layer positions and delays, music fade,
+  shot power, starfield speed and both players through shared ship setup.
+- [x] `tests/OpenTyrian.Core.Tests/LevelMapShipInitializerTests.cs` - 1,024
+  extracted-native traces, including pointer-relative map strides, preserved
+  old/secondary camera accumulators and native reset of the third-layer offset,
+  loaded map layers/header indices,
+  background pacing and player startup state.
+- [x] `tests/native/build_level_map_ship_init_reference.py` - extract the
+  original native initializer body and compile controlled map/pointer/player
+  fixtures for direct differential verification.
+- [x] `src-csharp/OpenTyrian.Core/LevelFlagsInitializer.cs` - reset level-entry
+  control, gameplay, background, movement, timer, warning, event, filter,
+  boss-bar, pickup and player-frame state through the shared subsystem owners.
+- [x] `tests/OpenTyrian.Core.Tests/LevelFlagsInitializerTests.cs` - 16,384
+  extracted-native flag traces, including signed/unsigned boundaries and
+  boss-bar armor/color preservation.
+- [x] `tests/native/build_level_flags_reference.py` - compile the unchanged
+  native level-entry flag function with explicit state fixtures and traces.
+- [x] `src-csharp/OpenTyrian.Core/LevelStatusDisplayInitializer.cs` - share
+  level-entry shield, HUD, pickup, cube and flash resets across their existing
+  state owners; preserve native host-action order and byte truncation.
+- [x] `tests/OpenTyrian.Core.Tests/LevelStatusDisplayInitializerTests.cs` - 256
+  extracted-native startup cases compare shield timing, both players' shields,
+  armor clamp, superbombs, cube/flash/notice resets and song/button order.
+- [x] `tests/native/build_level_status_display_reference.py` - extract the
+  unchanged C routine and trace startup state plus text/music/button actions.
+- [x] `src-csharp/OpenTyrian.Core/LevelCombatStateInitializer.cs` - reset
+  combat, projectile, enemy, effect, weapon, level and background state through
+  existing subsystem owners while retaining native network/Galaga behavior.
+- [x] `tests/OpenTyrian.Core.Tests/LevelCombatStateInitializerTests.cs` - 256
+  extracted-native cases verify owned state clears, retained enemy availability,
+  per-mode network reset, draw action, Galaga difficulty and map-wrap offsets.
+- [x] `tests/native/build_level_combat_state_reference.py` - extract the
+  unchanged C initializer and compile a standalone trace oracle.
 
 ## Baseline file inventory
 
@@ -1157,8 +1864,8 @@ these implementation inventories:
   legacy extraction pipeline; synthetic native output/CLI parity verified.
 - [ ] `src/destruct.c`
 - [ ] `src/destruct.h`
-- [ ] `src/editship.c`
-- [ ] `src/editship.h`
+- [x] `src/editship.c` - replaced by `EditedShips`; complete optional archive and decrypt behavior verified against compiled native source.
+- [x] `src/editship.h` - managed owned sprite/record state replaces globals and the opaque byte-array typedef; declarations integrated and verified with archive/ship tests.
 - [ ] `src/episodes.c`
 - [ ] `src/episodes.h`
 - [ ] `src/file.c`
@@ -1322,21 +2029,31 @@ these implementation inventories:
 ### `src/config_file.c`
 
 - [ ] `config_oom`
-- [ ] `string_init_len`
-- [ ] `string_deinit`
-- [ ] `string_equal_len`
+- [x] `string_init_len` - Managed strings replace the native inline/heap
+  `ConfigString` storage; quoted, unquoted and empty-string fixtures pass.
+- [x] `string_deinit` - Garbage-collected strings replace explicit frees;
+  `Configuration.Clear` releases the owning object graph.
+- [x] `string_equal_len` - Ordinal managed string equality in
+  `ConfigSection.GetOption`; exact-key and case-sensitive lookup tests pass.
 - [x] `config_init` - `Configuration` constructor.
 - [x] `config_deinit` - `Configuration.Clear`; managed reset/collection.
-- [ ] `init_section`
-- [ ] `deinit_section`
+- [x] `init_section` - `ConfigSection` constructor initializes type, optional
+  name and an empty managed option collection.
+- [x] `deinit_section` - Managed ownership replaces recursive native frees;
+  `Configuration.Clear` drops the section collection.
 - [x] `config_add_section_len` - `Configuration.AddSection`.
 - [x] `config_find_sections` - `Configuration.FindSections`; managed enumeration.
 - [x] `config_find_section` - `Configuration.FindSection`.
 - [x] `config_find_or_add_section` - `Configuration.FindOrAddSection`.
-- [ ] `init_option_value`
-- [ ] `deinit_option_value`
-- [ ] `init_option`
-- [ ] `deinit_option`
+- [x] `init_option_value` - `ConfigOption.SetValue` initializes scalar/list
+  state and empty values; config model tests cover both empty and populated
+  states.
+- [x] `deinit_option_value` - Managed value lists replace scalar/list
+  deallocation; `SetValue` and `RemoveValue` lifecycle tests pass.
+- [x] `init_option` - `ConfigOption` constructor initializes its key and value;
+  model tests exercise scalar and list options.
+- [x] `deinit_option` - Garbage collection replaces explicit key/value frees;
+  collection clearing and option replacement are covered by model tests.
 - [x] `append_option` - `ConfigSection.AppendOption`.
 - [x] `get_option_len` - `ConfigSection.GetOption`; field-length strings.
 - [x] `config_set_option_len` - `ConfigSection.SetOption`.
@@ -1438,12 +2155,15 @@ these implementation inventories:
 
 ### `src/editship.c`
 
-- [ ] `JE_decryptShips`
-- [ ] `JE_loadExtraShapes`
+- [x] `JE_decryptShips` - `EditedShips.Decrypt`; reversed chained XOR and all four wrapping checksums verified. Invalid checksums throw instead of native exit 255; uninitialized trailing scratch bytes are not exposed.
+- [x] `JE_loadExtraShapes` - `EditedShips.Load`; optional absence, ushort sprite-size truncation, real archive bytes, native zero-read rejection and sprite decoding verified. Failed loads retain prior managed state instead of leaving an unavailable native process.
 
 ### `src/episodes.c`
 
-- [ ] `item_data_error`
+- [x] `item_data_error` - `ItemDefinitions.Error`; path/line/message and
+  trailing extractor-guidance diagnostics match native stderr in parser and
+  typed-item reference tests; managed callers throw instead of terminating
+  the host process.
 - [x] `value_in_array_je_byte` - `ItemDatabase.Contains`.
 - [x] `add_random_shop_item` - `ItemDatabase.AddRandomShopItem`; native seeded selections.
 - [x] `item_idx_from_jebyte` - `ItemDatabase.Index(type, int)`, byte promotion.
@@ -1456,15 +2176,21 @@ these implementation inventories:
 - [x] `extract_item_data` - `ItemDataExtractor.Extract`.
 - [x] `close_extracted_file` - `WriteCategory` disposal/finalization.
 - [x] `open_extracted_category` - `WriteCategory` preservation/temporary open.
-- [ ] `item_data_realloc`
+- [x] `item_data_realloc` - Managed `List<T>`/`Dictionary<TKey,TValue>`
+  growth replaces native `realloc`; allocation failures propagate to the host
+  rather than terminating the process. Native parser and typed-item parity
+  tests cover collection growth.
 - [x] `is_item_space` - `ItemDefinitions.IsSpace`.
 - [x] `trim_item_text` - `ItemDefinitions.Trim`.
 - [x] `valid_item_id_span` - `ItemDefinitions.ValidId`.
 - [x] `valid_item_id` - `ItemDefinitions.ValidId`.
 - [x] `item_type_from_name` - `ItemDefinitions.TypeFromName`.
-- [ ] `hash_item_id`
-- [ ] `find_item_slot`
-- [ ] `rebuild_item_slots`
+- [x] `hash_item_id` - Ordinal string hashing in `ItemDefinitions`' dictionaries
+  replaces the private FNV-1a hash; IDs remain case-sensitive.
+- [x] `find_item_slot` - `ItemDefinitions.TryFind` uses the per-type ordinal
+  dictionary; native parser and typed-item parity tests cover lookups/aliases.
+- [x] `rebuild_item_slots` - CLR dictionary rehashing replaces explicit native
+  slot-table rebuilds; native parser and typed-item parity tests pass.
 - [x] `find_loading_item_index` - `ItemDefinitions.TryFind`, including aliases.
 - [x] `replace_item_record` - `ItemDefinitions.Replace`.
 - [x] `validate_item_field` - `ItemDefinitions.ValidateField`; native errors.
@@ -1513,8 +2239,8 @@ these implementation inventories:
 - [x] `JE_outTextModify` - `FontRenderer.OutTextModify`.
 - [x] `JE_outTextAdjust` - `FontRenderer.OutTextAdjust`; tiny-font existence gate retained.
 - [x] `JE_outTextAndDarken` - `FontRenderer.OutTextAndDarken`.
-- [ ] `JE_updateWarning`
-- [ ] `JE_outTextGlow`
+- [x] `JE_updateWarning` - `WarningBars.Update`; timer-2 gate, byte/signed color wrapping, exact stripe pixels, presentation/delay ordering and sound countdown verified in 32,768 native frames and actual character-glow integration.
+- [x] `JE_outTextGlow` - `TextGlow.Draw`/`TextGlowHost`; native shadow/brightness frame ordering, warning hue, input skip behavior, delay/network/presentation calls and reset verified in 2,048 native calls plus actual font/input/PIT integration.
 
 ### `src/game_menu.c`
 
@@ -1657,7 +2383,10 @@ these implementation inventories:
 
 - [ ] `init_audio`
 - [x] `audioCallback` - `AudioMixer.Mix`; exact native PCM/channel/fractional update parity, required OPL service.
-- [ ] `deinit_audio`
+- [x] `deinit_audio` - `SdlGameShutdownHost.DeinitializeAudio` disposes the SDL
+  audio device, clears sample channels and frees the owned `LdsPlayer`; dummy
+  SDL shutdown verifies subsystem release and music-state cleanup, including
+  cleanup when a later configuration save fails.
 - [x] `load_music` - `MusicArchive.Load`; native archive bytes/offset parity.
 - [x] `load_song` - `MusicArchive.Song`/`MusicController.PlaySong`; required LDS load boundary.
 - [x] `play_song` - `MusicController.PlaySong`; native selection/resume/disabled gates.
@@ -1677,50 +2406,50 @@ these implementation inventories:
 
 ### `src/mainint.c`
 
-- [ ] `JE_drawTextWindow`
-- [ ] `JE_outCharGlow`
+- [x] `JE_drawTextWindow` - `GameTextWindow.Show`; optional previous-text erasure, reset to 100 ticks, tiny-font hue/brightness and actual option-shape/font presentation.
+- [x] `JE_outCharGlow` - `CharacterGlow.Draw`/`CharacterGlowHost`; character map/width/16-bit positions, brightness wave, shadow, skip/escape/warning/network/timing order in 1,024 native scenarios; real glyph/input/PIT/warning pixels verified. Oversized native buffers fail explicitly.
 - [x] `JE_drawPortConfigButtons` - `PlayerWeapons.DrawModeButtons`; single-player sprite locations/lit/unlit frames and two-player suppression verified against unchanged native draw calls.
-- [ ] `JE_helpSystem`
+- [x] `JE_helpSystem` - `HelpSystem.Run`/`HelpSystemHost`; 304 native complete menu scripts including all topic starts, keyboard wrap and 160 exact row/click/hover/mouse-over-key edges; music/background/fades/cursor and actual SDL title/help/title return verified.
 - [ ] `saveGameNamePopup`
-- [ ] `helpSystemPage`
-- [ ] `weapon_upgrade_cost`
-- [ ] `JE_getCost`
-- [ ] `saved_game_count`
-- [ ] `draw_load_screen`
-- [ ] `wait_for_load_screen_input`
-- [ ] `read_load_screen_input`
-- [ ] `handle_load_screen_action`
-- [ ] `JE_loadScreen`
-- [ ] `JE_totalScore`
-- [ ] `JE_getValue`
-- [ ] `JE_nextEpisode`
-- [ ] `JE_initPlayerData`
-- [ ] `JE_sortHighScores`
-- [ ] `JE_highScoreScreen`
-- [ ] `JE_gammaCorrect_func`
-- [ ] `JE_gammaCorrect`
-- [ ] `JE_gammaCheck`
-- [ ] `JE_doInGameSetup`
-- [ ] `draw_ingame_setup_menu`
-- [ ] `wait_for_ingame_setup_input`
-- [ ] `read_ingame_setup_mouse`
-- [ ] `read_ingame_setup_keyboard`
-- [ ] `adjust_ingame_setup_setting`
-- [ ] `apply_ingame_setup_action`
-- [ ] `JE_inGameSetup`
-- [ ] `JE_inGameHelp`
-- [ ] `JE_highScoreCheck`
-- [ ] `adjust_difficulty`
+- [x] `helpSystemPage` - `HelpSystem.ShowPages`/`DrawPage`; 144 native page scripts cover all eight layouts, per-topic/global footers, page boundary/menu return, left/right cursor and key/mouse precedence, fade/text-style restore; padded managed drawing, SDL full eight-page navigation and cancellation verified.
+- [x] `weapon_upgrade_cost` - `PlayerProgression.WeaponUpgradeCost`; triangular costs, power 0..11 and platform-width signed long overflow verified with 72 native cases.
+- [x] `JE_getCost` - `PlayerProgression.GetCost`; native item-type tables, special ship >90 cost, player-one upgrade ownership and ushort cost narrowing.
+- [x] `saved_game_count` - nonnegative `IReadOnlyList<SavedGameMetadata>.Count`; signed negative and empty native counts verified against empty managed lists.
+- [x] `draw_load_screen` - `LoadScreen.Draw`/`LoadScreenHost`; 960 native draw states, 21-byte formatted-label truncation, 11 saves plus exit per page, exact selected hues/brightness/arrows/help/fades; concrete padded surface rendering verified.
+- [x] `wait_for_load_screen_input` - `LoadScreen.WaitInput`; native event clear/cursor/presentation/joystick/16 ms polling and unsigned-old-coordinate movement behavior verified over eight waits, actual SDL input and cancellation.
+- [x] `read_load_screen_input` - `LoadScreen.ReadInput`; 8,192 native inputs and every row edge, sparse-page navigation, hover/click-coordinate distinctions, visible paging bounds and simultaneous mouse/key precedence verified.
+- [x] `handle_load_screen_action` - `LoadScreen.HandleAction`; 7,680 native states cover left/right/action/done precedence, invalid-row sample, exit/load and perform-save clearing; actual catalog/versioned save/episode loading verified.
+- [x] `JE_loadScreen` - `LoadScreen.Run`; 160 native full loops, exact return/fade and existing game-loaded state behavior, managed list ownership, concrete SDL title -> paged-load -> persisted-game state integration verified.
+- [x] `JE_totalScore` - `PlayerProgression.TotalScore`; actual seven item values, collecting player cash, global weapon-power ownership and unsigned native-width total wrapping.
+- [x] `JE_getValue` - `PlayerProgression.GetValue`; full cumulative upgrade value and two-player front/rear ownership, exact signed 32-bit result.
+- [x] `JE_nextEpisode` - `EpisodeTransition.Run`; real availability/wrap and archive initialization, repeated-game flags, high-score/credits gates, RNG-based SuperCarrot/BananaBlast state, item snapshots and full title/song/input/fade ordering verified in 1,024 native scenarios. Credits/high-score implementations are available through its explicit callbacks; playable-host wiring remains pending.
+- [x] `JE_initPlayerData` - `PlayerProgression.Initialize`; known item IDs, primary last-item snapshot before power resets, copied secondary items/rear/sidekick defaults, mode flags, armor/life ownership, level name and exact RNG.
+- [x] `JE_sortHighScores` - `LegacySaveArchive.SortHighScores`; six three-slot groups, score/name/difficulty swaps only, all other save fields retained.
+- [x] `JE_highScoreScreen` - `HighScoreScreen.Run`/`HighScoreScreenHost`; 256 native scripts verify all three episode pages, signed scores, byte difficulty clamping, exact mouse bounds/precedence and keyboard wrap/exit keys. Concrete saved surfaces/fonts/arrows/help/palettes/cursor services and full actual SDL2 input/video loop verified; final title menu caller remains pending.
+- [x] `JE_gammaCorrect_func` - `PaletteSystem.GammaChannel`; single-precision multiply, half-away-from-zero rounding and 255 cap.
+- [x] `JE_gammaCorrect` - `PaletteSystem.CorrectGamma`; all 256 RGB colors and all byte gamma settings compared to unchanged native output.
+- [x] `JE_gammaCheck` - `GameGamma.Check`; F11 consumption, NewKey reset, modulo-four gamma, base-picture palette copy/correction and complete palette publication.
+- [x] `JE_doInGameSetup` - `GameSetupSession.Run` and `GameSetupWaiting.Draw`; 64 native local/network/request/quit/prior-end-level states, exact waiting pixels, cancellation/error cleanup and actual two-peer SDL2_net resume/quit synchronization. Primary screen is passed explicitly instead of global surface-pointer switching; final playable level host remains pending.
+- [x] `draw_ingame_setup_menu` - `InGameSetup.Draw`; exact saved-surface restart/restore, labels, disabled-volume gauges, detail/speed text and selected help in 2,048 native traces; concrete font/gauge/shade pixels verified.
+- [x] `wait_for_ingame_setup_input` - `InGameSetup.Wait`; cursor/presentation, delay16, joystick/event/keepalive ordering and native ushort old-coordinate comparison including negative positions.
+- [x] `read_ingame_setup_mouse` - `InGameSetup.ReadMouse`; selection/hover, exact half-open name/value/row bounds, click coordinates and slider 0..255 endpoints.
+- [x] `read_ingame_setup_keyboard` - `InGameSetup.ReadKeyboard`; mouse precedence/right close, wrap navigation, activate/decrease/increase/escape and W processor6 behavior.
+- [x] `adjust_ingame_setup_setting` - `InGameSetup.Adjust`; volume saturation/sound ordering and wrapped detail/speed selection; actual runtime/config/PIT integration.
+- [x] `apply_ingame_setup_action` - `InGameSetup.Apply`; slider publication, activation precedence, music/effects toggles with native sample ordering, return/quit/close and constant/network halt flags.
+- [x] `JE_inGameSetup` - `InGameSetup.Run`; 16 complete native loops verify cursor load and draw/wait/read/apply composition, return/quit/mute/W/detail/speed behavior; concrete managed surface/input/audio/config/timer adapters integrated.
+- [x] `JE_inGameHelp` - `GameHelp.Run`/`GameHelpHost`; complete single/two-player layouts, help-box states, centered continue text and ordered event/mouse/joystick/network wait in 32 native cases; actual help/font/shape/input integration verified. Explicit primary-surface ownership replaces transient global screen switching.
+- [x] `JE_highScoreCheck` - `HighScores.Run`; 512 native scenarios verify score qualification, highest-cash-first ordering, signed32 score narrowing, sorting/shift/cancel semantics, name editing/filtering/cap/trailing spaces, cursor blink and full result glow/fades/input/music flow. Concrete managed rendering/input/palette/cursor/timer services verified; playable-host wiring remains pending.
+- [x] `adjust_difficulty` - `PlayerProgression.AdjustDifficulty`; exact single/two-player scores, float multipliers, roundf conversion, all threshold tiers and nondecreasing difficulty in 147,456 native cases. Invalid initial difficulty and native out-of-range float-to-ulong conversions throw explicitly.
 - [x] `load_next_demo` - `DemoSession.LoadNext`; exact original/compact header fields, numeric item-ID lookup, episode initialization, demo number wrapping/missing-next fallback, optional wait bytes, stream positions and missing-file playback/main-level state compared with unchanged native loading.
 - [x] `replay_demo_keys` - `PlayerInput.ReplayDemo`; 8,192 native replay frames plus 8,192 real collector/playback frames compare keys, wait countdown, zero-wait loops, movement/buttons, partial/EOF state, stream positions and level-end ordering. Fragmented managed stream reads preserve native full-read semantics; player two remains unchanged.
 - [x] `JE_SFCodes` - `PlayerWeapons.RecognizeSpecial`, concrete linking integration; 42,432 native command-state traces across all 26 combos, normal/SuperTyrian maps, both players, release/diagonal/repeat/cancellation behavior.
-- [ ] `JE_sort`
-- [ ] `JE_playCredits`
-- [ ] `JE_endLevelAni`
-- [ ] `JE_drawCube`
+- [x] `JE_sort` - `LegacySaveArchive.SortHighScoreGroup`; native ordered pair comparisons, descending signed scores, exact tie behavior and score/name/difficulty-only swaps.
+- [x] `JE_playCredits` - `Credits.Run`; 24,483 frames match native scrolling, text/shadow layout, picture fades/wraps, seeded ship motion/banking, audio transitions, held final frame, input/network ordering and cleanup. Concrete managed sprite/font/palette/file/input/timer routing also verified; top-level game wiring remains pending.
+- [x] `JE_endLevelAni` - `LevelResults.Run`; all unlock/snapshot/difficulty/alive/timer/score/editor/cube/skip/wait/audio/fade behavior in 512 native cases plus actual glow/input/palette/timing integration. Checksum-overlap unlocks use transient scratch; invalid native-buffer indices fail explicitly.
+- [x] `JE_drawCube` - `GameHud.DrawCube`/`GameHudPresentation.Cube`; exact ordered dark shadows and signed brightness hue conversion with real sprite adapter pixels.
 - [ ] `JE_handleChat`
-- [ ] `JE_inGameDisplays`
-- [ ] `JE_mainKeyboardInput`
+- [x] `JE_inGameDisplays` - `GameHud.Draw`; cash/special/lives/name/bombs/cheat ordering, all 256 life values including unsigned underflow and signed display, local/network name width and mode gates verified in 4,096 native traces and actual sprite/font adapter tests.
+- [x] `JE_mainKeyboardInput` - `GameKeyboard.Run`; 4,096 native mode/chord cases verify ordered custom-ship selection/armor preservation, help/NortShip requests, cheat/skip/debug/pause/menu behavior, smoothing/filter/speed toggles, key consumption and RNG/music. Actual gamma, ship/combat HUD, help/text, network request state and PIT settings are integrated; enclosing playable level loop remains pending.
 - [x] `JE_pauseGame` - `GamePause.Run`/`GamePausePresentation`; twelve native control/presentation/input/timing/volume traces, actual SDL font/input and real two-peer SDL2_net pause/resume; explicit failures and cancellation restore audio/mouse.
 - [x] `update_player_death` - `PlayerCombat.UpdateDeath`; 8,192 exact native player/level/lives/HUD/effect/sound/RNG traces; managed life references and primary HUD ownership replace pointer/global screen side effects.
 - [x] `collect_player_movement_input` - `PlayerInput.Collect`; 16,384 native input/analog/digital/mouse/keyboard/demo-record/network-owner traces with exact narrowed movement, float bits, request flags, recording bytes, service/poll ordering and full prepared packet bytes. Actual `ReplayDemo` is integrated through the replay service and checked against unchanged native collection; `DemoSession` supplies header/loading state and streams.
@@ -1738,14 +2467,14 @@ these implementation inventories:
 - [x] `draw_player_ship` - `PlayerMovement.DrawShip`; 2,048 native boundary/banking/shadow/invulnerability/DragonWing/NortSpark traces, real raw-index 671 projectiles, exact RNG state and actual compressed-sheet copy/blend/shadow pixels verified. Native supported-toolchain Y-before-X random argument evaluation is explicit.
 - [x] `JE_playerMovement` - `PlayerFrame.Update`; 4,096 native enclosing-player scenarios compose verified death/respawn, actual managed input/replay, linking/commands, movement, ship/sidekick rendering and ordered attacks. Compares old positions, histories, lives/armor/shields, follow deltas, all projectiles, HUD/frame hashes and RNG; native delayed local/remote packet application/reset and shared primary special coordinates also match. Network packet availability and ownership errors are explicit.
 - [x] `JE_mainGamePlayerFunctions` - `PlayerFrame.UpdatePlayers`; 4,096 native scenarios each run two consecutive complete single/paired updates, including Galaga respawn mode changes, command/request resets, shared button state, signed warp overflow, float parallax rounding, all three background positions/tile offsets and previous-map state. Full level/game loop remains pending.
-- [ ] `JE_getName`
-- [ ] `collect_arcade_pickup`
+- [x] `JE_getName` - `PlayerPickups.GetName`; local/opponent/fallback name precedence and NUL termination.
+- [x] `collect_arcade_pickup` - `PlayerPickups.CollectArcade`; full purple-ball/Galaga, arcade tables, sidekick tiers, special/front/rear rewards, cash, item-ID mapping, text/options and cooldown behavior match native state traces.
 - [x] `collect_armor_pickup` - `EnemySystem.CollectArmorPickup`; actual linked/unlinked player armor, division rounding, 28-point cap, enemy availability, armor HUD and sound compared in native collision scenarios. Invalid pickup values are explicit errors.
-- [ ] `collect_bonus_level_pickup`
-- [ ] `collect_score_item`
+- [x] `collect_bonus_level_pickup` - `PlayerPickups.CollectBonusLevel`; active-bonus gate, song, next level, enemy availability and display timer.
+- [x] `collect_score_item` - `PlayerPickups.CollectScore`; cubes, upgrades, shot 104 with native slot clearing, superbombs, Hotdog snapshot and signed/unsigned cash arithmetic, sound and actual explosions. Invalid native out-of-bounds slot clearing throws explicitly.
 - [x] `destroy_linked_enemies` - `EnemySystem.DestroyOnCollision`; preserves collision-specific zero/255/exact/offset/group link rules, forced target availability, no kill rewards/events, and actual small/large/ground/repeating explosion state and sound channels.
 - [x] `damage_enemy_on_collision` - `EnemySystem.DamageOnCollision`; capped player damage through actual combat/HUD, signed speed-times-armor impulses, armor-255 sentinel, enemy armor decrement/hit sound and collision-specific linked destruction compared across 8,192 native scenarios.
-- [ ] `JE_playerCollide`
+- [x] `JE_playerCollide` - `PlayerPickups.Collide`; first-100-enemy ordered iteration, exact proximity/availability/ground/invulnerability gates and arcade/armor/bonus/score/damage precedence with all helpers integrated and native traces compared.
 
 ### `src/menus.c`
 
@@ -1822,24 +2551,24 @@ these implementation inventories:
 
 ### `src/opentyr.c`
 
-- [ ] `str_pop_int`
-- [ ] `str_pop_str`
-- [ ] `getShopContentsPickerItemsCount`
-- [ ] `getShopContentsPickerItem`
-- [ ] `getDisplayPickerItemsCount`
-- [ ] `getDisplayPickerItem`
-- [ ] `getScalerPickerItemsCount`
-- [ ] `getScalerPickerItem`
-- [ ] `getScalingModePickerItemsCount`
-- [ ] `getScalingModePickerItem`
-- [ ] `draw_setup_menu`
-- [ ] `wait_for_setup_input`
-- [ ] `collect_setup_menu_input`
-- [ ] `collect_setup_picker_input`
-- [ ] `apply_setup_picker_action`
-- [ ] `apply_setup_menu_activation`
-- [ ] `apply_setup_menu_action`
-- [ ] `setupMenu`
+- [x] `str_pop_int` - `TextTokenReader.TryReadInt32`; repeated native whitespace/sign/prefix/no-number/NUL/platform-long saturation/int narrowing traces, integrated into typed item-array loading and existing native item database parity.
+- [x] `str_pop_str` - `TextTokenReader.TryReadToken`; native space/tab-only delimiters, NUL and byte-capacity/error/remainder traces; typed item-reference loading reuses the reader and UTF-8 references obey native byte rather than character limits.
+- [x] `getShopContentsPickerItemsCount` - `SetupMenu.PickerCount`; three native entries verified in 16 catalogs.
+- [x] `getShopContentsPickerItem` - `SetupMenu.PickerItem`; Mission/Mixed/Random and invalid-setting fallback verified.
+- [x] `getDisplayPickerItemsCount` - `SetupMenu.PickerCount`/`SetupMenuHost.DisplayCount`; window plus SDL display enumeration, native catalogs and real SDL fullscreen/window switching verified.
+- [x] `getDisplayPickerItem` - `SetupMenu.PickerItem`; window and one-based Display labels verified.
+- [x] `getScalerPickerItemsCount` - `SetupMenu.PickerCount`; all nine existing scaler definitions verified.
+- [x] `getScalerPickerItem` - `SetupMenu.PickerItem`; exact native scaler names/order and real SDL scaler selection verified.
+- [x] `getScalingModePickerItemsCount` - `SetupMenu.PickerCount`; all four original modes verified.
+- [x] `getScalingModePickerItem` - `SetupMenu.PickerItem`; exact native mode labels/order and SDL layout selection verified.
+- [x] `draw_setup_menu` - `SetupMenu.Draw`/`SetupMenuHost`; 256 native states cover headers/values/descriptions/gauges/highlights/disabled rows/picker fit and borders; concrete SDL rendering verified.
+- [x] `wait_for_setup_input` - `SetupMenu.WaitInput`; eight native waits cover key/mouse/movement/negative coordinates/fullscreen-change wakeup; actual SDL and cancellation verified.
+- [x] `collect_setup_menu_input` - `SetupMenu.CollectMenuInput`; 8,192 native snapshots cover menu/value/volume bounds, separate hover/click coordinates and mouse/key precedence.
+- [x] `collect_setup_picker_input` - `SetupMenu.CollectPickerInput`; 8,192 native snapshots retain the observable native click-Y/X-limit quirk, hover/keyboard/mouse precedence and picker bounds.
+- [x] `apply_setup_picker_action` - `SetupMenu.ApplyPicker`; 1,024 native actions cover wrapping/hover/back/activation/display/scaler/mode/shop/save, failed scaler restore and explicit double-failure error; real SDL and persistence verified.
+- [x] `apply_setup_menu_activation` - `SetupMenu.Activate`; 156 native activations cover parent navigation/picker starts/shop clamping/music/sample toggle ordering/restart/child calls; actual jukebox and SDL integration verified.
+- [x] `apply_setup_menu_action` - `SetupMenu.ApplyMenu`; 2,816 native actions cover hover/wrap/back/activation/clamped direct/relative volumes, boundary audio ordering and exit fades.
+- [x] `setupMenu` - `SetupMenu.Run`; 64 native complete loops and actual SDL title/settings/graphics/audio/jukebox/gameplay/configuration-reload/title-return path verified.
 - [ ] `main`
 
 ### `src/opl.c`
@@ -1853,6 +2582,22 @@ these implementation inventories:
 - [ ] `operator_decay`
 - [ ] `operator_attack`
 - [ ] `change_attackrate`
+- [ ] `change_decayrate`
+- [ ] `change_releaserate`
+- [ ] `change_sustainlevel`
+- [ ] `change_waveform`
+- [ ] `change_keepsustain`
+- [ ] `change_vibrato`
+- [ ] `change_feedback`
+- [ ] `change_frequency`
+- [ ] `enable_operator`
+- [ ] `disable_operator`
+- [ ] `adlib_init`
+- [ ] `adlib_write`
+- [ ] `adlib_reg_read`
+- [ ] `adlib_write_index`
+- [ ] `clipit16`
+- [ ] `adlib_getsample`
 
 ### `src/palette.c`
 
@@ -1958,7 +2703,7 @@ these implementation inventories:
 
 ### `src/tyrian2.c`
 
-- [ ] `JE_starShowVGA`
+- [x] `JE_starShowVGA` - `LevelPresentation.Show`; 2,048 native viewport pixel hashes/timing/shared flags including inversion, searchlight/player coordinates, native asymmetric spotlight stride and aliased buffers; actual SDL viewport presentation/skip, invalid dimensions and failed presentation verified.
 - [x] `blit_enemy` - `EnemySystem.BlitEnemy`; native draw traces and compressed-sprite pixels.
 - [x] `update_enemy_acceleration` - `EnemySystem.UpdateAcceleration`; native states/RNG.
 - [x] `animate_and_draw_enemy` - `EnemySystem.AnimateAndDraw`; native animation/draw traces.
@@ -1972,12 +2717,21 @@ these implementation inventories:
 - [x] `process_enemy_attacks` - `EnemySystem.ProcessAttacks`; native ice/damage/onscreen states.
 - [x] `launch_enemy_from_parent` - `EnemySystem.LaunchFromParent`; native child state/sounds/RNG.
 - [x] `JE_drawEnemy` - `EnemySystem.DrawAndUpdate`; full native enemy update/draw traces.
-- [ ] `prepare_next_level`
-- [ ] `draw_level_hud`
-- [ ] `handle_level_input`
-- [ ] `draw_level_backgrounds`
+- [x] `prepare_next_level` - `LevelPreparation.Prepare`; 49,152 unchanged-native
+  traces verify mouse/keyboard/sprite cleanup, Galaga/two-player state,
+  speed restoration, demo close/stop/wait behavior, difficulty reset,
+  bonus/game-over routing, save slot, failed-save recovery and return value.
+- [x] `draw_level_hud` - `LevelHud.Draw`; 4,096 unchanged-native state and
+  ordered host-call traces cover end-level no-op, Galaga shields/rewards and
+  mode normalization, shield regeneration countdowns, weapon-bar redraws,
+  power arithmetic/display and frame-final map/enemy state.
+- [x] `handle_level_input` - `LevelInput.Handle`/`LevelInputHost`; 32,768 native mode/game-over/demo/keyboard/skip/focus/modal/request traces; actual SDL game-over, demo interruption, help skip, pause/resume, setup/return and network request dispatch. Keyboard/player-input producers now write local pressed latches, not delayed network requests; existing native keyboard/player-input parity retained.
+- [x] `draw_level_backgrounds` - `LevelBackgroundScene.Draw`; 4,096
+  unchanged-native state and ordered host-call traces cover background
+  priority/blending, delay/wrap arithmetic, starfield and filters, enemy
+  strata/spawning, wild darkening, sound and screen/map state.
 - [x] `update_level_explosions` - `SceneEffects.UpdateExplosions`; native state/draw traces.
-- [ ] `draw_armor_warning`
+- [x] `draw_armor_warning` - `ArmorWarning.Draw`/`ArmorWarningHost`; 16,384 native state/RNG/spawn/color/render traces, including byte wrap and network-owner/Galaga quirks; concrete real enemy pool/rescue/drop/fixed-width velocity/armor and padded font/rectangle pixels verified.
 - [x] `play_level_sounds` - `LevelEvents.PlaySounds`; native channel ordering/volume/gating.
 - [x] `player_shot_hits_enemy` - `EnemySystem.ShotHits`; 5,000 native hit cases.
 - [x] `mark_player_shot_linked_enemies` - `EnemySystem.MarkLinked`; full native marker sweeps.
@@ -1985,43 +2739,46 @@ these implementation inventories:
 - [x] `destroy_player_shot_linked_enemies` - `EnemySystem.DestroyLinked`; native death/pickup/reward traces.
 - [x] `process_player_shot` - `EnemySystem.ProcessShot`; integrated native projectile/enemy/effect traces.
 - [x] `draw_enemy_shots` - `EnemySystem.UpdateEnemyShots`; native motion/collision/draw traces and real combat integration.
-- [ ] `draw_level_debug_and_timer`
+- [x] `draw_level_debug_and_timer` - `LevelTimerDisplay.Draw`, concrete font host and shared keyboard debug history/pickup display-time/runtime pacing/event countdown; 16,384 native multi-frame traces including infinite FPS, high tick signedness, byte flash reversals, sound cadence and timer expiration; real event jump/padded font/SDL presentation/PIT pacing and failure propagation verified. Legacy scratch `tempW/tempX/tempY` mouse copies have no retained consumer in this frame path.
 - [x] `update_level_network_state` - `LevelEvents.UpdateNetworkState`; 5,120 complete native traces plus actual two-peer SDL2_net delayed gameplay/request integration; native overlapping diagnostic offsets preserved, location assertion becomes an explicit error.
 - [x] `update_level_end_state` - `LevelEvents.UpdateEndState`; all 1,024 native flag combinations.
 - [x] `record_level_demo` - `DemoSession.RecordLevel`; 64 native recording scenarios compare every byte of the 30-byte header, NUL padding/high-bit/truncated names, episode/item indices/powers/song and sequential first-free filenames. Existing recordings remain intact; concurrent creation uses atomic CreateNew and all 256 occupied slots raise an explicit error rather than native wraparound looping.
 - [ ] `run_level_frame`
-- [ ] `initialize_level_players_and_display`
-- [ ] `initialize_level_map_and_ship_state`
-- [ ] `initialize_level_flags`
-- [ ] `initialize_level_status_display`
-- [ ] `initialize_level_combat_state`
+- [x] `initialize_level_players_and_display` - `LevelPlayerInitializer.Initialize`; 512 native startup modes compare both alive flags, old/current difficulty with episode-4 clamp, fixed player origins, all 40 history entries/player and last-shot positions plus picture/options/title/present/gamma/fade/conditional shape-load order. Concrete indexed-font drawing, gamma-corrected SDL palette fade, conditional existing explosion-sheet behavior and sequential failure side effects verified.
+- [x] `initialize_level_map_and_ship_state` - `LevelMapShipInitializer.Initialize`; 1,024 unchanged-native traces compare all three row pointers using native layer strides, map X/header preservation, horizontal/vertical offsets, current versus retained prior/secondary camera offsets, layer delays, music fade, back positions, shot power, starfield speed, and both player velocity/invulnerability resets; preloaded tile maps remain installed and shared `PlayerShipInfo` performs ship-specific initialization.
+- [x] `initialize_level_flags` - `LevelFlagsInitializer.Initialize`; 16,384 extracted-native cases verify every entry reset, three per-frame button flags, shared quit-request routing, map/effect pacing, event/filter/warning/boss-bar state and preservation of boss armor/color.
+- [x] `initialize_level_status_display` - `LevelStatusDisplayInitializer.Initialize`; 256 extracted-native cases verify byte-narrowed shield recharge timing, both shield maxima, armor gauge/clamping, superbomb and cube/flash/notice resets, and text/music/port-button call order.
+- [x] `initialize_level_combat_state` - `LevelCombatStateInitializer.Initialize`; 256 unchanged-native cases verify combat/player/enemy/projectile/effect/weapon/level resets, network-only enemy availability, Galaga difficulty, draw order and all three background wrap offsets.
 - [ ] `JE_main`
 - [x] `read_level_header_and_events` - `LevelMap.ReadHeader`; signed record layout/native parity.
 - [x] `load_level_shapes` - `LevelMap.LoadShapes`; swapped IDs, ownership, null/fill semantics.
 - [x] `load_level_map_layer` - `LevelMap.LoadMapLayer`; all three layer dimensions/order.
-- [ ] `play_map_transition`
-- [ ] `show_episode_completion`
-- [ ] `show_episode_picture`
-- [ ] `show_episode_warning`
-- [ ] `read_episode_item_availability`
+- [x] `play_map_transition` - `MapTransition.Play`; 16 extracted-native frame traces cover upper/lower/horizontal and fallback reveals, both 320/327 pitches, key skipping, constant-play behavior, load/event order, and final surface/buffer contents.
+- [x] `handle_episode_presentation` - `EpisodePresentation.Handle`; 40 extracted-native command/network/constant-play traces verify callback routing, offline fade gates, clear/present/palette ordering, completion return propagation and unknown-command behavior.
+- [x] `show_episode_completion` - `EpisodeCompletion.Show`; 48 unchanged-native
+  scenarios verify encrypted hint offsets, score/cash text, line counts,
+  completion early returns, SuperTyrian mode mapping, unlock text and ship
+  graphics, fade/input/network ordering, final state and stream position.
+- [x] `show_episode_picture` - `EpisodePictureDisplay.Show`; 256 unchanged-native cases verify the constant-play gate, native `atoi` parsing, PCX-palette branch, picture selection and clear/present/fade ordering.
+- [x] `show_episode_warning` - `EpisodeWarningDisplay.Show`; 256 unchanged-native cases verify both early returns, warning-state setup, C-style `atoi` and 16-bit narrowing, encrypted Pascal lines, and display/key-clear order.
+- [x] `handle_episode_level_jump` - `EpisodeLevelJump.Handle`; 2,048 unchanged-native cases verify all six gates, `H`-specific `atoi` offset, byte narrowing and failed-gate state preservation.
+- [x] `configure_episode_mode` - `EpisodeModeConfiguration.Configure`; 256 unchanged-native cases verify mode flags, player item copying, loadout rewrites, sidekick resets and cash state.
+- [x] `read_episode_item_availability` - `EpisodeItemAvailability.Read`; 15 unchanged-native scenarios verify encrypted Pascal rows, all shop-setting branches, typed item indices, row capacity, cleared availability state, stream position and item-screen call ordering.
 - [x] `load_selected_level_map` - `LevelMap.LoadSelected`; episode directory and shape-file lookup.
-- [ ] `configure_episode_mode`
-- [ ] `handle_episode_level_jump`
-- [ ] `handle_episode_presentation`
 - [ ] `JE_loadMap`
-- [ ] `networkStartScreen`
-- [ ] `draw_title_screen`
-- [ ] `wait_for_title_screen_input`
-- [ ] `read_title_screen_input`
-- [ ] `dispatch_title_screen_action`
-- [ ] `handle_title_screen_secret_codes`
-- [ ] `titleScreen`
-- [ ] `newGame`
-- [ ] `newSuperArcadeGame`
-- [ ] `newSuperTyrianGame`
-- [ ] `intro_logos`
-- [ ] `JE_readTextSync`
-- [ ] `JE_displayText`
+- [x] `networkStartScreen` - `NetworkStartScreen.Run`/`NetworkStartHost`/`NetworkStartChannel`; 112 native controller/peer start/cancel/poll/state/fixed-width-wire cases, managed concrete surfaces/fades/selection and actual SDL2_net two-peer handshake/details/cash/ship/difficulty/episode synchronization; both selector cancellation paths propagate quit without starting the game.
+- [x] `draw_title_screen` - `TitleScreen.Draw`; fourteen native draw traces cover all selections, 29-frame moving logo, two palette partitions, version/RELOADED labels, measured outlines and saved surfaces; actual SDL2 animation and concrete pixels verified.
+- [x] `wait_for_title_screen_input` - `TitleScreen.Wait`; strict >30000 idle/demo threshold, uint tick wrap, ushort prior mouse coordinates including negatives, text/mouse/key/motion exit and filtered cursor/presentation/joystick timing match native traces; cancellation verified.
+- [x] `read_title_screen_input` - `TitleScreen.Read`; 4,096 native snapshots and explicit half-open bounds verify hover selection, separate click coordinates, mouse precedence and wrapped keys/sample order.
+- [x] `dispatch_title_screen_action` - `TitleScreen.Dispatch`; 28 native result/restart states cover all seven actions, child cancellation/success, demo and quit; actual high-score and new-game child flows integrated through SDL2.
+- [x] `handle_title_screen_secret_codes` - `TitleScreen.Secrets`; 136 native cases cover streaming counters, prefix/reset/non-overlap behavior, nine-byte maximum, canceled arcade restart, destruct and SuperTyrian ordered sound/effect/black/action; caller child services bound explicitly.
+- [x] `titleScreen` - `TitleScreen.Run`; 144 complete native loops verify Setup label override, cursor ownership, restarts, action/secret precedence, demo timeout and exits; actual SDL2 path traverses animated title/high-score/title restart/selection/new-game. Final game startup, load/setup/instructions/whoa child implementations and playable outer host remain pending.
+- [x] `newGame` - `NewGame.Run`; 2,048 native selection/mode/prior-load/rich/episode/difficulty states preserve partial cancellation effects, cash/ship/device precedence and signed increment; actual selection-menu game-state binding verified.
+- [x] `newSuperArcadeGame` - `NewGame.RunSuperArcade`; 1,792 native starts across all seven modes verify item mapping, ship previews, intro order, cancellation side effects, prior loaded state, signed difficulty and NortShip Z paired companions; concrete font/ship/palette/input services verified.
+- [x] `newSuperTyrianGame` - `NewGame.RunSuperTyrian`; 256 native starts verify ScrollLock difficulty, exact intro text/title, audio, waits, episode init, cheat/mode flags and loadout; concrete services/cancellation verified. Final title/game-loop caller remains pending.
+- [x] `intro_logos` - `IntroLogos.Run`/`IntroLogoHost`; native white fade/pictures 10 and 12/timed-or-input waits/black fades and title animation flag verified; concrete palette/input/PIT and actual SDL startup presentation integrated.
+- [x] `JE_readTextSync` - `WarningTextDisplay.Synchronize`; intentionally has no effects, matching the native function's entirely disabled `#if 0` body, called before/after all 2,816 differential scenarios.
+- [x] `JE_displayText` - `WarningTextDisplay.Run`/`WarningTextHost`; 2,816 native line/prompt/warning/wait/animation/escape/halt traces, concrete padded pixels and shared character-glow state/timing, actual SDL mouse/Return/Escape prompt flows; validates native line limits and preserves halt/skip ordering.
 - [x] `scale_enemy_score` - `EnemySystem.ScaleScore`; native difficulty cases.
 - [x] `scale_enemy_armor` - `EnemySystem.ScaleArmor`; native difficulty cases.
 - [x] `initialize_enemy_score_and_armor` - `EnemySystem.InitializeScoreAndArmor`.
@@ -2048,17 +2805,17 @@ these implementation inventories:
 - [x] `handle_level_event` - `LevelEvents.HandleLevelEvent`.
 - [x] `handle_misc_event` - `LevelEvents.HandleMiscEvent`.
 - [x] `JE_eventSystem` - `LevelEvents.Dispatch`; all native event groups and host calls.
-- [ ] `JE_whoa`
+- [x] `JE_whoa` - `ScreenBleed.Run`; 1,264 native-matched frame/scratch fingerprints over two pitches/six exit timings, full final bytes for all three buffers per timing, exact in-place neighbor/copy/swap semantics, 300-frame/input exit and warning-lines reset; actual SDL presentation/input, alias validation and cancellation verified.
 - [x] `JE_barX` - `EnemySystem.BeveledBar`; ordered three-tone rectangle parity.
 - [x] `draw_boss_bar` - `EnemySystem.DrawBossBars`; linked minimum armor/state/HUD parity.
 
 ### `src/varz.c`
 
-- [ ] `JE_getShipInfo`
-- [ ] `JE_SGr`
+- [x] `JE_getShipInfo` - `PlayerShipInfo.Initialize`; 1,024 native scenarios verify generator power, primary/custom graphics, secondary default armor, initial armor/hit boxes and sprite-sheet selection; shared frame graphics and concrete rendering integrated.
+- [x] `JE_SGr` - `PlayerShipInfo.ExtraGraphic`; all fifteen selectors and 10,240 native lookups verify graphic indices and pointer preservation/switching. Invalid custom records raise explicit errors instead of native out-of-bounds access.
 - [x] `JE_drawOptions` - `PlayerWeapons.DrawOptions`; native selected player, ammo/refill/style/animation/charge initialization, icons/gauges and full HUD pixels verified within special sidekick spawning and attack traces; concrete icon adapter checked.
 - [x] `JE_drawOptionLevel` - `PlayerWeapons.DrawOptionLevel`; exact three highlighted/unhighlighted two-player gauge rectangles and single-player gate verified in native full HUD comparisons.
-- [ ] `JE_tyrianHalt`
+- [x] `JE_tyrianHalt` - `GameShutdown.Halt`/`SdlGameShutdownHost`; 512 native cleanup/save/farewell/exit traces, ten explicit failure paths; isolated real SDL audio/video/joystick/event teardown and subsystem-zero query, shapes/sounds cleared, persisted configuration reload, code-9 skip-save and save-failure cleanup. Managed nonreturning calls throw `GameTerminationException` for the final executable to map to process exit; warning halt composition verified. Final main-host ownership remains pending.
 - [x] `JE_specialComplete` - `PlayerSpecialWeapons.Complete`; all native effect cases and native no-op type 15, per-owner behavior, byte cost parameter, sound/cooldown and raw 707 projectiles compared in 4,096 native traces.
 - [x] `JE_doSpecialShot` - `PlayerSpecialWeapons.Update`; shield/all/half/armor costs, affordability, execution clear/HUD order, held fire, duration/filter/RNG/spray/cooldown transitions, full native projectiles and frame pixels compared in standalone and integrated attack traces.
 - [x] `JE_setupExplosion` - `SceneEffects.SetupExplosion`.
@@ -2137,10 +2894,24 @@ these implementation inventories:
 
 ### `src/xmas.c`
 
-- [ ] `xmas_time`
-- [ ] `xmas_prompt`
+- [x] `xmas_time` - `ChristmasPrompt.IsChristmasTime`; all twelve native local-month cases and local timezone conversion boundary verified.
+- [x] `xmas_prompt` - `ChristmasPrompt.Run`/`ChristmasPromptHost`; 300 native complete scenarios with fixed-point/layer snow, respawn, choice/click/mouse-key precedence, fades and RNG call ordering; padded blended/full-shadow drawing, cancellation and actual SDL choices verified. Platform-rand service and startup Christmas asset/global ownership remain final-host integration requirements.
 
 ### Inline function definitions in headers
+
+#### `src/tinydir.h`
+
+- [ ] `tinydir_open`
+- [ ] `tinydir_open_sorted`
+- [ ] `tinydir_close`
+- [ ] `tinydir_next`
+- [ ] `tinydir_readfile`
+- [ ] `tinydir_readfile_n`
+- [ ] `tinydir_open_subdir_n`
+- [ ] `tinydir_file_open`
+- [ ] `_tinydir_get_ext`
+- [ ] `_tinydir_file_cmp`
+- [ ] `_tinydir_dirent_buf_size`
 
 #### `src/config_file.h`
 

@@ -296,7 +296,12 @@ public sealed partial class LevelEvents
                 case 80:
                     if (enemies.TwoPlayers) EventLocation += (ushort)record.Data;
                     break;
-                case 81: SecondWrap = record.Data / 2; SecondWrapTo = record.Data2 / 2; break;
+                case 81:
+                    SecondWrap = record.Data / 2;
+                    SecondWrapTo = record.Data2 / 2;
+                    backgrounds.Second.WrapAt = SecondWrap;
+                    backgrounds.Second.WrapTo = SecondWrapTo;
+                    break;
                 case 82:
                     if (!items.TryFind(ItemType.Special, record.Data, out var special))
                         throw new InvalidDataException($"Event special weapon ID '{record.Data}' is missing.");

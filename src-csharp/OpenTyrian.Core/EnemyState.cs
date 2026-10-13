@@ -66,6 +66,44 @@ public sealed class EnemyState : ShotEnemy
     public short XMaxBounce { get; set; }
     public short YMinBounce { get; set; }
     public short YMaxBounce { get; set; }
+
+    public void ResetData()
+    {
+        X = Y = 0;
+        ScoreItem = false;
+        XSpeed = YSpeed = XRandomAcceleration = YRandomAcceleration = XFixedAcceleration = YFixedAcceleration = 0;
+        XAccelerationWait = YAccelerationWait = 0;
+        Armor = Cycle = AnimationLength = Size = LinkNumber = AnimationActive = AnimationMax = AnimationWhenFire = 0;
+        Array.Clear(ShotWait);
+        Array.Clear(ShotMultiPosition);
+        Array.Clear(Graphics);
+        Sprites = null;
+        XReverse = YReverse = 0;
+        XAccelerationAdd = YAccelerationAdd = 0;
+        XAccelerationWaitMax = YAccelerationWaitMax = 0;
+        Definition = null;
+        Damaged = false;
+        Type = 0;
+        AnimationMin = 0;
+        DamageGraphic = 0;
+        DamageLevel = DamageAnimation = 0;
+        Filter = 0;
+        Value = FixedMoveY = 0;
+        Array.Clear(Frequency);
+        LaunchWait = 0;
+        LaunchType = LaunchTypePosition = 0;
+        LaunchFrequency = XAcceleration = YAcceleration = 0;
+        Array.Clear(Turrets);
+        EnemyDie = 0;
+        Ground = false;
+        ExplosionNumber = 0;
+        MapOffset = 0;
+        Special = false;
+        FlagNumber = 0;
+        SetTo = false;
+        Iced = LaunchSpecial = 0;
+        XMinBounce = XMaxBounce = YMinBounce = YMaxBounce = 0;
+    }
 }
 
 public sealed class BossBar

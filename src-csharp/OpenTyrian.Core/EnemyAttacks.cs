@@ -30,6 +30,7 @@ public sealed partial class EnemySystem
     public EnemyShot[] EnemyShots { get; } = Enumerable.Range(0, 60).Select(_ => new EnemyShot()).ToArray();
     public bool TwoPlayers { get; set; }
     public ushort GalagaShotFrequency { get; set; }
+    public int GalagaLife { get; set; }
     public ushort EnemiesOnScreen { get; set; }
     public ushort FirstBackgroundMove { get; set; }
 

@@ -20,6 +20,11 @@ public sealed class SoundBank
     private short[][] _samples = Enumerable.Range(0, 38).Select(_ => Array.Empty<short>()).ToArray();
     public IReadOnlyList<short[]> Samples => _samples;
 
+    public void Clear()
+    {
+        for (var i = 0; i < _samples.Length; i++) _samples[i] = [];
+    }
+
     public void Load(DataFiles files, bool christmas, IAudioSampleConverter converter)
     {
         using var effects = files.OpenRequired(files.Directory, "tyrian.snd");

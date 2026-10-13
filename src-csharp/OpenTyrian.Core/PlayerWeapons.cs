@@ -16,6 +16,7 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
     public byte ChargeGraphicWait { get; set; }
     public bool ModeChangeRequested { get; set; }
     public bool ModeChangeReady { get; set; } = true;
+    public bool PortConfigChange { get; set; }
 
     public void DrawOptions(IndexedSurface hud, SpriteTable icons)
         => DrawOptions(hud, (x, y, frame) => icons.Blit(hud, x, y, frame));

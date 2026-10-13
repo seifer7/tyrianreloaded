@@ -19,6 +19,9 @@ public sealed partial class PlayerCombat
     public bool Cheating { get; set; }
     public bool LevelTimer { get; set; }
     public byte LevelEnd { get; set; }
+    public ushort LevelEndFxWait { get; set; }
+    public byte ShieldWait { get; set; }
+    public byte ShieldT { get; set; }
     public ushort MusicVolume { get; set; }
     public ushort TemporaryVolume { get; set; }
 

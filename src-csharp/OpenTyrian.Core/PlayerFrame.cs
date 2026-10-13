@@ -40,9 +40,9 @@ public sealed class PlayerFrame(IReadOnlyList<PlayerState> players, PlayerCombat
     public ushort[] Graphics { get; } = new ushort[2];
     public ushort[] OldX { get; } = new ushort[2];
     public ushort[] OldY { get; } = new ushort[2];
-    public ushort MapXOffset { get; private set; }
-    public ushort OldMapXOffset { get; private set; }
-    public ushort MapX3Offset { get; private set; }
+    public ushort MapXOffset { get; set; }
+    public ushort OldMapXOffset { get; set; }
+    public ushort MapX3Offset { get; set; }
 
     public void UpdatePlayers(IReadOnlyList<PlayerFramePresentation> presentation, BackgroundRenderer backgrounds)
     {

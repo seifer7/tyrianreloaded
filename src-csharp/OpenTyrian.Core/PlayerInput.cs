@@ -85,7 +85,7 @@ public sealed class PlayerInput(InputState input, JoystickInput joystickInput, I
                     }
                     buttons[0] |= joystick.Action[0]; buttons[1] |= joystick.Action[2];
                     buttons[2] |= joystick.Action[3]; buttons[3] |= joystick.ActionPressed[1];
-                    requests.InGameMenu |= joystick.ActionPressed[4]; requests.Pause |= joystick.ActionPressed[5];
+                    requests.InGameMenuPressed |= joystick.ActionPressed[4]; requests.PausePressed |= joystick.ActionPressed[5];
                 }
             }
             input.ServiceEvents(false);

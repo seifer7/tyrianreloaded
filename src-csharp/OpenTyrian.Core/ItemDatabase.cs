@@ -182,9 +182,9 @@ public sealed class ItemDatabase
 
     private static void Fill<T>(T[] destination, string value, Func<int, T> convert)
     {
-        var index = 0;
-        foreach (var token in ItemDefinitions.Tokens(value).Take(destination.Length))
-            destination[index++] = convert(Number(token));
+        var index = 0; var reader = new TextTokenReader(System.Text.Encoding.UTF8.GetBytes(value));
+        while (index < destination.Length && reader.TryReadInt32(out var number))
+            destination[index++] = convert(number);
     }
 
     private static void FillReferences(string[] destination, string value)
@@ -196,11 +196,9 @@ public sealed class ItemDatabase
 
     private static IEnumerable<string> ReferenceTokens(string value, int capacity)
     {
-        foreach (var token in value.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries).Take(capacity))
-        {
-            if (token.Length > 10) throw new InvalidDataException("error: item reference exceeds its maximum length");
-            yield return token;
-        }
+        var reader = new TextTokenReader(System.Text.Encoding.UTF8.GetBytes(value));
+        for (var i = 0; i < capacity && reader.TryReadToken(11, out var token); i++)
+            yield return System.Text.Encoding.UTF8.GetString(token.Span);
     }
 
     private void Apply(GameItem item, ItemRecord record, ItemField field)

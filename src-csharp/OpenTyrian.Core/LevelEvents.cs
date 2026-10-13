@@ -34,6 +34,7 @@ public sealed partial class LevelEvents(ItemDatabase items, EnemySystem enemies,
     public bool SmallEnemyAdjust { get; set; }
     public byte ThirdOver { get; set; }
     public bool TopEnemyOver { get; set; }
+    public bool QuitRequested { get; set; }
     public byte FirstDelay { get; set; }
     public byte FirstDelayMax { get; set; }
     public bool OnePlayerAction { get; set; }

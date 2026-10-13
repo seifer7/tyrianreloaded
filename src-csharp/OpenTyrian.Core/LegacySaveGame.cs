@@ -20,6 +20,7 @@ public sealed class LegacyGameState
     public bool GameLoaded { get; set; }
     public sbyte InitialDifficulty { get; set; }
     public sbyte Difficulty { get; set; }
+    public sbyte OldDifficulty { get; set; }
     public bool GameHasRepeated { get; set; }
     public byte InitialEpisode { get; set; }
     public byte MainLevel { get; set; }
@@ -31,6 +32,8 @@ public sealed class LegacyGameState
     public byte Episode { get; set; }
     public byte[] LevelName { get; set; } = [];
     public byte[] LastLevelName { get; set; } = [];
+    public bool EditShip1 { get; set; }
+    public bool EditShip2 { get; set; }
 }
 
 public static class LegacySaveGame

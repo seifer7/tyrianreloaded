@@ -16,6 +16,8 @@ public sealed class BackgroundLayer
     public ushort MapY { get; set; }
     public ushort Position { get; set; }
     public ushort Move { get; set; }
+    public int WrapAt { get; set; } = int.MaxValue;
+    public int WrapTo { get; set; }
 }
 
 public sealed class BackgroundRenderer
@@ -37,6 +39,12 @@ public sealed class BackgroundRenderer
     public sbyte NewLevelFilter { get; set; }
     public bool FiltrationAvailable { get; set; }
     public bool ExplosionTransparent { get; set; }
+
+    public void ResetSmoothies()
+    {
+        Array.Clear(Smoothies);
+        AnySmoothies = false;
+    }
 
     public static void BlitRow(IndexedSurface surface, int x, int y, ReadOnlySpan<byte[]?> tiles, bool blend = false)
     {
@@ -134,6 +142,8 @@ public sealed class BackgroundRenderer
             layer.Position -= 28;
             layer.MapY = unchecked((ushort)(layer.MapY - 1));
             layer.MapOffset -= stride;
+            if (layer.WrapAt != int.MaxValue && layer.MapOffset <= layer.WrapAt)
+                layer.MapOffset = layer.WrapTo;
         }
     }
 

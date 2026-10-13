@@ -79,7 +79,38 @@ death pickups, rewards, and event flags, enemy attack/child-launch scheduling,
 and hostile projectile collisions with player damage, enemy-event spawning and
 controls, and full level-event dispatch with explicit shape/text/music host
 actions, linked boss health bars, level-completion gates, and queued-sound
-dispatch, sound-bank loading and voice-tail trimming with an explicit audio
+dispatch. Level-entry initialization also sets shield/HUD/armor state, clears
+pickup/cube/flash display state, starts the level song, and initializes port
+buttons through explicit host actions. Its combat-state reset also clears
+player/enemy projectiles, combat/effect/special-weapon state and level flags,
+preserves the network-only enemy-availability reset and Galaga difficulty
+behavior, and restores all three map wrap boundaries. The in-level HUD now
+preserves shield regeneration cadence, Galaga rewards,
+weapon-bar redraws, power-bar arithmetic and frame-final state, with 4,096
+unchanged-native state and drawing-call comparisons. Level-background frame
+composition now preserves map timing, layer/filter priority, enemy strata and
+spawn ordering, with 4,096 native state and host-call comparisons. Episode
+picture display preserves PCX palette selection, picture loading and fade
+ordering. Episode warning loading preserves encrypted warning lines, C-style frame-count parsing,
+warning colors and timing; the warning path is compared with the unchanged
+native routine across 256 scenarios. Conditional episode-level jumps preserve
+the native multiplayer, ship, timer, alive-player and difficulty gates plus
+byte narrowing; 2,048 cases compare against the unchanged routine. The
+Galaga, extra-game and SuperTyrian episode modes also preserve player loadouts,
+flags and cash transitions, with native parity across 256 seeded states.
+Episode shop availability now decrypts and parses all nine typed rows, preserves
+the shop-setting gates and item-screen handoff, and is compared with the native
+reader across 15 input/settings scenarios.
+The episode map's upper, lower and horizontal reveals now preserve the native
+per-frame pixel copies and timing/event handoffs, verified against native frame
+hashes across both standard and padded surface pitches.
+The episode presentation dispatcher routes picture, transition, warning and
+completion sections and preserves offline/network fade gates and clear/palette
+ordering, compared against the unchanged C dispatcher across 40 cases.
+Episode completion now preserves encrypted hint selection, score/cash lines,
+SuperTyrian unlock text and ship graphics, network synchronization and return
+state, with 48 unchanged-native scenarios.
+Sound-bank loading and voice-tail trimming use an explicit audio
 conversion boundary, eight-channel fixed-point PCM mixing, music archive and
 song controls, and the complete LDS music sequencer with native OPL register
 effects, keyboard/mouse/text/focus events and input waits, native viewport
@@ -154,10 +185,114 @@ weapons in native order, including delayed network input, shared special-weapon
 coordinates and parallax scrolling. Demo loading/recording now preserves original
 and compact headers, native item-ID resolution, episode initialization,
 selection/wrap/fallback, binary recording headers and first-free filenames.
+Next-level preparation now preserves cleanup ordering, Galaga normalization,
+speed restoration, demo shutdown, level/bonus/game-over routing and failed-save
+recovery; 49,152 cases compare against the unchanged native routine.
 The complete level/game loop and playable host remain pending.
 Player/enemy collision damage, linked enemy destruction and shared armor
-pickups now compose actual combat/HUD and explosion systems; collision pickup
-dispatch and the enclosing collision loop remain pending.
+pickups now compose actual combat/HUD and explosion systems. Arcade, score,
+sidekick, special and bonus pickups and the complete ordered player collision
+dispatcher now match native state/effect/HUD traces. The enclosing playable
+level loop remains pending. The in-game cash, lives, names, special-weapon and
+superbomb HUD and cube renderer are now verified with concrete sprite/font
+presentation.
+Gamma cycling, legacy high-score sorting, initial player items, shop
+costs/values and score-driven difficulty now have native parity coverage.
+These remain core-library integrations; title/new-game/level-loop host flows
+are not yet playable.
+Glowing text now uses the ported font/input/PIT services with native frame,
+brightness, skip-input and network ordering.
+Character-by-character glow, timed warning bars/sounds and the in-game text
+window now compose actual fonts, sprites, input and timers.
+Single/two-player in-game help now composes the verified help/font/shape/input/
+cursor services with native layout and wait ordering.
+End-level result/unlock/cube flows and next-episode selection/rewards now
+compose actual progression, archives, glow, font/sprites, palette, audio
+callbacks and input/timers. Credits playback now preserves encrypted text,
+scrolling/shadows, picture fades, seeded ship motion, music transitions and
+button exit with concrete sprite/font/palette/file/input/timer integration.
+High-score qualification and name entry now preserve player ordering,
+score narrowing, glyph filtering, blinking/cursor input, cancellation and
+result glow/palette/music ordering. Both flows have concrete managed service
+adapters; top-level host wiring remains pending, and the game is still unplayable.
+Player ship initialization now supplies generator power, initial armor and hit
+areas, shared frame graphics and standard/edited sprite-sheet selection.
+Optional `newsh$.shp` archives now load and decrypt with native four-checksum
+and ushort size behavior; malformed archives fail explicitly without replacing
+prior managed state. No custom ship assets are included.
+The in-game keyboard dispatcher now composes these services with help,
+network requests, cheat/debug/skip/pause/menu chords, smoothing/filter/speed
+controls and random music, retaining native key consumption and ordering.
+The enclosing playable level loop remains pending.
+In-game settings now preserve all six rows, hover/click volume sliders,
+keyboard navigation, mute toggles, detail/game-speed changes and return/quit
+behavior. The concrete menu adapter uses actual indexed surfaces/fonts,
+cursor/input, audio mixer, configuration and PIT settings. The local/network
+entry and exit wrapper now synchronizes settings requests, peer waiting and
+quit propagation over SDL2_net and restores relative mouse mode on failure
+or cancellation. The enclosing playable caller remains pending.
+The high-score viewer now displays both player modes for the first three
+episodes, including unavailable-episode headings, difficulty ranks, paging
+arrows and keyboard/mouse navigation. Score viewing leaves saved entries
+unchanged; its concrete renderer/input/palette flow is exercised through
+actual SDL2. Title-menu integration remains pending.
+Normal, two-player, rich, super-arcade and SuperTyrian new-game initialization
+now preserve the native selection/cancellation effects, item loadouts, cash,
+input devices and difficulty rules. The concrete adapter uses the existing
+selection menus and real rendering/palette/audio/input services; enclosing
+game-loop integration remains pending. The managed title screen now binds
+its animation, navigation, action dispatch, nine secret codes and idle-demo
+behavior. An actual SDL2 integration path traverses title animation, score
+viewing, title restart and new-game selections; final startup and remaining
+title child flows still require integration before the executable is playable.
+Startup logo sequencing and the SuperTyrian screen-bleed transition now use
+managed surfaces and existing SDL2/palette/input timing services, with native
+frame and final-buffer compatibility coverage.
+The saved-game load screen also preserves native drawing, sparse-page
+navigation and input precedence, and is integrated with the save catalog
+and versioned-save loader through the SDL title-screen path.
+The help topic menu and all eight original help pages likewise run through
+the SDL title-screen path, preserving page layouts, input precedence,
+cursor direction, music, fades and text-style restoration.
+Title setup menus now integrate SDL display/scaler/scaling-mode pickers,
+audio toggles and volumes, jukebox playback, and persisted shop-content
+settings while retaining native input and action ordering.
+The Christmas startup prompt now includes the native snow animation,
+choice controls and local December detection, with an explicit random
+service boundary and SDL rendering/input integration.
+The network start screen now composes connection negotiation, host
+episode/difficulty selection, peer details and synchronized player setup;
+both selection-cancellation paths propagate quit to the remote peer.
+Level warning text now shares the existing character glow, timed warning
+bars, fonts/input and keep-alive services, preserving the line/prompt layout
+and animation-skip wait behavior. The native disabled text synchronization
+remains a no-op.
+Ordered shutdown now closes SDL devices, releases managed shape/sample storage,
+saves configuration except for native code 9, and preserves the farewell and
+exit-code rules. Library termination uses a typed exception; the final playable
+executable still needs to own these resources and map termination to process exit.
+Shared byte-token readers now preserve native integer-prefix/overflow and
+reference-capacity rules and are reused by typed item loading.
+The level input dispatcher now composes game-over/demo interruption, keyboard
+help/cheats, local pause/settings and network requests. Local pressed latches
+are separate from delayed protocol requests, preserving the native dispatch order.
+Low-armor warnings now share warning colors/sound timing and spawn rescue
+ships through the real enemy/item systems, including multiplayer-owner rules.
+Level presentation copies the native viewport with inversion/searchlight modes,
+smooth-scroll timing and shared modal skip/quit flags.
+Level debug overlays, pickup-notice flashing, alternating Pentium frame pacing
+and timed event jumps also share the existing gameplay state.
+Level startup now initializes both ships' trails and difficulty and composes
+the level title, palette fade and lazy explosion-sheet loading. The subsequent
+map/ship-state initializer preserves loaded map/header data while resetting
+native row pointers, current/third-layer camera offsets, parallax offsets,
+layer delays, player power, starfield speed, and both players'
+velocities/invulnerability while retaining prior/secondary camera accumulators;
+1,024 extracted-native traces verify its state.
+Level-entry flags now reset input latches, movement/end-level state, warning
+cadence, event/background/filter modes, boss links, pickups and shared quit
+state while preserving unrelated boss-bar details; 16,384 extracted-native
+cases compare every reset and retained field.
 Joystick ports include signed analog controls, dual bindings, repeat timing,
 menu key synthesis, native defaults/configuration and interactive assignment
 capture. The real SDL device adapter is verified with a synthetic virtual
@@ -212,5 +347,5 @@ and platform text-file newlines. Existing category files are preserved.
 `--data=DIR` and `--help` are supported; without `--data`, the native search
 order checks the installed data directory, `data`, and the current directory
 for `tyrian1.lvl`. It does not extract shapes or levels. Runtime assets remain
-external; actual-asset extraction still requires separately supplied Tyrian
-2.1 data.
+external. All eight extractor outputs have been compared byte-for-byte with
+the unchanged native extractor using separately supplied Tyrian 2.1 data.

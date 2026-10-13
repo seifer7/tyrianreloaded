@@ -26,6 +26,11 @@ public sealed class PlayerSpecialWeapons(ItemDatabase items, PlayerShots shots, 
     public byte PowerParameter { get; set; }
     public byte ArcadeMode { get; set; }
 
+    public void ResetLevelState()
+    {
+        NextWait = Wait = ZinglonDuration = AstralDuration = 0;
+    }
+
     public void Complete(byte playerNumber, byte specialIndex, ushort mouseX, ushort mouseY, Action drawOptions)
     {
         if (playerNumber is < 1 or > 2) throw new ArgumentOutOfRangeException(nameof(playerNumber));

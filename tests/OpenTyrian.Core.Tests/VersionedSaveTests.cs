@@ -147,7 +147,7 @@ internal static class VersionedSaveTests
         finally { if (File.Exists(path)) File.Delete(path); Directory.Delete(directory); Directory.Delete(root); }
     }
 
-    private static ItemDatabase Database(bool cipherCollision = false)
+    internal static ItemDatabase Database(bool cipherCollision = false)
     {
         var fixture = new StringBuilder();
         foreach (var type in new[] { "shot", "ship", "weapon", "generator", "shield", "sidekick", "special" })
@@ -161,7 +161,7 @@ internal static class VersionedSaveTests
         return ItemDatabase.FromDefinitions(definitions);
     }
 
-    private static LegacyGameState Fixture(int mode)
+    internal static LegacyGameState Fixture(int mode)
     {
         var game = new LegacyGameState
         {

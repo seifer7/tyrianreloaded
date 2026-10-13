@@ -55,4 +55,18 @@ public sealed class GameRuntimeSettings
         timer.SetSpeed(speed);
         timer.SetDelay((int)FrameCountMax);
     }
+
+    public void RestoreLevelTransitionSpeed(Action<ushort> setSpeed)
+    {
+        ArgumentNullException.ThrowIfNull(setSpeed);
+        SmoothScroll = true;
+        setSpeed(0x4300);
+    }
+
+    public void AdvancePentiumFrame()
+    {
+        if (PentiumMode) FrameCountMax = FrameCountMax == 2 ? 3u : 2u;
+    }
+
+    public void SetFrameCountMax(uint value) => FrameCountMax = value;
 }

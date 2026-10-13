@@ -72,6 +72,8 @@ internal static class SdlNetTests
         Throws<ArgumentException>(() => first.Bind("", second.LocalPort));
         LevelNetworkTests.RunSdl(first, second);
         GamePauseTests.RunSdlNetwork(first, second);
+        GameSetupSessionTests.RunSdlNetwork(first, second);
+        NetworkStartScreenTests.RunSdlNetwork(first, second);
         var haltCode = 0;
         sender.Shutdown(0, false, new NetworkSessionTests.ShutdownPresentation(trace), first.Dispose, code => haltCode = code);
         Check(haltCode == 5, "Actual SDL2_net shutdown did not reach the game halt callback.");

@@ -47,7 +47,7 @@ internal static class SoundBankTests
         }
     }
 
-    private static byte[] BuildBank(int count, bool voice, int mode)
+    internal static byte[] BuildBank(int count, bool voice, int mode)
     {
         var samples = Enumerable.Range(0, count).Select(i =>
         {

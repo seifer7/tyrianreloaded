@@ -39,6 +39,9 @@ internal static class SdlNative
     internal static IOException Error(string operation) =>
         new($"{operation}: {Marshal.PtrToStringUTF8(GetError())}");
 
+    [DllImport(Library, EntryPoint = "SDL_Quit", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void Quit();
+
     [DllImport(Library, EntryPoint = "SDL_GetError", CallingConvention = CallingConvention.Cdecl)]
     private static extern nint GetError();
 

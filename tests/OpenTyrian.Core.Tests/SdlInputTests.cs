@@ -73,6 +73,17 @@ internal static class SdlInputTests
         JukeboxTests.RunSdl(video);
         NetworkSessionTests.RunShutdownSdl(video);
         GamePauseTests.RunSdl(video);
+        HighScoreScreenTests.RunSdl(video);
+        TitleScreenTests.RunSdl(video);
+        LoadScreenTests.RunSdl(video);
+        HelpSystemTests.RunSdl(video);
+        SetupMenuTests.RunSdl(video);
+        ChristmasPromptTests.RunSdl(video);
+        WarningTextTests.RunSdl(video);
+        GameShutdownTests.RunSdl();
+        LevelInputTests.RunSdl(video);
+        LevelPresentationTests.RunSdl(video);
+        LevelTimerTests.RunSdl(video);
     }
 
     private static string Describe(InputEvent input) => input.Kind switch

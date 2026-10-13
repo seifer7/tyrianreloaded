@@ -11,12 +11,15 @@ namespace OpenTyrian.Core;
 
 public sealed class NetworkRequests
 {
+    public bool PausePressed { get; set; }
+    public bool InGameMenuPressed { get; set; }
     public bool Pause { get; set; }
     public bool InGameMenu { get; set; }
     public bool SkipLevel { get; set; }
     public bool Help { get; set; }
     public bool NortShip { get; set; }
     public bool YourInGameMenu { get; set; }
+    public bool YourInGameMenuRequest { get; set; }
 
     public void ClearSpecialRequests() => Pause = InGameMenu = SkipLevel = Help = NortShip = false;
 }

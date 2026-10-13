@@ -35,6 +35,16 @@ public sealed class PlayerShot
     public byte AimDelayMax { get; set; }
     public byte IceTicks { get; set; }
     public byte Infinite { get; set; }
+
+    public void Reset()
+    {
+        X = Y = XM = YM = XC = YC = 0;
+        Complicated = false;
+        DevX = DirX = DevY = DirY = CircleSizeX = CircleSizeY = 0;
+        Trail = 0;
+        Graphic = Animation = AnimationMax = Chain = 0;
+        Damage = BlastFilter = PlayerNumber = AimAtEnemy = AimDelay = AimDelayMax = IceTicks = Infinite = 0;
+    }
 }
 
 public class ShotEnemy
