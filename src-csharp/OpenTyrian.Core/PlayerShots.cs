@@ -228,6 +228,10 @@ public sealed class PlayerShots
         return id;
     }
 
+    public short CreateTyped(ushort port, PlayerShotSlot bay, ushort x, ushort y, ushort mouseX, ushort mouseY,
+        ushort weaponIndex, byte playerNumber)
+        => Create(port, (uint)bay, x, y, mouseX, mouseY, weaponIndex, playerNumber);
+
     public void SetDirection(int id, int weaponIndex, float direction)
     {
         var shot = Shots[id];

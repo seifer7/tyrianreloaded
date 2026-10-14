@@ -258,7 +258,8 @@ public sealed partial class LevelEvents(ItemDatabase items, EnemySystem enemies,
         }
         else if (!SuperTyrian) ApplyRandomSpecialDrop();
         if (record.Data == 534 && SuperTyrian)
-            record.Data = (short)(828 + new byte[] { 1, 2, 4, 5 }[MersenneTwister.NextUInt32() % 4]);
+            record.Data = (short)(828 + LegacyGameTables.SuperTyrianSpecialDrop(
+                (int)(MersenneTwister.NextUInt32() % LegacyGameTables.SuperTyrianSpecialDropCount)));
         SetEnemyDeath();
     }
 

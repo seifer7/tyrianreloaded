@@ -57,14 +57,16 @@ public sealed class NetworkStartChannel(NetworkSession network) : INetworkStartC
 }
 
 public sealed class NetworkStartScreen(LegacyGameState game, ItemDatabase items, HelpTextData text, InputState input,
-    INetworkStartHost host, INetworkStartChannel network)
+    INetworkStartHost host, INetworkStartChannel network, Action? connect = null)
 {
     public void Run(int playerNumber, CancellationToken cancellation = default)
     {
         if (playerNumber is not 1 and not 2) throw new ArgumentOutOfRangeException(nameof(playerNumber));
         cancellation.ThrowIfCancellationRequested();
         host.LoadPicture(); host.Capture(); host.Message("Waiting for other player."u8.ToArray());
-        host.Present(); host.FadeIn(); host.Connect();
+        host.Present(); host.FadeIn();
+        if (connect is null) host.Connect();
+        else connect();
         game.TwoPlayerMode = true;
         if (playerNumber == 1)
         {

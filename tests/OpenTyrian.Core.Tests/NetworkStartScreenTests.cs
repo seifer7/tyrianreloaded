@@ -105,10 +105,12 @@ internal static class NetworkStartScreenTests
             var colors = Enumerable.Range(0, 256).Select(n => new PaletteColor((byte)n, (byte)n, (byte)n)).ToArray();
             var host = new NetworkStartHost(surface, saved, font, palette, colors, timer,
                 () => surface.Pixels.Span.Fill(0x75), () => Interlocked.Increment(ref presentations[i]),
-                () => sessions[i].Connect(episodes[i], (ushort)(i + 1), i == 0 ? "Alpha"u8 : "Beta"u8, () => { }, cancellation.Token),
+                () => throw new InvalidOperationException("Integrated network start must use its session connector."),
                 () => { selects[i]++; games[i].Episode = 2; return true; }, () => { selects[i]++; games[i].Difficulty = 2; return true; },
                 episode => { Interlocked.Increment(ref initialized); return episode; });
-            return new NetworkStartScreen(games[i], items, text, inputs[i], host, new NetworkStartChannel(sessions[i]));
+            return new NetworkStartScreen(games[i], items, text, inputs[i], host, new NetworkStartChannel(sessions[i]),
+                () => sessions[i].Connect(episodes[i], (ushort)(i + 1),
+                    i == 0 ? "Alpha"u8 : "Beta"u8, () => { }, cancellation.Token));
         }).ToArray();
         Task.WhenAll(Enumerable.Range(0, 2).Select(i => Task.Run(() => screens[i].Run(i + 1, cancellation.Token)))).GetAwaiter().GetResult();
         if (games.Any(game => !game.TwoPlayerMode || game.Episode != 2 || game.Difficulty != 3 || game.InitialDifficulty != 2 ||

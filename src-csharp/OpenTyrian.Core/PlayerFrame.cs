@@ -27,6 +27,7 @@ public sealed class PlayerFrame(IReadOnlyList<PlayerState> players, PlayerCombat
     PlayerMovement movement, PlayerInput input, PlayerWeapons weapons, PlayerSpecialWeapons special,
     PlayerShots shots, ItemDatabase items, SceneEffects effects, EnemySystem enemies)
 {
+    public PlayerInput Input => input;
     public bool[] Buttons { get; } = new bool[4];
     public byte Episode { get; set; } = 1;
     public bool Background2 { get; set; }

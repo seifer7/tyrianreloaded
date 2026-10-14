@@ -7,9 +7,6 @@ namespace OpenTyrian.Core.Tests;
 
 internal static class EpisodeCompletionTests
 {
-    private static readonly byte[] NextShip = [3, 9, 6, 2, 5, 1, 4, 3, 7];
-    private static readonly byte[] ShipLookup = [3, 1, 5, 10, 2, 11, 12];
-
     public static void Run(string? executable = null)
     {
         var trace = new StringBuilder();
@@ -79,7 +76,7 @@ internal static class EpisodeCompletionTests
         => new(Enumerable.Range(0, 10).Select(i => Encoding.ASCII.GetBytes($"Ship{i}")).ToArray(),
             Enumerable.Range(0, 10).Select(i => Encoding.ASCII.GetBytes($"Code{i}")).ToArray(),
             "Engage"u8.ToArray(), "Ace"u8.ToArray(),
-            Enumerable.Range(0, 16).Select(i => (ushort)(50 + i)).ToArray(), NextShip, ShipLookup);
+            Enumerable.Range(0, 16).Select(i => (ushort)(50 + i)).ToArray());
 
     private static MemoryStream MakeEpisode()
     {

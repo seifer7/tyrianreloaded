@@ -48,7 +48,8 @@ public sealed partial class EnemySystem(ItemDatabase items, TextWriter warnings)
                 if (result.Chain > 0)
                 {
                     shots.MultiPosition[4] = 0;
-                    shots.Create(0, 4, (ushort)result.X, (ushort)result.Y, mouseX, mouseY, result.Chain, result.PlayerNumber);
+                    shots.CreateTyped(0, PlayerShotSlot.Miscellaneous, (ushort)result.X, (ushort)result.Y,
+                        mouseX, mouseY, result.Chain, result.PlayerNumber);
                     shots.Availability[index] = 0;
                     return;
                 }

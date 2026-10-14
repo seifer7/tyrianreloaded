@@ -64,7 +64,7 @@ public static class EpisodeLevelJump
         }
     }
 
-    private static int ParseAtoi(ReadOnlySpan<byte> text)
+    internal static int ParseAtoi(ReadOnlySpan<byte> text)
     {
         var index = 0;
         while (index < text.Length && text[index] is 9 or 10 or 11 or 12 or 13 or 32)

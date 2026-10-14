@@ -18,6 +18,10 @@ public sealed class LegacyGameState
     public bool GalagaMode { get; set; }
     public bool GameJustLoaded { get; set; }
     public bool GameLoaded { get; set; }
+    public bool EndLevel { get; set; }
+    public bool ReallyEndLevel { get; set; }
+    public bool PlayerEndLevel { get; set; }
+    public bool DoNotSaveBackup { get; set; }
     public sbyte InitialDifficulty { get; set; }
     public sbyte Difficulty { get; set; }
     public sbyte OldDifficulty { get; set; }

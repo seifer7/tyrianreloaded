@@ -39,6 +39,18 @@ public sealed class GameConfiguration(IKeyboardNames keyboard)
     public int ShopContent { get; set; }
     public int[] Keys { get; } = DefaultKeys.ToArray();
 
+    public int GetKey(KeySetting setting) => Keys[KeyIndex(setting)];
+
+    public void SetKey(KeySetting setting, int scancode)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(scancode);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(scancode, 512);
+        Keys[KeyIndex(setting)] = scancode;
+    }
+
+    private static int KeyIndex(KeySetting setting)
+        => (uint)setting < KeyNames.Length ? (int)setting : throw new ArgumentOutOfRangeException(nameof(setting));
+
     private void Defaults()
     {
         FullscreenDisplay = -1;
@@ -65,7 +77,7 @@ public sealed class GameConfiguration(IKeyboardNames keyboard)
             {
                 if (!section.TryGetString(KeyNames[i], out var name)) continue;
                 var scancode = keyboard.FromName(name!);
-                if (scancode != 0) Keys[i] = scancode;
+                if (scancode != 0) SetKey((KeySetting)i, scancode);
             }
         }
         section = Text.FindSection("gameplay");
@@ -103,7 +115,7 @@ public sealed class GameConfiguration(IKeyboardNames keyboard)
         section = Text.FindOrAddSection("keyboard");
         for (var i = 0; i < Keys.Length; i++)
         {
-            var name = keyboard.Name(Keys[i]);
+            var name = keyboard.Name(GetKey((KeySetting)i));
             section.SetOption(KeyNames[i], name.Length == 0 ? null : name);
         }
         Text.FindOrAddSection("gameplay").SetInt32("shop_content", ShopContent);

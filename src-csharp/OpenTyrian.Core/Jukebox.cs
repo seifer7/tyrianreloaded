@@ -55,13 +55,13 @@ public interface IJukeboxPresentation
     void Present();
 }
 
-public sealed class JukeboxPresentation(IndexedSurface screen, PaletteSystem palette, ReadOnlyMemory<PaletteColor> colors,
-    FontRenderer font, JukeboxStarfield stars, InputState input, Action present) : IJukeboxPresentation
+public sealed class JukeboxPresentation(IndexedSurface screen, PaletteSystem palette, FontRenderer font,
+    JukeboxStarfield stars, InputState input, Action present) : IJukeboxPresentation
 {
     private int[,] _fade = new int[256, 3];
     public void Initialize()
     {
-        _fade = palette.InitializeFade(colors.Span, 0, 255);
+        _fade = palette.InitializeFade(JukeboxPalette.Colors.Span, 0, 255);
         stars.Initialize();
     }
     public void Stars()
@@ -173,22 +173,6 @@ public sealed class Jukebox(InputState input, DelayTimer timer, IJukeboxAudio au
 
 public static class JukeboxTitles
 {
-    public static IReadOnlyList<string> Music { get; } = Array.AsReadOnly(new[]
-    {
-        "Asteroid Dance Part 2", "Asteroid Dance Part 1", "Buy/Sell Music", "CAMANIS", "CAMANISE",
-        "Deli Shop Quartet", "Deli Shop Quartet No. 2", "Ending Number 1", "Ending Number 2", "End of Level",
-        "Game Over Solo", "Gryphons of the West", "Somebody pick up the Gryphone", "Gyges, Will You Please Help Me?",
-        "I speak Gygese", "Halloween Ramble", "Tunneling Trolls", "Tyrian, The Level", "The MusicMan", "The Navigator",
-        "Come Back to Me, Savara", "Come Back again to Savara", "Space Journey 1", "Space Journey 2", "The final edge",
-        "START5", "Parlance", "Torm - The Gathering", "TRANSON", "Tyrian: The Song", "ZANAC3", "ZANACS",
-        "Return me to Savara", "High Score Table", "One Mustn't Fall", "Sarah's Song", "A Field for Mag",
-        "Rock Garden", "Quest for Peace", "Composition in Q", "BEER"
-    });
-    public static IReadOnlyList<string> Sounds { get; } = Array.AsReadOnly(new[]
-    {
-        "SCALEDN2", "F2", "TEMP10", "EXPLSM", "PASS3", "TEMP2", "BYPASS1", "EXP1RT", "EXPLLOW", "TEMP13",
-        "EXPRETAP", "MT2BOOM", "TEMP3", "LAZB", "LAZGUN2", "SPRING", "WARNING", "ITEM", "HIT2", "MACHNGUN",
-        "HYPERD2", "EXPLHUG", "CLINK1", "CLICK", "SCALEDN1", "TEMP11", "TEMP16", "SMALL1", "POWERUP",
-        "VOICE1", "VOICE2", "VOICE3", "VOICE4", "VOICE5", "VOICE6", "VOICE7", "VOICE8", "VOICE9"
-    });
+    public static IReadOnlyList<string> Music => MusicMaster.Titles;
+    public static IReadOnlyList<string> Sounds => SoundMaster.Titles;
 }

@@ -12,6 +12,8 @@ namespace OpenTyrian.Core;
 public sealed class PlayerInput(InputState input, JoystickInput joystickInput, IReadOnlyList<JoystickState> joysticks,
     IReadOnlyList<int> keys, PlayerMovement motion, PlayerCombat combat, LevelEvents level, NetworkRequests requests)
 {
+    public InputState InputState => input;
+    public NetworkRequests Requests { get; } = requests;
     public bool NetworkGame { get; set; }
     public byte LocalPlayer { get; set; } = 1;
     public bool HasMouse { get; set; } = true;
@@ -85,7 +87,7 @@ public sealed class PlayerInput(InputState input, JoystickInput joystickInput, I
                     }
                     buttons[0] |= joystick.Action[0]; buttons[1] |= joystick.Action[2];
                     buttons[2] |= joystick.Action[3]; buttons[3] |= joystick.ActionPressed[1];
-                    requests.InGameMenuPressed |= joystick.ActionPressed[4]; requests.PausePressed |= joystick.ActionPressed[5];
+                    Requests.InGameMenuPressed |= joystick.ActionPressed[4]; Requests.PausePressed |= joystick.ActionPressed[5];
                 }
             }
             input.ServiceEvents(false);

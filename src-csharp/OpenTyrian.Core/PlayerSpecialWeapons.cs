@@ -40,7 +40,7 @@ public sealed class PlayerSpecialWeapons(ItemDatabase items, PlayerShots shots, 
         switch (special.Stype)
         {
             case 1:
-                Create(10, players[playerNumber - 1].X, players[playerNumber - 1].Y, special.Wpn, playerNumber);
+                CreateTyped(PlayerShotSlot.SpecialTwo, players[playerNumber - 1].X, players[playerNumber - 1].Y, special.Wpn, playerNumber);
                 shots.Repeat[8] = shots.Repeat[10];
                 break;
             case 2:
@@ -90,7 +90,7 @@ public sealed class PlayerSpecialWeapons(ItemDatabase items, PlayerShots shots, 
                 if (ArcadeMode is > 0 and <= 7)
                 {
                     shots.Repeat[8] = 250;
-                    Create(10, players[0].X, players[0].Y, 707, 1);
+                    CreateTyped(PlayerShotSlot.SpecialTwo, players[0].X, players[0].Y, 707, 1);
                     players[0].InvulnerableTicks = 100;
                 }
                 break;
@@ -116,8 +116,8 @@ public sealed class PlayerSpecialWeapons(ItemDatabase items, PlayerShots shots, 
                 break;
         }
 
-        void Create(uint bay, int x, int y, ushort shot, byte owner)
-            => shots.Create(0, bay, unchecked((ushort)x), unchecked((ushort)y), mouseX, mouseY, shot, owner);
+        void CreateTyped(PlayerShotSlot bay, int x, int y, ushort shot, byte owner)
+            => shots.CreateTyped(0, bay, unchecked((ushort)x), unchecked((ushort)y), mouseX, mouseY, shot, owner);
         void Zinglon() { ZinglonDuration = 50; shots.Repeat[8] = 100; effects.SoundQueue[7] = 21; }
     }
 
@@ -207,14 +207,14 @@ public sealed class PlayerSpecialWeapons(ItemDatabase items, PlayerShots shots, 
                 if (LinkToPlayer)
                 {
                     if (shots.Repeat[8] == 0)
-                        id = shots.Create(0, 8, unchecked((ushort)players[0].X), unchecked((ushort)players[0].Y),
+                        id = shots.CreateTyped(0, PlayerShotSlot.Special, unchecked((ushort)players[0].X), unchecked((ushort)players[0].Y),
                             mouseX, mouseY, Weapon, playerNumber);
                 }
                 else
                 {
                     var y = (ushort)(MersenneTwister.NextUInt32() % 180);
                     var x = (ushort)(MersenneTwister.NextUInt32() % 280);
-                    id = shots.Create(0, 8, x, y, mouseX, mouseY, Weapon, playerNumber);
+                    id = shots.CreateTyped(0, PlayerShotSlot.Special, x, y, mouseX, mouseY, Weapon, playerNumber);
                 }
                 if (Spray && id != PlayerShots.Capacity)
                 {

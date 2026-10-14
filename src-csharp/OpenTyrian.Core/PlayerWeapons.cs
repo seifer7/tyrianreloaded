@@ -50,31 +50,6 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
     }
     public byte[][] SpecialCodeProgress { get; } = [new byte[21], new byte[21]];
     public byte[] ExecutedSpecial { get; } = new byte[2];
-    private static readonly byte[][] KeyboardCombos =
-    [
-        [2, 1, 2, 5, 137, 0, 0, 0], [4, 3, 2, 5, 138, 0, 0, 0],
-        [3, 4, 6, 139, 0, 0, 0, 0], [2, 5, 142, 0, 0, 0, 0, 0],
-        [6, 2, 6, 143, 0, 0, 0, 0], [6, 7, 5, 8, 6, 7, 5, 112],
-        [7, 8, 101, 0, 0, 0, 0, 0], [1, 7, 6, 146, 0, 0, 0, 0],
-        [8, 6, 7, 1, 120, 0, 0, 0], [3, 6, 8, 5, 121, 0, 0, 0],
-        [1, 2, 7, 8, 119, 0, 0, 0], [3, 4, 3, 6, 123, 0, 0, 0],
-        [6, 7, 5, 8, 124, 0, 0, 0], [1, 6, 125, 0, 0, 0, 0, 0],
-        [9, 5, 126, 0, 0, 0, 0, 0], [1, 7, 127, 0, 0, 0, 0, 0],
-        [1, 8, 128, 0, 0, 0, 0, 0], [9, 7, 129, 0, 0, 0, 0, 0],
-        [9, 8, 130, 0, 0, 0, 0, 0], [4, 2, 3, 5, 131, 0, 0, 0],
-        [3, 1, 2, 8, 132, 0, 0, 0], [2, 4, 5, 133, 0, 0, 0, 0],
-        [3, 4, 2, 8, 134, 0, 0, 0], [1, 4, 6, 135, 0, 0, 0, 0],
-        [1, 3, 6, 137, 0, 0, 0, 0], [1, 4, 3, 4, 7, 136, 0, 0]
-    ];
-    private static readonly byte[][] ShipCombos =
-    [
-        [5, 4, 7], [1, 2, 0], [14, 4, 0], [4, 5, 0], [6, 5, 0], [7, 8, 0],
-        [7, 9, 0], [10, 3, 5], [5, 8, 9], [1, 3, 0], [7, 16, 17],
-        [2, 11, 12], [3, 8, 10], [0, 0, 0]
-    ];
-    private static readonly byte[] SuperShipCombos =
-        [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 7, 8, 5, 25, 14, 4, 6, 3, 9, 2, 26];
-
     public void UpdateAttacks(PlayerState player, byte playerNumber, ushort graphic, ushort mouseX, ushort mouseY,
         ReadOnlySpan<bool> buttons, byte arcadeMode, sbyte difficulty, bool endLevel, PlayerMovement movement,
         PlayerSpecialWeapons special, IndexedSurface game, IndexedSurface hud,
@@ -102,7 +77,7 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
         var ship = shots.Players[playerNumber - 1].Items.Ship;
         if (playerNumber == 2 && ship < 15) ship = 0;
         if (ship >= 15) return;
-        if (!superTyrian && ship >= ShipCombos.Length)
+        if (!superTyrian && ship >= LegacyGameTables.PlayerSpecialShipComboCount)
             throw new InvalidDataException("Player ship exceeds native special-command tables.");
         var count = (oldY > y ? 1 : 0) + (oldY < y ? 1 : 0) + (x < oldX ? 1 : 0) + (x > oldX ? 1 : 0);
         var direction = (oldY > y ? 1 : 0) + (oldY < y ? 2 : 0) + (x < oldX ? 3 : 0) + (x > oldX ? 4 : 0);
@@ -114,23 +89,27 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
         if (count != 1) return;
         direction += buttons[0] ? 4 : 0;
         var progress = SpecialCodeProgress[playerNumber - 1];
-        for (var i = 0; i < (superTyrian ? 21 : 3); i++)
+        for (var i = 0; i < (superTyrian ? LegacyGameTables.SuperTyrianSpecialCount : 3); i++)
         {
-            var combo = superTyrian ? SuperShipCombos[i] : ShipCombos[ship][i];
+            var combo = superTyrian
+                ? LegacyGameTables.SuperTyrianSpecialCombo(i)
+                : LegacyGameTables.PlayerSpecialShipCombo(ship, i);
             if (combo == 0) { progress[i] = 0; continue; }
-            var keys = KeyboardCombos[combo - 1];
-            if (progress[i] >= keys.Length - 1)
+            var keyCombo = combo - 1;
+            if (keyCombo >= LegacyGameTables.KeyboardComboCount)
+                throw new InvalidDataException("Special-command mapping exceeds native keyboard tables.");
+            if (progress[i] >= LegacyGameTables.KeyboardComboLength - 1)
                 throw new InvalidDataException("Special-command progress exceeds native key tables.");
-            var next = keys[progress[i]];
+            var next = LegacyGameTables.KeyboardComboStep(keyCombo, progress[i]);
             if (next == direction)
             {
                 progress[i]++;
-                next = keys[progress[i]];
+                next = LegacyGameTables.KeyboardComboStep(keyCombo, progress[i]);
                 if (next is > 100 and <= 146)
                 { progress[i] = 0; ExecutedSpecial[playerNumber - 1] = (byte)(next - 100); }
             }
             else if (direction != 9 && (next - 1) % 4 != (direction - 1) % 4 &&
-                (progress[i] == 0 || keys[progress[i] - 1] != direction))
+                (progress[i] == 0 || LegacyGameTables.KeyboardComboStep(keyCombo, progress[i] - 1) != direction))
                 progress[i] = 0;
         }
     }
@@ -144,13 +123,11 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
         shots.MultiPosition[1] = 0;
         if (arcadeMode is >= 1 and <= 7)
         {
-            ReadOnlySpan<int> first = [7, 8, 9, 10, 11, 12, 13];
-            ReadOnlySpan<int> second = [37, 6, 15, 40, 16, 14, 41];
             shots.MultiPosition[8] = shots.MultiPosition[10] = 0;
-            var primary = Special(first[arcadeMode - 1]);
+            var primary = Special(LegacyGameTables.SuperArcadeSpecialWeapon(arcadeMode - 1, 0));
             if (shots.Players[0].Items.Special == primary)
             {
-                shots.Players[0].Items.Special = Special(second[arcadeMode - 1]);
+                shots.Players[0].Items.Special = Special(LegacyGameTables.SuperArcadeSpecialWeapon(arcadeMode - 1, 1));
                 player.WeaponMode = 2;
             }
             else
@@ -167,7 +144,7 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
         drawButtons();
         ModeChangeReady = false;
 
-        byte Special(int id)
+        byte Special(byte id)
         {
             var index = items.Index(ItemType.Special, id);
             if (index < 0) throw new InvalidDataException($"Arcade special weapon {id} is missing.");
@@ -203,7 +180,8 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
                 var mode = port == 1 ? unchecked((int)player.WeaponMode - 1) : 0;
                 if (power is < 0 or >= 11 || mode is < 0 or >= 2)
                     throw new InvalidDataException("Player weapon power or mode exceeds native firing tables.");
-                shots.Create(weapon.Id, (uint)port, unchecked((ushort)player.X), unchecked((ushort)player.Y),
+                shots.CreateTyped(weapon.Id, port == 0 ? PlayerShotSlot.Front : PlayerShotSlot.Rear,
+                    unchecked((ushort)player.X), unchecked((ushort)player.Y),
                     mouseX, mouseY, items.Weapons[weapon.Id].Op[mode][power], playerNumber);
             }
         }
@@ -215,14 +193,14 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
         Validate(ownerNumber, buttons);
         var owner = shots.Players[ownerNumber - 1];
         if (owner.Superbombs == 0) return;
-        var bay = 6 + ownerNumber - 1;
-        if (shots.Repeat[bay] > 0) shots.Repeat[bay]--;
+        var bay = ownerNumber == 1 ? PlayerShotSlot.PlayerOneSuperbomb : PlayerShotSlot.PlayerTwoSuperbomb;
+        if (shots.Repeat[(int)bay] > 0) shots.Repeat[(int)bay]--;
         else if (buttons[2] || buttons[1])
         {
             owner.Superbombs--;
-            shots.MultiPosition[bay] = 0;
+            shots.MultiPosition[(int)bay] = 0;
             // The original uses these literal indices rather than ID lookup.
-            shots.Create(16, (uint)bay, unchecked((ushort)player.X), unchecked((ushort)player.Y),
+            shots.CreateTyped(16, bay, unchecked((ushort)player.X), unchecked((ushort)player.Y),
                 mouseX, mouseY, 535, playerNumber);
         }
     }
@@ -252,13 +230,13 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
         }
         if (ChargeLevel > 5) throw new InvalidDataException("Charge maximum exceeds its five native shot levels.");
         if (ChargeLevel > 0) Bar(204);
-        const int bay = 5;
-        if (shots.Repeat[bay] > 0) shots.Repeat[bay]--;
+        const PlayerShotSlot bay = PlayerShotSlot.PlayerTwoCharge;
+        if (shots.Repeat[(int)bay] > 0) shots.Repeat[(int)bay]--;
         else if (buttons[0] && (!combat.Linked || ChargeLevel > 0))
         {
-            shots.MultiPosition[bay] = 0;
+            shots.MultiPosition[(int)bay] = 0;
             var ownerWeapon = shots.Players[1].Items.Weapons[1].Id;
-            shots.Create(checked((ushort)items.KnownIndex(KnownItem.WeaponFrontMiscellaneous)), bay,
+            shots.CreateTyped(checked((ushort)items.KnownIndex(KnownItem.WeaponFrontMiscellaneous)), bay,
                 unchecked((ushort)player.X), unchecked((ushort)player.Y), mouseX, mouseY,
                 checked((ushort)items.Weapons[ownerWeapon].ChargeGunWeapons[ChargeLevel > 0 ? ChargeLevel - 1 : 0]), playerNumber);
             if (ChargeLevel > 0) Bar(193);
@@ -276,10 +254,10 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
         if (playerNumber != 2 && combat.TwoPlayers) return;
         for (var i = 0; i < 2; i++)
         {
-            var bay = 2 + i;
+            var bay = i == 0 ? PlayerShotSlot.LeftSidekick : PlayerShotSlot.RightSidekick;
             var option = items.Sidekicks[player.Items.Sidekicks[i]];
             if (option.WPort == 0) continue;
-            if (shots.Repeat[bay] > 0) { shots.Repeat[bay]--; continue; }
+            if (shots.Repeat[(int)bay] > 0) { shots.Repeat[(int)bay]--; continue; }
             var sidekick = player.Sidekicks[i];
             var maximum = sidekick.AmmoMax;
             var y = (combat.TwoPlayers ? 108 : 64) + i * 18 + 13;
@@ -308,11 +286,11 @@ public sealed class PlayerWeapons(PlayerShots shots, ItemDatabase items, PlayerC
                 ResetCharge();
             }
 
-            void Fire() => shots.Create(checked((ushort)option.WPort), (uint)bay, unchecked((ushort)sidekick.X),
+            void Fire() => shots.CreateTyped(checked((ushort)option.WPort), bay, unchecked((ushort)sidekick.X),
                 unchecked((ushort)sidekick.Y), mouseX, mouseY, unchecked((ushort)(option.Wpnum + sidekick.Charge)), playerNumber);
             void ResetCharge()
             {
-                if (sidekick.Charge > 0) { shots.MultiPosition[bay] = 0; sidekick.Charge = 0; }
+                if (sidekick.Charge > 0) { shots.MultiPosition[(int)bay] = 0; sidekick.Charge = 0; }
                 sidekick.ChargeTicks = 20; sidekick.AnimationEnabled = true;
             }
             void Gauge()

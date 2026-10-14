@@ -83,6 +83,7 @@ internal static class SdlAudioTests
         if (Environment.GetEnvironmentVariable("SDL_AUDIODRIVER") != "dummy")
             throw new InvalidOperationException("SDL audio device checks require SDL_AUDIODRIVER=dummy to avoid physical audio.");
         TestDisabledInitialization();
+        TestRuntimeAudioSession();
         using (var device = new SdlAudioDevice(rate => new AudioMixer(rate, new SilentMusic())))
         {
             if (device.SampleRate != 44100 || device.BufferSamples != 1024)
@@ -161,6 +162,72 @@ internal static class SdlAudioTests
         failed.Dispose();
         using var afterFailure = new SdlAudioDevice(rate => new AudioMixer(rate, new SilentMusic()));
         afterFailure.Start(); WaitFor(() => afterFailure.CompletedCallbacks > 0, afterFailure.ThrowIfFaulted);
+    }
+
+    private static void TestRuntimeAudioSession()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"opentyrian-audio-session-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.WriteAllBytes(Path.Combine(directory, "tyrian1.lvl"), []);
+            File.WriteAllBytes(Path.Combine(directory, "tyrian.snd"), SoundBankTests.BuildBank(29, false, 0));
+            File.WriteAllBytes(Path.Combine(directory, "voices.snd"), SoundBankTests.BuildBank(9, true, 1));
+            var files = new DataFiles(directory, directory);
+            var disabled = true;
+            using (var diagnostics = new StringWriter())
+            {
+                if (GameRuntimeAudioSession.TryInitialize(files, false, ref disabled, diagnostics, out var silent) ||
+                    silent is not null || !disabled || diagnostics.ToString().Length != 0)
+                    throw new InvalidOperationException("Audio-disabled startup initialized a live runtime audio session.");
+            }
+
+            var missingMusicDisabled = false;
+            Throws<IOException>(() => GameRuntimeAudioSession.TryInitialize(files, false, ref missingMusicDisabled,
+                TextWriter.Null, out _));
+            if (missingMusicDisabled)
+                throw new InvalidOperationException("A runtime music asset failure was silently treated as unavailable audio.");
+
+            File.WriteAllBytes(Path.Combine(directory, "music.mus"), MusicArchive(LdsPlayerTests.FixtureForAudio()));
+            var audioDisabled = false;
+            using (var diagnostics = new StringWriter())
+            {
+                if (!GameRuntimeAudioSession.TryInitialize(files, false, ref audioDisabled, diagnostics, out var session,
+                        () => 1) ||
+                    session is null || audioDisabled || diagnostics.ToString().Length != 0)
+                {
+                    session?.Dispose();
+                    throw new InvalidOperationException("Runtime SDL audio session failed to load with the dummy audio device.");
+                }
+                using (session)
+                {
+                    if (session.SampleRate != 44100 || !session.Mixer.MusicStopped)
+                        throw new InvalidOperationException("Runtime audio session did not share the live SDL mixer.");
+                    session.Pause();
+                    session.PlaySample(5);
+                    if (session.Mixer.RemainingSamples(0) == 0)
+                        throw new InvalidOperationException("Runtime sound sample did not enter the shared SDL mixer.");
+                    session.PlaySong(0);
+                    session.Start();
+                    WaitFor(() => session.CompletedCallbacks > 0, session.ThrowIfFaulted);
+                    session.Pause();
+                    session.StopSong();
+                }
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static byte[] MusicArchive(byte[] song)
+    {
+        using var stream = new MemoryStream();
+        BinaryFile.WriteUInt16(stream, 1);
+        BinaryFile.WriteUInt32(stream, checked((uint)(2 + sizeof(uint))));
+        stream.Write(song);
+        return stream.ToArray();
     }
 
     private static void WaitFor(Func<bool> ready, Action checkFault)

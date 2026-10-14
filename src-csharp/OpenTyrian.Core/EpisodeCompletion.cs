@@ -36,17 +36,13 @@ public sealed class EpisodeSuperArcadeData(
     IReadOnlyList<byte[]> specialNames,
     ReadOnlyMemory<byte> engageTitle,
     ReadOnlyMemory<byte> playerName,
-    IReadOnlyList<ushort> shipGraphics,
-    IReadOnlyList<byte> nextShip,
-    IReadOnlyList<byte> shipLookup)
+    IReadOnlyList<ushort> shipGraphics)
 {
     public IReadOnlyList<byte[]> SuperShips { get; } = superShips;
     public IReadOnlyList<byte[]> SpecialNames { get; } = specialNames;
     public ReadOnlyMemory<byte> EngageTitle { get; } = engageTitle;
     public ReadOnlyMemory<byte> PlayerName { get; } = playerName;
     public IReadOnlyList<ushort> ShipGraphics { get; } = shipGraphics;
-    public IReadOnlyList<byte> NextShip { get; } = nextShip;
-    public IReadOnlyList<byte> ShipLookup { get; } = shipLookup;
 }
 
 public interface IEpisodeCompletionHost
@@ -64,6 +60,44 @@ public interface IEpisodeCompletionHost
     void FadePalette(int steps, int firstColor, int lastColor);
     void WaitInput(bool clearEvents, bool allowKeyboard, bool allowMouse);
     void ReadTextSync();
+}
+
+public sealed class EpisodeCompletionHost(IndexedSurface surface, SpriteSheet ships, FontRenderer font,
+    PaletteSystem palette, ReadOnlyMemory<PaletteColor> colors, InputState input, DelayTimer timer,
+    Action displayText, Action nextEpisode, Action<int> loadPicture, Action present,
+    Action readTextSync) : IEpisodeCompletionHost
+{
+    public void WipeKey() => input.ClearKeyboard();
+    public void DisplayText() => displayText();
+    public void FadeBlack(int steps)
+        => palette.FadeBlack(steps, () => timer.SetDelay(1), present, timer.Wait);
+    public void NextEpisode() => nextEpisode();
+    public void LoadPicture(int number) => loadPicture(number);
+    public void Clear() => surface.Pixels.Span.Clear();
+    public void DrawCentered(int y, ReadOnlyMemory<byte> text, int fontIndex)
+    {
+        var selectedFont = SelectFont(fontIndex);
+        font.DrawString(surface, font.Center(text.Span, selectedFont), y, text.Span, selectedFont);
+    }
+    public void DrawText(int x, int y, ReadOnlyMemory<byte> text, int fontIndex)
+        => font.DrawString(surface, x, y, text.Span, SelectFont(fontIndex));
+    public void DrawShip(int x, int y, ushort graphic) => ships.Blit2x2(surface, x, y, graphic);
+    public void Present() => present();
+    public void FadePalette(int steps, int firstColor, int lastColor)
+        => palette.FadePalette(colors.Span, steps, firstColor, lastColor,
+            () => timer.SetDelay(1), present, timer.Wait);
+    public void WaitInput(bool clearEvents, bool allowKeyboard, bool allowMouse)
+    {
+        if (clearEvents)
+            input.FlushEvents();
+        input.WaitInput(allowKeyboard, allowMouse, true);
+    }
+    public void ReadTextSync() => readTextSync();
+
+    private static Font SelectFont(int index)
+        => Enum.IsDefined((Font)index)
+            ? (Font)index
+            : throw new ArgumentOutOfRangeException(nameof(index), index, "Episode completion selected an unsupported font.");
 }
 
 public sealed class EpisodeCompletion
@@ -149,7 +183,7 @@ public sealed class EpisodeCompletion
 
         if (_state.SuperArcadeMode < 9)
         {
-            var unlock = TableValue(_superArcade.NextShip, _state.SuperArcadeMode, "next-ship");
+            var unlock = LegacyGameTables.SuperArcadeNextShip(_state.SuperArcadeMode);
             if (unlock == 9)
             {
                 _host.DrawCentered(100, Join(_superArcade.EngageTitle.Span, _superArcade.PlayerName.Span), 0);
@@ -163,7 +197,7 @@ public sealed class EpisodeCompletion
 
             if (unlock < 7)
             {
-                var shipIndex = TableValue(_superArcade.ShipLookup, unlock - 1, "ship-lookup");
+                var shipIndex = LegacyGameTables.ArcadeShip(unlock - 1);
                 _host.DrawShip(148, 70, TableValue(_superArcade.ShipGraphics, shipIndex, "ship-graphic"));
             }
             else if (unlock == 7)

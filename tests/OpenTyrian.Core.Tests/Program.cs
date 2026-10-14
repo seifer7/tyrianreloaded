@@ -16,6 +16,36 @@ if (args.Length == 1 && args[0] == "--test-sdl-audio-device")
     }
 }
 
+if (args.Length == 1 && args[0] == "--test-runtime-platform")
+{
+    try
+    {
+        GameRuntimePlatformTests.Run();
+        Console.WriteLine("PASS SDL runtime platform initialization, failure cleanup, and settings persistence");
+        return 0;
+    }
+    catch (Exception error)
+    {
+        Console.Error.WriteLine($"FAIL SDL runtime platform initialization: {error}");
+        return 1;
+    }
+}
+
+if (args.Length == 1 && args[0] == "--test-sdl-net")
+{
+    try
+    {
+        SdlNetTests.Run();
+        Console.WriteLine("PASS SDL2_net transport, gameplay sync, and runtime screen composition");
+        return 0;
+    }
+    catch (Exception error)
+    {
+        Console.Error.WriteLine($"FAIL SDL2_net transport and runtime screen composition: {error}");
+        return 1;
+    }
+}
+
 if (args.Length == 2 && args[0] == "--sdl-shutdown-child")
 {
     GameShutdownTests.RunSdlChild(int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture));
@@ -48,6 +78,8 @@ Run("animation run/skip/copy decoding", AnimationDecoderTests.Run);
 Run("animation playback frames, palette, input interruption, and PIT timing", () => AnimationPlayerTests.Run());
 Run("jukebox star patterns, depth rendering, keyboard controls, and seeded RNG", () => JukeboxStarfieldTests.Run());
 Run("jukebox music/sample controls, fades, presentation, and quit flows", () => JukeboxTests.Run());
+Run("shared native music-master state", MusicMasterTests.Run);
+Run("native VGA jukebox palette", JukeboxPaletteTests.Run);
 Run("HQ2x/HQ3x/HQ4x patterns, YUV thresholds, interpolation and pitch", () => HqVideoScalerTests.Run());
 Run("network control queues, retry timing, delayed states and XOR recovery", () => NetworkSessionTests.Run());
 Run("gameplay network payloads, delayed requests, NortShip and desync diagnostics", () => LevelNetworkTests.Run());
@@ -104,22 +136,33 @@ Run("level map offsets, background state, power and ship initialization", () => 
 Run("level-entry gameplay, render, warning, event and input flag initialization", () => LevelFlagsInitializerTests.Run());
 Run("level status, shield, armor, song and port initialization", () => LevelStatusDisplayInitializerTests.Run());
 Run("level combat, effects, weapons and background reset", () => LevelCombatStateInitializerTests.Run());
+Run("level main initialization, demo/network gates and multi-level loop", LevelMainLoopTests.Run);
+Run("level frame event, gameplay, render and input orchestration", LevelFrameTests.Run);
+Run("episode command parsing, section jumps and map-loader routing", EpisodeMapLoaderTests.Run);
+Run("game startup, platform failure, network gate and outer game loop", GameStartupTests.Run);
+Run("runtime asset loading and ownership", GameRuntimeAssetsTests.Run);
+Run("runtime music and sound asset loading", GameRuntimeAudioTests.Run);
 Run("level transition cleanup, speed, demo and save recovery", () => LevelPreparationTests.Run());
 Run("level HUD shields, Galaga rewards, weapon bars and power", () => LevelHudTests.Run());
 Run("level background layering, filters, enemy passes and progression", () => LevelBackgroundSceneTests.Run());
 Run("binary file format compatibility", BinaryFileTests.Run);
+Run("HDT weapon archive binary/XML compatibility", HdtWeaponArchiveTests.Run);
 Run("configuration model and text format", ConfigurationTests.Run);
+Run("legacy config enums and typed keyboard slots", LegacyConfigurationTypesTests.Run);
 Run("Destruct unit-name mapping", DestructUnitNameTests.Run);
+Run("Destruct unit health and configured reset", DestructUnitTests.Run);
 Run("encrypted text and animation page loading", AssetReaderTests.Run);
 Run("indexed surface primitives", IndexedSurfaceTests.Run);
 Run("palette expansion and fades", PaletteTests.Run);
 Run("PCX and Tyrian picture loading", PictureLoaderTests.Run);
 Run("nearest and edge-aware video scalers", VideoScalerTests.Run);
 Run("player upgrades and lives", PlayerRulesTests.Run);
+Run("native arcade ship, weapon and sidekick tables", LegacyGameTablesTests.Run);
 Run("sprite tables, effects, and compressed sheets", SpriteTests.Run);
 Run("font metrics, alignment, and shadows", FontTests.Run);
 Run("item extraction, CLI, and data-directory lookup", () => ExtractorTests.Run());
 Run("level archive and episode selection", LevelTests.Run);
+Run("level master constants and shape-file table", LevelMasterTests.Run);
 Run("binary level headers, events, shapes, and tile maps", () => LevelMapTests.Run());
 Run("encrypted help archive groups", HelpTextTests.Run);
 Run("help wrapping and state reset", () => HelpTextRendererTests.Run());

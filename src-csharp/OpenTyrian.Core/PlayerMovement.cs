@@ -88,7 +88,7 @@ public sealed class PlayerMovement(IReadOnlyList<PlayerState> players, PlayerCom
                     // Native supported toolchains evaluate the Y argument's RNG call first.
                     var y = unchecked((ushort)(player.Y + MersenneTwister.NextUInt32() % 8 - 4));
                     var x = unchecked((ushort)(player.X + (left ? -7 : 9) + MersenneTwister.NextUInt32() % 8 - 4));
-                    shots.Create(0, 9, x, y, mouseX, mouseY, 671, 1);
+                    shots.CreateTyped(0, PlayerShotSlot.NortSparks, x, y, mouseX, mouseY, 671, 1);
                     shots.Repeat[9] = (byte)(Math.Abs(banking) - 1);
                 }
             }
@@ -216,21 +216,21 @@ public sealed class PlayerMovement(IReadOnlyList<PlayerState> players, PlayerCom
         {
             player.X = players[0].X - (graphic == 0 ? 1 : 0); player.Y = players[0].Y + 8;
             player.XVelocity = players[0].XVelocity; player.YVelocity = 4;
-            const uint miscellaneous = 4, rear = 1;
+            const PlayerShotSlot miscellaneous = PlayerShotSlot.Miscellaneous, rear = PlayerShotSlot.Rear;
             foreach (var (angle, item) in new[] { (LinkGunDirection + 0.2f, KnownItem.Shot148),
                 (LinkGunDirection - 0.2f, KnownItem.Shot148), (LinkGunDirection, KnownItem.Shot147) })
             {
-                shots.MultiPosition[miscellaneous] = 0;
-                shots.Create(0, miscellaneous, unchecked((ushort)(player.X + 1 + Round(MathF.Sin(angle) * 26))),
+                shots.MultiPosition[(int)miscellaneous] = 0;
+                shots.CreateTyped(0, miscellaneous, unchecked((ushort)(player.X + 1 + Round(MathF.Sin(angle) * 26))),
                     unchecked((ushort)(player.Y + Round(MathF.Cos(angle) * 26))), oldX, oldY,
                     checked((ushort)items.KnownIndex(item)), playerNumber);
             }
-            if (shots.Repeat[rear] > 0) shots.Repeat[rear]--;
+            if (shots.Repeat[(int)rear] > 0) shots.Repeat[(int)rear]--;
             else if (buttons[0])
             {
-                shots.MultiPosition[rear] = 0;
+                shots.MultiPosition[(int)rear] = 0;
                 var weapon = player.Items.Weapons[1].Id;
-                var id = shots.Create(0, rear, unchecked((ushort)(player.X + 1 + Round(MathF.Sin(LinkGunDirection) * 20))),
+                var id = shots.CreateTyped(0, rear, unchecked((ushort)(player.X + 1 + Round(MathF.Sin(LinkGunDirection) * 20))),
                     unchecked((ushort)(player.Y + Round(MathF.Cos(LinkGunDirection) * 20))), oldX, oldY,
                     checked((ushort)items.Weapons[weapon].LinkGunWeapon), playerNumber);
                 shots.SetDirection(id, weapon, LinkGunDirection);

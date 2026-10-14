@@ -20,24 +20,6 @@ public sealed class PlayerPickups(IReadOnlyList<PlayerState> players, EnemySyste
     public ushort NextLevel { get; set; }
     public ushort DisplayTime { get; set; }
     public byte DamageRate { get => level.DamageRate; set => level.DamageRate = value; }
-    private static readonly int[][] ArcadeWeapons =
-    [
-        [9, 31, 32, 33, 34], [19, 8, 22, 41, 34], [27, 5, 20, 42, 31],
-        [15, 3, 28, 22, 12], [23, 35, 25, 14, 6], [2, 5, 21, 4, 7], [40, 38, 37, 41, 36]
-    ];
-    private static readonly byte[] ArcadeSpecials =
-        [17, 17, 18, 0, 0, 0, 10, 0, 0, 0, 0, 0, 44, 0, 10, 0, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    private static readonly byte[][][] Options =
-    [
-        [[0, 0], [0, 0], [0, 0]], [[1, 1], [16, 16], [30, 30]], [[2, 2], [29, 29], [29, 20]],
-        [[3, 3], [21, 21], [12, 0]], [[4, 4], [18, 18], [16, 23]], [[0, 0], [0, 0], [0, 0]],
-        [[6, 6], [29, 16], [0, 22]], [[7, 7], [19, 19], [19, 28]], [[0, 0], [0, 0], [0, 0]],
-        [[0, 0], [0, 0], [0, 0]], [[10, 10], [21, 21], [21, 27]], [[0, 0], [0, 0], [0, 0]],
-        [[0, 0], [0, 0], [0, 0]], [[13, 13], [17, 17], [13, 26]], [[0, 0], [0, 0], [0, 0]],
-        [[15, 15], [15, 16], [15, 16]]
-    ];
-
     public string GetName(byte number)
     {
         if (number is < 1 or > 2) throw new ArgumentOutOfRangeException(nameof(number));
@@ -81,7 +63,8 @@ public sealed class PlayerPickups(IReadOnlyList<PlayerState> players, EnemySyste
                 if (index >= shots.Availability.Length)
                     throw new InvalidDataException("Native score-item projectile clear exceeds player shot capacity.");
                 shots.MultiPosition[4] = 0;
-                shots.Create(0, 4, unchecked((ushort)player.X), unchecked((ushort)player.Y), mouseX, mouseY, 104, number);
+                shots.CreateTyped(0, PlayerShotSlot.Miscellaneous, unchecked((ushort)player.X),
+                    unchecked((ushort)player.Y), mouseX, mouseY, 104, number);
                 shots.Availability[index] = 0; break;
             case -4: if (players[number - 1].Superbombs < 10) players[number - 1].Superbombs++; break;
             case -5:
@@ -123,10 +106,10 @@ public sealed class PlayerPickups(IReadOnlyList<PlayerState> players, EnemySyste
         }
         else if (ArcadeMode != 0 && value > 30000)
         {
-            if (ArcadeMode > ArcadeWeapons.Length || value > 30005)
+            if (ArcadeMode > LegacyGameTables.ArcadeShipCount || value > 30005)
                 throw new InvalidDataException("Arcade pickup exceeds native weapon tables.");
             shots.MultiPosition[0] = 0; shots.Repeat[0] = 10;
-            var weapon = Index(ItemType.WeaponFront, ArcadeWeapons[ArcadeMode - 1][value - 30001]);
+            var weapon = Index(ItemType.WeaponFront, LegacyGameTables.ArcadeWeapon(ArcadeMode - 1, value - 30001));
             if (weapon == players[0].Items.Weapons[0].Id)
             {
                 player.Cash = unchecked(player.Cash + 1000);
@@ -155,10 +138,10 @@ public sealed class PlayerPickups(IReadOnlyList<PlayerState> players, EnemySyste
                 if (id != owner.SidekickSeries) { owner.SidekickSeries = (byte)id; owner.SidekickLevel = 101; }
                 else if (owner.SidekickLevel < 103) owner.SidekickLevel++;
                 var upgrade = owner.SidekickLevel - 101;
-                if (owner.SidekickSeries >= Options.Length || (uint)upgrade >= 3)
+                if (owner.SidekickSeries >= LegacyGameTables.SidekickSeriesCount || (uint)upgrade >= LegacyGameTables.SidekickUpgradeCount)
                     throw new InvalidDataException("Sidekick pickup exceeds native upgrade tables.");
                 for (var i = 0; i < 2; i++) owner.Sidekicks[i] = Index(i == 0 ? ItemType.SidekickLeft : ItemType.SidekickRight,
-                    Options[owner.SidekickSeries][upgrade][i]);
+                    LegacyGameTables.SidekickOption(owner.SidekickSeries, upgrade, i));
                 shots.MultiPosition[2] = shots.MultiPosition[3] = 0; drawOptions(); effects.SoundQueue[7] = 29;
             }
             else if (level.OnePlayerAction)
@@ -204,8 +187,8 @@ public sealed class PlayerPickups(IReadOnlyList<PlayerState> players, EnemySyste
             }
             if (enemy.Availability == 1)
             {
-                if (id > ArcadeSpecials.Length) throw new InvalidDataException("Arcade pickup exceeds native special table.");
-                players[0].Items.Special = Index(ItemType.Special, ArcadeSpecials[id - 1]);
+                if (id > LegacyGameTables.ArcadeSpecialCount) throw new InvalidDataException("Arcade pickup exceeds native special table.");
+                players[0].Items.Special = Index(ItemType.Special, LegacyGameTables.ArcadeSpecial(id - 1));
                 if (players[0].Items.Special > 0)
                 { shots.MultiPosition[8] = shots.MultiPosition[10] = shots.Repeat[8] = shots.Repeat[10] = 0; }
                 player.Cash = unchecked(player.Cash + 250);

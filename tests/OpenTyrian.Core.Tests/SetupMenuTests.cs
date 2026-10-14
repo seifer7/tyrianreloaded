@@ -210,7 +210,7 @@ internal static class SetupMenuTests
             void Cursor() { if (sprites.Size != 0) return; using var stream = new MemoryStream(spriteBytes); sprites.Load(stream, spriteBytes.Length); }
             void Background() { background.Pixels.Span.Fill(0x75); pictures++; }
             var jukebox = new Jukebox(input, timer, new JukeboxAudio(music, () => (true, false), samples.Add),
-                new JukeboxPresentation(video.Primary, video.Palette, colors, font, new(), input, video.Present),
+                new JukeboxPresentation(video.Primary, video.Palette, font, new(), input, video.Present),
                 platform.PushJoysticksAsKeyboard);
             var host = new SetupMenuHost(video, background, font, sprites, cursor, colors, timer, music.Mixer, config,
                 Cursor, Background, platform.PushJoysticksAsKeyboard, samples.Add, music.Restart,

@@ -55,10 +55,18 @@ public sealed class MusicController
     public uint SongPlaying { get { uint result = 0; Mixer.ChangeMusic(() => result = _songPlaying); return result; } }
 
     public MusicController(MusicArchive archive, int sampleRate, IMusicPlayer player)
+        : this(archive, new AudioMixer(sampleRate, player), player)
     {
+    }
+
+    public MusicController(MusicArchive archive, AudioMixer mixer, IMusicPlayer player)
+    {
+        ArgumentNullException.ThrowIfNull(archive);
+        ArgumentNullException.ThrowIfNull(mixer);
+        ArgumentNullException.ThrowIfNull(player);
         _archive = archive;
         _player = player;
-        Mixer = new AudioMixer(sampleRate, player);
+        Mixer = mixer;
     }
 
     public void PlaySong(uint index)

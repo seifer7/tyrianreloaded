@@ -27,7 +27,11 @@ public sealed partial class LevelEvents
     public bool ReadyToEndLevel { get; set; }
     public bool EndLevel { get; set; }
     public bool FirstGameOver { get; set; }
-    public bool MusicFade { get; set; }
+    public bool MusicFade
+    {
+        get => MusicMaster.MusicFade;
+        set => MusicMaster.MusicFade = value;
+    }
     public ushort EffectsVolume { get; set; }
     public ushort EnemyFrequency { get; set; }
     public byte SecondOver { get; set; }
@@ -44,7 +48,7 @@ public sealed partial class LevelEvents
     public int SecondWrap { get; set; }
     public int SecondWrapTo { get; set; }
     private const string ShapeFiles = "2478ABCDEFGHIJKLMNOPQRSTU5#V0@3^59";
-    private static readonly byte[] TextSamples = [35, 31, 32, 30, 35, 36, 38, 35, 32];
+    private static ReadOnlySpan<byte> TextSamples => SoundMaster.WindowTextSamples;
 
     public void HandleEnvironmentEvent(ILevelEventServices services, PlayerCombat combat, TextWriter warnings)
     {

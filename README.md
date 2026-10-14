@@ -40,18 +40,57 @@ both use SDL 2, with SDL2_net enabled for network multiplayer. Preserve these
 capabilities in the C# design, and document any intentional implementation
 differences before replacing the native baseline.
 
+The extensionless `README`, native `Makefile`/Visual Studio projects, Doxygen
+configuration, historical notes, legacy asset-preparation utilities, Linux
+native packaging files, and original Tyrian file-format references are
+explicitly retained as compatibility or historical materials. They are not
+evidence that the C# game host or managed release packaging is complete.
+
 ## C# foundation
 
 The C# projects target .NET 10, with no NuGet dependencies in the initial
 foundation. `OpenTyrian.slnx` contains the game host, core library, data
-extractor host, and dependency-free core regression harness. The game
+extractor host, HDT weapon conversion tool, and dependency-free core regression harness. The game
 executable now parses native game options and provides compatible help/errors,
 but explicitly reports that playable game flows have not yet been ported.
+The runtime platform can compose title, new-game, saved-game, high-score,
+setup, and help flows with its loaded assets, shared SDL input, and parsed
+launch flags. Runtime picture decoding, palette selection, cursor sprites,
+title presentation, new-game selection, and saved-game hosts are composed from
+runtime assets and SDL services. The composed title dispatches to normal
+new-game, saved-game, super-arcade, and SuperTyrian flows; the saved-game host
+discovers versioned saves and restores selected game state. High-score and
+help screens also have runtime-owned SDL hosts and are bound into title
+dispatch. Startup logo presentation is composed from runtime palette, picture,
+timing, and SDL services. The managed network-start screen can also be
+composed directly from the runtime's menus and negotiated SDL2_net session;
+the setup menu host binds persisted video/audio settings and works with audio
+disabled. Per-game level combat, enemies, projectiles, movement, weapons,
+events, backgrounds, and input can now be composed as a single runtime-owned
+graph with shared player, enemy, sound, and network-request state, and selected
+episode maps apply their tile layers, event records, and enemy rosters to it.
+It now also owns player-frame, ship-info, pickup, and warning state and runs
+the map/ship, level-flag, and parity-verified combat resets over those same
+owners, including the network-specific enemy reset. Episode initialization is
+also owned by the runtime and bound into selection, new-game, and network
+screen factories.
+Credits playback can be assembled from runtime files, ship assets,
+palette, input, timing, audio and keep-alive services; episode transitions can
+now route through that credits flow using the caller's active episode palette
+and keep-alive service. Episode completion now has an SDL host for picture and
+palette changes, fonts, ship sprites, fades, input waits, and caller-owned
+display/progression/network-sync callbacks; runtime state creation computes
+single-player item score and captures both players' cash, and its runner
+publishes section, unlock, and level state back to the game/startup owners even
+on host failure. The multi-level loop has a state bridge, but the executable
+does not yet provide the concrete startup/gameplay host that makes the game
+playable.
 The data extractor is functional, with native byte-output parity verified on
 synthetic asset records. The platform layer now binds real SDL 2 audio,
 video, event and joystick services through the installed native library.
 SDL2_net transport, control/state queues and connection negotiation are now
-library-integrated; gameplay/menu synchronization remains pending.
+runtime-integrated through the network start screen and level-state protocol,
+but the executable still lacks the concrete host that drives these flows.
 No package dependency or native game logic
 has been added to the managed build.
 
@@ -120,14 +159,15 @@ audio-device callback playback are integrated with the sound bank and mixer.
 Real SDL2 event queues and window/renderer/texture presentation are integrated
 with managed input, indexed palettes/scalers, fullscreen and viewport state.
 HQ2x/HQ3x/HQ4x now have managed kernels with exact native pixel parity and
-real SDL presentation across all nine scaler choices. OPL2 FM sample rendering
-and SDL audio initialization are implemented: the device negotiates its sample
-rate before creating the LDS/OPL2 synthesizer, and PCM vectors match native
-FM/additive voices, tremolo, feedback, percussion, multiple channels, and block
-boundaries. Rhythm noise accepts a platform random-source callback.
-Conditional OPL3 four-operator sample output remains unimplemented, and full
-game-host audio/title-menu integration is still pending. These systems are
-integrated into the library and regression harness, not yet into playable game flows. Native
+real SDL presentation across all nine scaler choices. OPL2/OPL3 FM sample
+rendering and SDL audio initialization are implemented: the device negotiates
+its sample rate before creating the LDS synthesizer, and PCM vectors match
+native OPL2 FM/additive voices, tremolo, feedback, percussion, multiple
+channels, and block boundaries. OPL3 four-operator output matches all four
+native connection topologies, including stereo output and block boundaries.
+Rhythm noise accepts a platform random-source callback. Full game-host
+audio/title-menu integration is still pending. These systems are integrated
+into the library and regression harness, not yet into playable game flows. Native
 differential checks compare parsing, RNG, configuration, backgrounds, typed
 items, help layouts, projectiles, effects, combat/HUD, enemy/collision/attack traces,
 all level-event groups, binary level loading, boss bars, completion/sound queues,
@@ -266,7 +306,8 @@ settings while retaining native input and action ordering.
 The Christmas startup prompt now includes the native snow animation,
 choice controls and local December detection, with an explicit random
 service boundary and SDL rendering/input integration.
-The network start screen now composes connection negotiation, host
+The runtime now owns SDL2_net connections and can run the network start screen
+with connection negotiation at the native presentation point, host
 episode/difficulty selection, peer details and synchronized player setup;
 both selection-cancellation paths propagate quit to the remote peer.
 Level warning text now shares the existing character glow, timed warning
@@ -355,3 +396,15 @@ order checks the installed data directory, `data`, and the current directory
 for `tyrian1.lvl`. It does not extract shapes or levels. Runtime assets remain
 external. All eight extractor outputs have been compared byte-for-byte with
 the unchanged native extractor using separately supplied Tyrian 2.1 data.
+
+## HDT weapon conversion tool
+
+The managed `OpenTyrian.HdtWeaponTool` replaces the legacy Python
+`doc/tools/weapon.py` utility for exporting the 781 weapon records in
+`tyrian.hdt` to XML and writing edited XML records back into an existing HDT
+archive. The Python script remains as the compatibility reference.
+
+```powershell
+dotnet run --project src-csharp\OpenTyrian.HdtWeaponTool -- toxml C:\TYRIAN\tyrian.hdt weapons.xml
+dotnet run --project src-csharp\OpenTyrian.HdtWeaponTool -- tohdt weapons.xml C:\TYRIAN\tyrian.hdt
+```

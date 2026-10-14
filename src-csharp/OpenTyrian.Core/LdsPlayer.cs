@@ -184,9 +184,17 @@ public sealed class OplChipState : IOplSynthesizer
                     Operators[operatorBase].IsFourOperatorAttached)
                     continue;
 
-                RenderTwoOperatorChannel(
-                    operatorBase, registerBase, left[..blockLength], right[..blockLength],
-                    vibrato[..blockLength], tremolo[..blockLength]);
+                if (IsFourOperatorEnabled(operatorBase))
+                {
+                    RenderFourOperatorChannel(
+                        operatorBase, registerBase, left[..blockLength], right[..blockLength], tremolo[..blockLength]);
+                }
+                else
+                {
+                    RenderTwoOperatorChannel(
+                        operatorBase, registerBase, left[..blockLength], right[..blockLength],
+                        vibrato[..blockLength], tremolo[..blockLength]);
+                }
             }
 
             for (var sample = 0; sample < blockLength; sample++)
@@ -373,6 +381,97 @@ public sealed class OplChipState : IOplSynthesizer
             {
                 left[i] = unchecked(left[i] + channelValue);
             }
+        }
+    }
+
+    private void RenderFourOperatorChannel(
+        int operatorBase, int registerBase, Span<int> left, Span<int> right, ReadOnlySpan<int> tremolo)
+    {
+        var first = Operators[operatorBase];
+        var second = Operators[operatorBase + 9];
+        var third = Operators[operatorBase + 3];
+        var fourth = Operators[operatorBase + 12];
+        var firstAdditive = (Registers[0xc0 + registerBase] & 1) != 0;
+        var secondAdditive = (Registers[0xc3 + registerBase] & 1) != 0;
+
+        for (var i = 0; i < left.Length; i++)
+        {
+            var channelValue = 0;
+            if (first.Mode != OplOperatorMode.Off)
+            {
+                AdvanceAndRenderOperator(first, operatorBase, 0);
+                first.Render(
+                    unchecked((first.LastOutput + first.Output) * first.FeedbackAmount / 2),
+                    TremoloFor(first, tremolo[i]));
+                if (firstAdditive)
+                    channelValue = first.Output;
+            }
+
+            if (firstAdditive)
+            {
+                if (secondAdditive)
+                {
+                    if (second.Mode != OplOperatorMode.Off ||
+                        third.Mode != OplOperatorMode.Off)
+                    {
+                        AdvanceAndRenderOperator(second, operatorBase + 9, 0);
+                        second.Render(0, TremoloFor(second, tremolo[i]));
+                        AdvanceAndRenderOperator(third, operatorBase + 3, 0);
+                        third.Render(unchecked(second.Output * (int)FixedPoint), TremoloFor(third, tremolo[i]));
+                        channelValue = unchecked(channelValue + third.Output);
+                    }
+                    if (fourth.Mode != OplOperatorMode.Off)
+                    {
+                        AdvanceAndRenderOperator(fourth, operatorBase + 12, 0);
+                        fourth.Render(0, TremoloFor(fourth, tremolo[i]));
+                        channelValue = unchecked(channelValue + fourth.Output);
+                    }
+                }
+                else if (second.Mode != OplOperatorMode.Off ||
+                    third.Mode != OplOperatorMode.Off || fourth.Mode != OplOperatorMode.Off)
+                {
+                    AdvanceAndRenderOperator(second, operatorBase + 9, 0);
+                    second.Render(0, TremoloFor(second, tremolo[i]));
+                    AdvanceAndRenderOperator(third, operatorBase + 3, 0);
+                    third.Render(unchecked(second.Output * (int)FixedPoint), TremoloFor(third, tremolo[i]));
+                    AdvanceAndRenderOperator(fourth, operatorBase + 12, 0);
+                    fourth.Render(unchecked(third.Output * (int)FixedPoint), TremoloFor(fourth, tremolo[i]));
+                    channelValue = unchecked(channelValue + fourth.Output);
+                }
+            }
+            else if (secondAdditive)
+            {
+                if (first.Mode != OplOperatorMode.Off || second.Mode != OplOperatorMode.Off)
+                {
+                    AdvanceAndRenderOperator(second, operatorBase + 9, 0);
+                    second.Render(unchecked(first.Output * (int)FixedPoint), TremoloFor(second, tremolo[i]));
+                    channelValue = unchecked(channelValue + second.Output);
+                }
+                if (third.Mode != OplOperatorMode.Off || fourth.Mode != OplOperatorMode.Off)
+                {
+                    AdvanceAndRenderOperator(third, operatorBase + 3, 0);
+                    third.Render(0, TremoloFor(third, tremolo[i]));
+                    AdvanceAndRenderOperator(fourth, operatorBase + 12, 0);
+                    fourth.Render(unchecked(third.Output * (int)FixedPoint), TremoloFor(fourth, tremolo[i]));
+                    channelValue = unchecked(channelValue + fourth.Output);
+                }
+            }
+            else if (first.Mode != OplOperatorMode.Off ||
+                second.Mode != OplOperatorMode.Off ||
+                third.Mode != OplOperatorMode.Off ||
+                fourth.Mode != OplOperatorMode.Off)
+            {
+                AdvanceAndRenderOperator(second, operatorBase + 9, 0);
+                second.Render(unchecked(first.Output * (int)FixedPoint), TremoloFor(second, tremolo[i]));
+                AdvanceAndRenderOperator(third, operatorBase + 3, 0);
+                third.Render(unchecked(second.Output * (int)FixedPoint), TremoloFor(third, tremolo[i]));
+                AdvanceAndRenderOperator(fourth, operatorBase + 12, 0);
+                fourth.Render(unchecked(third.Output * (int)FixedPoint), TremoloFor(fourth, tremolo[i]));
+                channelValue = unchecked(channelValue + fourth.Output);
+            }
+
+            left[i] = unchecked(left[i] + channelValue * first.LeftPan);
+            right[i] = unchecked(right[i] + channelValue * first.RightPan);
         }
     }
 

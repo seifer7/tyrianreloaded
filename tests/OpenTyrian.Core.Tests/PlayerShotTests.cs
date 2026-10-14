@@ -17,6 +17,17 @@ internal static class PlayerShotTests
         var shots = Setup(items, effects);
         Check(shots.Create(ushort.MaxValue, 0, 0, 0, 0, 0, 1, 1) == PlayerShots.Capacity &&
             shots.Create(0, 0, 0, 0, 0, 0, 0, 1) == PlayerShots.Capacity, "Projectile native bounds differ.");
+        var typedPort = (ushort)items.Index(ItemType.WeaponFront, "late");
+        var typedShot = (ushort)items.Index(ItemType.Shot, "late");
+        shots.Power = 0;
+        Check(shots.CreateTyped(typedPort, PlayerShotSlot.Front, 0, 0, 0, 0, typedShot, 1) == PlayerShots.Capacity,
+            "Typed player-shot slot did not route to the native front slot.");
+        try
+        {
+            shots.CreateTyped(typedPort, (PlayerShotSlot)byte.MaxValue, 0, 0, 0, 0, typedShot, 1);
+            throw new InvalidOperationException("Invalid typed player-shot slot was accepted.");
+        }
+        catch (ArgumentOutOfRangeException) { }
         shots.Power = 0;
         Check(shots.Create((ushort)items.Index(ItemType.WeaponFront, "late"), 0, 60, 60, 70, 50,
             (ushort)items.Index(ItemType.Shot, "late"), 1) == PlayerShots.Capacity, "Insufficient projectile power accepted.");

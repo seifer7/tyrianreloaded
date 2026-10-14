@@ -213,7 +213,8 @@ public sealed partial class EnemySystem
             }
         }
         var channel = RandomSoundChannel();
-        effects.SoundQueue[channel] = new byte[] { 13, 6, 26 }[MersenneTwister.NextUInt32() % 3];
+        effects.SoundQueue[channel] = LegacyGameTables.EnemyLaunchSound(
+            (int)(MersenneTwister.NextUInt32() % LegacyGameTables.EnemyLaunchSoundCount));
         if (parent.LaunchSpecial == 1 && parent.LinkNumber < 100) child.LinkNumber = parent.LinkNumber;
     }
 

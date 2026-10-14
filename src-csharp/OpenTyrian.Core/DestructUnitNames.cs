@@ -15,6 +15,8 @@ public enum DestructUnit
 
 public static class DestructUnitNames
 {
+    public const int UnitCount = 8;
+
     public static DestructUnit GetUnitByName(string unitName)
     {
         ArgumentNullException.ThrowIfNull(unitName);

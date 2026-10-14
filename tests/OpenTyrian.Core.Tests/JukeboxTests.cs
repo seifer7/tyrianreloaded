@@ -35,6 +35,18 @@ internal static class JukeboxTests
             Check(RunNative(executable, "titles") ==
                 string.Concat(JukeboxTitles.Music.Select(title => $"music:{title}\n")) +
                 string.Concat(JukeboxTitles.Sounds.Select(title => $"sound:{title}\n")), "Native audio title tables changed.");
+        Check(MusicMaster.DefaultSongBuy == 2 && MusicMaster.SongLevelEnd == 9 &&
+            MusicMaster.SongGameOver == 10 && MusicMaster.SongMapView == 19 &&
+            MusicMaster.SongEndGame1 == 7 && MusicMaster.SongZanac == 31 &&
+            MusicMaster.SongTitle == 29 && MusicMaster.Titles.Count == 41 &&
+            ReferenceEquals(MusicMaster.Titles, JukeboxTitles.Music) &&
+            SoundMaster.SoundEffectCount == 29 && SoundMaster.VoiceCount == 9 &&
+            SoundMaster.SoundCount == 38 && SoundMaster.Titles.Count == 38 &&
+            ReferenceEquals(SoundMaster.Titles, JukeboxTitles.Sounds) &&
+            SoundMaster.WindowTextSamples.SequenceEqual(new byte[] { 35, 31, 32, 30, 35, 36, 38, 35, 32 }) &&
+            (byte)SoundId.ClearedPlatform == 30 && (byte)SoundId.Danger == 35 &&
+            (byte)SoundId.Accelerate == 38,
+            "Native music master constants or shared title table differ.");
         Integration();
         AudioIntegration();
     }
@@ -50,15 +62,14 @@ internal static class JukeboxTests
         var screen = new IndexedSurface(320, 200, 320, TextWriter.Null);
         var palette = new PaletteSystem(color => ((uint)color.Red << 16) | ((uint)color.Green << 8) | color.Blue);
         var stars = new JukeboxStarfield();
-        var colors = Enumerable.Range(0, 256).Select(i => new PaletteColor((byte)i, (byte)(i / 2), (byte)(255 - i))).ToArray();
         var shown = 0;
-        var presentation = new JukeboxPresentation(screen, palette, colors, new(new MainShapeTables()), stars, input, () => shown++);
+        var presentation = new JukeboxPresentation(screen, palette, new(new MainShapeTables()), stars, input, () => shown++);
         MersenneTwister.Seed(44123);
         new Jukebox(input, new(input), audio, presentation, platform.PushJoysticksAsKeyboard)
             .Run(191, 123, Titles(41, "Song"), Titles(38, "FX"));
         Check(shown == 16 && palette.Active.Span.ToArray().All(c => c == new PaletteColor(0, 0, 0)) &&
             screen.Pixels.Span.ContainsAnyExcept((byte)0), "Jukebox presentation did not compose stars, fade-out, and frame presentation.");
-        var failing = new JukeboxPresentation(screen, palette, colors, new(new MainShapeTables()), stars, input,
+        var failing = new JukeboxPresentation(screen, palette, new(new MainShapeTables()), stars, input,
             () => throw new IOException("presentation failed"));
         Throws<IOException>(() => new Jukebox(input, new(input), audio, failing, platform.PushJoysticksAsKeyboard)
             .Run(191, 123, Titles(41, "Song"), Titles(38, "FX")));
@@ -114,8 +125,7 @@ internal static class JukeboxTests
             var input = new InputState(platform, video.Layout); input.FlushEvents();
             var (audio, controller, player) = CreateAudio();
             var presents = 0;
-            var colors = Enumerable.Range(0, 256).Select(i => new PaletteColor((byte)i, (byte)i, (byte)i)).ToArray();
-            var presentation = new JukeboxPresentation(video.Primary, video.Palette, colors, new(new MainShapeTables()),
+            var presentation = new JukeboxPresentation(video.Primary, video.Palette, new(new MainShapeTables()),
                 new(), input, () => { video.Present(); presents++; controller.Mixer.Mix(new short[512]); });
             new Jukebox(input, new(input), audio, presentation, platform.PushJoysticksAsKeyboard).Run(191, 123);
             Check(presents == 16 && pushes == 16 && player.Rendered == 16 * 512 &&

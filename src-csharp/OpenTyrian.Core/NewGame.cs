@@ -31,9 +31,6 @@ public interface INewGameHost
 
 public sealed class NewGame(LegacyGameState game, ItemDatabase items, HelpTextData text, InputState input, INewGameHost host)
 {
-    private static readonly byte[] ArcadeShips = [3, 1, 5, 10, 2, 11, 12];
-    // First column of the native SAWeapon table; later upgrades are handled by pickups.
-    private static readonly byte[] ArcadeFrontWeapons = [9, 19, 27, 15, 23, 2, 40];
     public bool RichMode { get; set; }
     public bool ConstantDie { get; set; }
 
@@ -69,8 +66,8 @@ public sealed class NewGame(LegacyGameState game, ItemDatabase items, HelpTextDa
     public bool RunSuperArcade(int mode, CancellationToken cancellation = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(mode);
-        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mode, ArcadeShips.Length);
-        game.Players[0].Items.Ship = Index(ItemType.Ship, ArcadeShips[mode]);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mode, LegacyGameTables.ArcadeShipCount);
+        game.Players[0].Items.Ship = Index(ItemType.Ship, LegacyGameTables.ArcadeShip(mode));
         if (host.SelectEpisode() && host.SelectDifficulty())
         {
             host.LoadPicture(); host.Clear();
@@ -83,8 +80,8 @@ public sealed class NewGame(LegacyGameState game, ItemDatabase items, HelpTextDa
             game.GameLoaded = true;
             game.Difficulty = unchecked((sbyte)(game.Difficulty + 1)); game.InitialDifficulty = game.Difficulty;
             game.Players[0].Cash = 0;
-            game.Players[0].Items.Weapons[0].Id = Index(ItemType.WeaponFront, ArcadeFrontWeapons[mode]);
-            game.Players[0].Items.Special = Index(ItemType.Special, mode + 7);
+            game.Players[0].Items.Weapons[0].Id = Index(ItemType.WeaponFront, LegacyGameTables.ArcadeFrontWeapon(mode));
+            game.Players[0].Items.Special = Index(ItemType.Special, LegacyGameTables.SuperArcadeStartingSpecial(mode));
             if (mode == 6)
                 Array.Fill(game.Players[0].Items.Sidekicks, Known(KnownItem.SidekickCompanionShipQuicksilver));
             host.FadeBlack();

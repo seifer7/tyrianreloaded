@@ -6,7 +6,7 @@ namespace OpenTyrian.Core.Tests;
 
 internal static class SdlNetTests
 {
-    public static void Run(string executable)
+    public static void Run(string? executable = null)
     {
         var trace = new StringBuilder();
         using var first = new SdlNetTransport(0);
@@ -26,7 +26,8 @@ internal static class SdlNetTests
             var echoed = Receive(first);
             Check(echoed.Channel == 0 && echoed.Data.Span.SequenceEqual(output), "SDL2_net echo bytes/channel differ.");
         }
-        CompareNative(executable, trace.ToString().Replace("\r\n", "\n", StringComparison.Ordinal));
+        if (executable != null)
+            CompareNative(executable, trace.ToString().Replace("\r\n", "\n", StringComparison.Ordinal));
         var sender = new NetworkSession(first, new(new Platform(), new()), 2, TextWriter.Null);
         var receiver = new NetworkSession(second, new(new Platform(), new()), 2, TextWriter.Null);
         bool[] firstEpisodes = [true, true, false, true, true], secondEpisodes = [false, true, true, true, false];

@@ -536,7 +536,8 @@ public static class WeaponViewFrame
             var weapon = player.Items.Weapons[port];
             var shotIndex = GetShotIndex(weapon.Id, port == 1
                 ? checked((int)player.WeaponMode - 1) : 0, weapon.Power - 1);
-            shots.Create(weapon.Id, (uint)port, unchecked((ushort)player.X), unchecked((ushort)player.Y),
+            shots.CreateTyped(weapon.Id, port == 0 ? PlayerShotSlot.Front : PlayerShotSlot.Rear,
+                unchecked((ushort)player.X), unchecked((ushort)player.Y),
                 unchecked((ushort)mouseX), unchecked((ushort)mouseY), shotIndex, 1);
         }
 
@@ -549,7 +550,7 @@ public static class WeaponViewFrame
             else
             {
                 var sidekick = GetSidekick(leftSidekickId);
-                shots.Create(checked((ushort)sidekick.WPort), bay,
+                shots.CreateTyped(checked((ushort)sidekick.WPort), PlayerShotSlot.LeftSidekick,
                     unchecked((ushort)player.Sidekicks[(int)SidekickPort.Left].X),
                     unchecked((ushort)player.Sidekicks[(int)SidekickPort.Left].Y),
                     unchecked((ushort)mouseX), unchecked((ushort)mouseY), sidekick.Wpnum, 1);
@@ -576,7 +577,8 @@ public static class WeaponViewFrame
             if (shots.Repeat[bay] > 0)
                 shots.Repeat[bay]--;
             else
-                shots.Create(checked((ushort)rightSidekickItem.WPort), bay, unchecked((ushort)rightSidekick.X),
+                shots.CreateTyped(checked((ushort)rightSidekickItem.WPort), PlayerShotSlot.RightSidekick,
+                    unchecked((ushort)rightSidekick.X),
                     unchecked((ushort)rightSidekick.Y), unchecked((ushort)mouseX), unchecked((ushort)mouseY),
                     rightSidekickItem.Wpnum, 1);
         }
@@ -3781,16 +3783,9 @@ public static class NavigationMapDots
 
 public static class NavigationMapPlanets
 {
-    private static readonly ushort[] SpriteIds = [4, 1, 2, 3, 20, 36, 52, 68, 84, 100, 116,
-        132, 151, 151, 151, 151, 52, 52, 1, 2, 4];
-    private static readonly bool[] Animated = [true, false, false, false, true, true, true,
-        true, true, true, true, true, false, false, false, false, false, false, false, false, true];
-
     internal static int GetBaseSprite(byte planetNumber)
     {
-        if (planetNumber >= SpriteIds.Length)
-            throw new ArgumentOutOfRangeException(nameof(planetNumber));
-        return SpriteIds[planetNumber] - 1;
+        return LegacyGameTables.PlanetSprite(planetNumber) - 1;
     }
 
     public static void Draw(byte planetNumber, short viewX, short viewY, byte animationFrame,
@@ -3800,9 +3795,6 @@ public static class NavigationMapPlanets
         ArgumentNullException.ThrowIfNull(spriteSize);
         ArgumentNullException.ThrowIfNull(drawDarkSprite);
         ArgumentNullException.ThrowIfNull(drawSprite);
-        if (planetNumber >= SpriteIds.Length)
-            throw new ArgumentOutOfRangeException(nameof(planetNumber));
-
         var baseSprite = GetBaseSprite(planetNumber);
         var size = spriteSize(baseSprite);
         var position = NavigationMapDots.GetPlanetPosition(planetNumber);
@@ -3812,7 +3804,7 @@ public static class NavigationMapPlanets
         if (x > -7 && x + size.Width < 170 && y > 0 && y < 160)
         {
             var sprite = baseSprite;
-            if (Animated[planetNumber])
+            if (LegacyGameTables.IsPlanetAnimated(planetNumber))
                 sprite = unchecked((short)(sprite + animationFrame));
             drawDarkSprite(x + 3, y + 3, sprite, false);
             drawSprite(x, y, sprite);

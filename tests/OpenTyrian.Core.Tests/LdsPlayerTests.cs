@@ -253,6 +253,23 @@ internal static class LdsPlayerTests
             "Mixed OPL2 channel output differs from the native oracle.");
         Check(RenderOplSignature(6, 64) == 0x80dbd232dd817bd2UL,
             "OPL2 additive feedback output differs from the native oracle.");
+        ulong[] fourOperatorExpected = [
+            0x20f829d541fe5b9dUL, 0x665f84aedf543c41UL,
+            0x14964fc9cb8de3d5UL, 0xf5001e3ccd20485dUL
+        ];
+        ulong[] fourOperatorBlockExpected = [
+            0x4ccdaf3a6a1e59bdUL, 0x630bb7253daf0b2dUL,
+            0xdd2a56adba432021UL, 0x321307250ce3f651UL
+        ];
+        for (byte algorithm = 0; algorithm < 4; algorithm++)
+        {
+            var signature = RenderOpl3Signature(algorithm, 64);
+            Check(signature == fourOperatorExpected[algorithm],
+                $"OPL3 four-operator algorithm {algorithm} sample output differs from native: {signature:x16}.");
+            signature = RenderOpl3Signature(algorithm, 600);
+            Check(signature == fourOperatorBlockExpected[algorithm],
+                $"OPL3 four-operator algorithm {algorithm} block-boundary output differs from native: {signature:x16}.");
+        }
         var randomCalls = 0;
         Check(RenderOplRhythmSignature(() => { randomCalls++; return 1; }) == 0x93e7cfe0af62bf37UL &&
             randomCalls == 64,
@@ -304,6 +321,37 @@ internal static class LdsPlayerTests
         opl.WriteRegister(0xbd, 0x3f);
         short[] samples = new short[64];
         opl.Render(samples, nextRandom);
+        ulong hash = 14695981039346656037;
+        foreach (var sample in samples)
+        {
+            var value = unchecked((ushort)sample);
+            hash = unchecked((hash ^ (byte)value) * 1099511628211);
+            hash = unchecked((hash ^ (byte)(value >> 8)) * 1099511628211);
+        }
+        return hash;
+    }
+
+    private static ulong RenderOpl3Signature(byte algorithm, int sampleCount)
+    {
+        var opl = OplChipState.Initialize(44100, opl3: true);
+        opl.WriteRegister(0x105, 1);
+        opl.WriteRegister(0x104, 1);
+        opl.WriteRegister(0x01, 0x20);
+        foreach (var register in new[] { 0x20, 0x23, 0x28, 0x2b })
+            opl.WriteRegister((uint)register, 0x01);
+        foreach (var register in new[] { 0x40, 0x43, 0x48, 0x4b })
+            opl.WriteRegister((uint)register, 0);
+        foreach (var register in new[] { 0x60, 0x63, 0x68, 0x6b })
+            opl.WriteRegister((uint)register, 0xf0);
+        foreach (var register in new[] { 0x80, 0x83, 0x88, 0x8b })
+            opl.WriteRegister((uint)register, 0x04);
+        opl.WriteRegister(0xa0, 0x98);
+        opl.WriteRegister(0xb0, 0x31);
+        opl.WriteRegister(0xc0, (byte)(0x30 | ((algorithm >> 1) & 1)));
+        opl.WriteRegister(0xc3, (byte)(0x30 | (algorithm & 1)));
+
+        short[] samples = new short[sampleCount * 2];
+        opl.Render(samples);
         ulong hash = 14695981039346656037;
         foreach (var sample in samples)
         {

@@ -51,6 +51,27 @@ performed by adding this document.
   real-asset category outputs matched byte-for-byte.
 - Build with `dotnet build OpenTyrian.slnx` and run the regression harness
   with `dotnet run --project tests/OpenTyrian.Core.Tests`.
+- Verify runtime platform composition with the SDL dummy drivers using
+  the test harness's `--test-runtime-platform` mode. In PowerShell:
+  `$env:SDL_VIDEODRIVER = 'dummy'; $env:SDL_AUDIODRIVER = 'dummy'; dotnet run
+  --project tests/OpenTyrian.Core.Tests -- --test-runtime-platform`. This
+  exercises configured video/input/joystick startup, asset-failure cleanup,
+  indexed picture decoding/palette selection, palette-preserving picture loads,
+  settings persistence, live audio playback, saved-game catalog/loading through
+  the runtime host, composed title routing for game/load/arcade/special modes,
+  SDL host composition for high-score/help/setup dispatch, runtime
+  network-start screen, credits, episode-transition and episode-completion
+  composition/run with game/startup-state write-back, and level-loop state
+  composition/write-back plus a shared per-game combat/projectile/input/
+  ship/player-frame/pickup/warning graph, selected episode-map application,
+  map/ship and level-flag initialization, and native-order local/network combat
+  initialization, with episode archive initialization bound into local and
+  network selection hosts, without requiring original game assets.
+- Exercise the live SDL2_net loopback and runtime network-screen connection
+  composition with `dotnet run --project tests/OpenTyrian.Core.Tests --
+  --test-sdl-net`. This uses only synthetic item data and requires the native
+  SDL2_net libraries to be available beside the solution or on the library
+  search path.
 - Verify the solution builds on each intended development platform before
   translating platform-dependent behavior.
 
@@ -606,9 +627,22 @@ additive voices, tremolo, feedback, multiple channels, block boundaries, and
 deterministic percussion. `SdlAudioDevice.TryInitializeOpl` creates the OPL2
 chip at the SDL-negotiated sample rate and runs an LDS fixture through the
 actual dummy SDL callback; percussion uses an injected platform random source.
-Conditional OPL3 four-operator output remains unimplemented. Invalid LDS
+An independent native build of `src/opl.c` with `OPLTYPE_IS_OPL3` supplies
+stereo PCM reference vectors for all four four-operator connection topologies,
+including output crossing the 512-sample synthesis block boundary. Invalid LDS
 indices/truncation throw instead of accessing native memory; managed teardown
 also stops playback.
+
+When solution-root `SDL2.dll` and `SDL2_net.dll` are available on Windows,
+rerun the real native-library integration tests with:
+
+```powershell
+$env:SDL2_LIBRARY_PATH = (Join-Path (Get-Location) 'SDL2.dll')
+$env:SDL2_NET_LIBRARY_PATH = (Join-Path (Get-Location) 'SDL2_net.dll')
+$env:SDL_AUDIODRIVER = 'dummy'
+$env:SDL_VIDEODRIVER = 'dummy'
+dotnet run --project tests\OpenTyrian.Core.Tests -c Release
+```
 Input parity compares 512 viewport/coordinate calculations and 1,792 state
 snapshots across 128 queued event/wait scenarios, including exact event-return
 ordering, Alt+Enter, focus-dependent relative mode and accumulator resets,

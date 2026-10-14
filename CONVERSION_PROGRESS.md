@@ -10,12 +10,15 @@ The inventory audit restored sixteen existing OPL definitions and eleven
 existing inline directory helpers omitted by the original scanner; these are
 not newly added native functions and remain unchecked until dispositioned.
 
-**Baseline conversion status: 38/126 files dispositioned; 704/766 functions
-converted and verified.** The C# foundation also adds one solution, shared
-build properties, four projects, one hundred thirty application source
-files, one hundred fourteen managed test sources, four native harnesses,
+**Baseline conversion status: 121/126 files dispositioned; 766/766 functions
+converted and verified.** Twenty-five unchanged documentation, licensing,
+reference, artwork, and native-build/package files are explicitly retained;
+the native build remains until the compatibility and release gates pass. The
+C# foundation also adds one solution, shared
+build properties, five projects, one hundred forty-seven application source
+files, one hundred twenty-eight managed test sources, four native harnesses,
 ninety-one oracle generators, one inventory checker, and one managed kernel
-generator (356 added implementation/build/test files).
+generator (391 added implementation/build/test files).
 The game entrypoint parses native
 options but remains unplayable; the data extractor has synthetic native parity.
 
@@ -68,12 +71,17 @@ options but remains unplayable; the data extractor has synthetic native parity.
 - [x] `src-csharp/OpenTyrian.Game/OpenTyrian.Game.csproj` — game host project,
   scaffold only; verified to build.
 - [x] `src-csharp/OpenTyrian.Game/Program.cs` - integrated native-compatible
-  command-line parsing, help and invalid-option exits, followed by an explicit
-  not-yet-playable error for actual game launch; executable paths verified.
+  command-line parsing into typed startup state, help and invalid-option exits,
+  followed by an explicit not-yet-playable error for actual game launch;
+  executable paths verified.
 - [x] `src-csharp/OpenTyrian.DataExtractor/OpenTyrian.DataExtractor.csproj` —
   data-extractor host project referencing the managed core; verified to build.
 - [x] `src-csharp/OpenTyrian.DataExtractor/Program.cs` — explicit
   extraction CLI entrypoint; verified by build and core CLI parity checks.
+- [x] `src-csharp/OpenTyrian.HdtWeaponTool/OpenTyrian.HdtWeaponTool.csproj` —
+  standalone managed HDT conversion CLI; verified by solution build.
+- [x] `src-csharp/OpenTyrian.HdtWeaponTool/Program.cs` — HDT tool entrypoint;
+  verified with the core converter regression harness.
 - [x] `tests/OpenTyrian.Core.Tests/OpenTyrian.Core.Tests.csproj` — core
   regression harness project; verified to build.
 - [x] `tests/OpenTyrian.Core.Tests/Program.cs` — deterministic RNG
@@ -88,17 +96,45 @@ options but remains unplayable; the data extractor has synthetic native parity.
 - [x] `tests/OpenTyrian.Core.Tests/BinaryFileTests.cs` - signedness, exact
   binary output, PCX header layout, fragmented/partial reads, EOF/write
   failures, and stream position preservation.
+- [x] `tests/OpenTyrian.Core.Tests/HdtWeaponArchiveTests.cs` - all 781 HDT
+  records, signed/unsigned layout, XML field ordering, binary roundtrip,
+  preservation of surrounding bytes, truncation, invalid values and CLI usage.
+- [x] `src-csharp/OpenTyrian.Core/HdtWeaponArchive.cs` - managed replacement
+  for the HDT weapon binary/XML conversion utility; preserves 80-byte
+  little-endian records, sorted XML fields, all 781 weapons and in-place
+  archive updates. Verified by byte-for-byte synthetic roundtrip and tests.
 - [x] `src-csharp/OpenTyrian.Core/Configuration.cs` - ordered scalar/list
   configuration model, quoted text codec, typed settings, and case-sensitive
   section/option lookup. Native serialization and numeric-reading fixtures
   match compiled C. The ten unmanaged string/allocation lifecycle helpers are
   left pending their explicit managed-ownership disposition.
+- [x] `src-csharp/OpenTyrian.Core/LegacyConfigurationTypes.cs` - exact
+  difficulty, keyboard-setting, and player-shot enum ordinals from
+  `config.h`; consumed by typed keyboard configuration accessors and all
+  gameplay, enemy, pickup, special-weapon, and selection-menu projectile
+  creation, and verified against every native enum value.
+- [x] `tests/OpenTyrian.Core.Tests/LegacyConfigurationTypesTests.cs` - verifies
+  all native enum ordinals and typed keyboard slot/scancode bounds.
 - [x] `tests/OpenTyrian.Core.Tests/ConfigurationTests.cs` - configuration
   roundtrips, model operations, typed settings, and invalid directives.
 - [x] `src-csharp/OpenTyrian.Core/DestructUnitNames.cs` - typed Destruct unit
   values and exact native string-to-unit lookup.
 - [x] `tests/OpenTyrian.Core.Tests/DestructUnitNameTests.cs` - all names,
   case/whitespace rejection, unknown values, and null handling.
+- [x] `src-csharp/OpenTyrian.Core/DestructUnits.cs` - Destruct unit/shot and
+  player state, native CPU initialization, weapon availability/cycling,
+  health validity/reset, animation frame updates, sound dispatch,
+  destruction scoring,     terrain stability checks and aliasing, temporary-screen fade/copy processing,
+  Destruct explosion setup, sound routing, super-pixel rendering, and help-screen
+  cool-pixel/wall/crosshair
+  rendering, pause presentation, terrain generation/drawing/rings/unit
+  placement and walls, terrain orchestration, explosion collision/ticks,
+  projectile creation/trails, and angle/power
+  controls, HUD rendering, unit sprite selection, and gravity movement/
+  dispatch.
+- [x] `tests/OpenTyrian.Core.Tests/DestructUnitTests.cs` - native validity
+  boundaries, both players' reset slots, untouched excess slots, and argument
+  validation.
 - [x] `src-csharp/OpenTyrian.Core/EncryptedText.cs` - byte-preserving Pascal
   string decryption, truncation/NUL termination, and skip operations.
 - [x] `src-csharp/OpenTyrian.Core/AnimationFile.cs` - LPF header, palette,
@@ -184,6 +220,30 @@ options but remains unplayable; the data extractor has synthetic native parity.
   and the native uninitialized/no-assets infinite-loop case.
 - [x] `tests/OpenTyrian.Core.Tests/LevelTests.cs` - level offsets/stream
   position, bounds, episode scan, naming, selection, wrap, and no-op behavior.
+- [x] `src-csharp/OpenTyrian.Core/LevelMaster.cs` - native level capacity
+  constants and 34-entry shape-file table.
+- [x] `tests/OpenTyrian.Core.Tests/LevelMasterTests.cs` - exact native capacity
+  constants and all shape-file bytes.
+- [x] `src-csharp/OpenTyrian.Core/MusicMaster.cs` - canonical native song
+  titles and song-selection constants plus shared mutable `songBuy` and
+  `musicFade` state used by episode, level-event and level-frame flows.
+- [x] `tests/OpenTyrian.Core.Tests/MusicMasterTests.cs` - verifies that episode
+  selection, level events and frame processing share native music globals.
+- [x] `src-csharp/OpenTyrian.Core/SoundMaster.cs` - native sound IDs, title
+  table, counts and level-window voice table, shared by jukebox and event code.
+- [x] `src-csharp/OpenTyrian.Core/LegacyGameTables.cs` - native arcade ship,
+  arcade weapon/special, sidekick-option, keyboard special-code and ship
+  special-code, planet sprite/animation, enemy-launch sound and SuperTyrian
+  special-drop, SuperArcade progression, starting loadout and mode-switch
+  tables centralized for new-game, pickup, player-input, map, enemy and
+  level-event flows.
+- [x] `tests/OpenTyrian.Core.Tests/LegacyGameTablesTests.cs` - checks all
+  arcade and sidekick table entries plus out-of-range guards.
+- [x] `src-csharp/OpenTyrian.Core/JukeboxPalette.cs` - all 256 native VGA
+  colors, wired into jukebox presentation and checked against the native RGB
+  table digest.
+- [x] `tests/OpenTyrian.Core.Tests/JukeboxPaletteTests.cs` - exact palette
+  length, sentinel entries and all RGB bytes verified against native digest.
 - [x] `src-csharp/OpenTyrian.Core/BackgroundRenderer.cs` - three tile layers,
   transparency/blending, delay/movement ordering, water synchronization,
   darkening, screen hue/brightness fade, lava/water/blur/iced effects, processor
@@ -253,15 +313,16 @@ options but remains unplayable; the data extractor has synthetic native parity.
   explosion/superpixel callbacks. Native short/ushort/byte wrapping, scratch
   distance width, movement/draw order, and reserved slot 80 are preserved.
   Sprite adapter integrates existing compressed/regular sprite renderers;
-  explosion/superpixel handlers and enemy collision callers are integrated;
-  whole-game callers remain pending.
+  explosion/superpixel handlers and every managed projectile-creation caller
+  use the typed native shot-slot ordinals.
   Native invalid item-count equality, array offsets, and undefined floating
   conversions throw rather than accessing invalid memory.
 - [x] `tests/OpenTyrian.Core.Tests/PlayerShotTests.cs` - six native state/
   effect traces, all 81 slots, homing target disappearance, mouse control,
   capacity/power rejection, zero graphics, preview behavior, reserved slot,
-  short wrapping, special collision radii, and 68 directional updates per
-  trace. SpriteTests additionally exercise the rendering/callback adapter.
+  typed slot routing/range rejection, short wrapping, special collision radii,
+  and 68 directional updates per trace. SpriteTests additionally exercise the
+  rendering/callback adapter.
 - [x] `tests/native/build_shots_reference.py` - unchanged projectile source,
   shared native typed item loader, and recording sprite/effect shims.
 - [x] `src-csharp/OpenTyrian.Core/SceneEffects.cs` - explosion allocation,
@@ -425,9 +486,8 @@ options but remains unplayable; the data extractor has synthetic native parity.
 - [x] `src-csharp/OpenTyrian.Core/LdsPlayer.cs` - bounded binary LDS loading,
   typed instrument/channel/order ownership, rewind/OPL initialization, register
   caching/masking, instrument triggers, tuning/glide/portamento, vibrato/
-  tremolo/arpeggio setup, managed teardown, and OPL2 FM sample rendering via
-  the synthesizer contract. Conditional OPL3 four-operator sample rendering is
-  not implemented or verified.
+  tremolo/arpeggio setup, managed teardown, OPL2 FM synthesis, and OPL3
+  four-operator sample rendering for all four native connection topologies.
 - [x] `src-csharp/OpenTyrian.Core/LdsPlayback.cs` - complete nine-channel
   packed-pattern sequencing, note/instrument transpose, delays, every native
   command, tempo/order jumps and looping, fade, key-off, arpeggio, portamento,
@@ -440,8 +500,10 @@ options but remains unplayable; the data extractor has synthetic native parity.
   9,216 sequencer frames and 1,536 direct notes, all native command families,
   transposes, effects, delayed notes, fades, stop/loops/rewind/cache writes,
   truncation/invalid data, real archive/controller/LDS/mixer integration,
-  and native OPL2 sample parity for FM/additive, tremolo, feedback, percussion,
-  multiple channels, block boundaries, and reset behavior.
+  native OPL2 sample parity for FM/additive, tremolo, feedback, percussion,
+  multiple channels, block boundaries, and reset behavior, plus native OPL3
+  stereo sample hashes for all four four-operator topologies over short and
+  block-boundary renders.
 - [x] `tests/native/build_lds_reference.py` - entire unchanged LDS source,
   native instrument/channel models, recorded OPL reset/register order and
   playback state snapshots.
@@ -1194,7 +1256,7 @@ these implementation inventories:
 | `PictureLoader.cs` | `LoadPcx`, `LoadPicture`, `DecodeRle`, `ReadByte`, `ValidateScreen` |
 | `VideoScaler.cs` | `SetByName`, `Scale32`, `Scale16`, generic `Scale`; scaler-definition/algorithm types |
 | `PlayerState.cs` | `PlayerItems.Copy`, `PlayerState` constructor, `Cash` and `Lives` accessors; `PlayerRules.CalculatePurpleBalls`, `PowerUpWeapon`, `GotPurpleBall`, `AllDead`, `AllAlive`; weapon/sidekick/item model types |
-| Core tests `Program.cs` | Entrypoint, `Run`, `TestDefaultSeed`, `TestPublishedVectors`, `TestSeedTruncationAndRepeatability`, `TestStateWraparound`, `TestFloatBounds`, `TestSizeBufferReadAndWrite`, `TestSizeBufferBoundsAndRecovery`, `TestSizeBufferCopyFailures`, `TestSizeBufferSeekModes`, `AssertSequence`, `AssertEqual`, `AssertThrows` |
+| Core tests `Program.cs` | Entrypoint, dedicated SDL audio/runtime-platform/SDL2_net modes, `Run`, `TestDefaultSeed`, `TestPublishedVectors`, `TestSeedTruncationAndRepeatability`, `TestStateWraparound`, `TestFloatBounds`, `TestSizeBufferReadAndWrite`, `TestSizeBufferBoundsAndRecovery`, `TestSizeBufferCopyFailures`, `TestSizeBufferSeekModes`, `AssertSequence`, `AssertEqual`, `AssertThrows` |
 | `ConfigurationTests.cs` | `Run`, `Equal`; captured diagnostic/exception test for managed OOM handling |
 | `AssetReaderTests.cs` | `Run`, `PutWord`, `Check`, `ExpectInvalid` |
 | `IndexedSurfaceTests.cs` | `Run`, `Equal` |
@@ -1218,7 +1280,7 @@ these implementation inventories:
 | `HelpTextRenderer.cs` | Constructor, `DrawBox`, `DrawHelp`, `Layout`; `HelpTextLine` record |
 | `HelpTextRendererTests.cs` | `Run`, `Check` |
 | `build_help_reference.py` | `build_source`, `main`; generated `SDL_strlcpy`, `JE_textShade`, `main` oracle shims |
-| `PlayerShots.cs` | `PlayerShots` constructor, `Create`, `SetDirection`, `Simulate`, `MoveAndDraw`, `MoveCircle`, `AdvanceAnimation`, `RoundedShort`; `SpritePlayerShotEffects.Draw`, `DrawSpecial`, `Explosion`, `SuperPixels`; projectile/enemy/result models and `IPlayerShotEffects` contract |
+| `PlayerShots.cs` | `PlayerShots` constructor, `Create`, `CreateTyped`, `SetDirection`, `Simulate`, `MoveAndDraw`, `MoveCircle`, `AdvanceAnimation`, `RoundedShort`; `SpritePlayerShotEffects.Draw`, `DrawSpecial`, `Explosion`, `SuperPixels`; projectile/enemy/result models and `IPlayerShotEffects` contract |
 | `PlayerShotTests.cs` | `Run`, `Fixture`, `Setup`, `Execute`, `Dump`, `Check`; `Effects.Draw`, `DrawSpecial`, `Explosion`, `SuperPixels` |
 | `build_shots_reference.py` | `build_source`, `main`; generated `dump`, `main`, sprite/effect recording shims |
 | `SceneEffects.cs` | Constructor, `SetupExplosion`, `SetupLarge`, both `UpdateExplosions` overloads, `SpawnSuperPixels`, `DrawSuperPixels`, `CreateProjectileEffects`, `Blend`; `Explosion`, `RepeatingExplosion`, `SuperPixel` models |
@@ -1257,10 +1319,10 @@ these implementation inventories:
 | `MusicPlayer.cs` | `MusicArchive` constructor, `Load`, `Song`; `MusicController` constructor, `SongPlaying` accessor, `PlaySong`, `Restart`, `Stop`, `Fade`; `IMusicPlayer.Load`/`Rewind`/`Fade` contract |
 | `MusicPlayerTests.cs` | `Run`/local `State`, `Fixture`, `TestFailures`, `Hash`, `CompareNative`, `Throws`, `Check`; fake player `Load`, `Rewind`, `Fade`, `Update`, `Render` |
 | `build_music_reference.py` | `build_source`, `main`; generated archive/read/lock/LDS shims, `state`, native oracle `main` |
-| `LdsPlayer.cs` | Constructor, `NewChannels`, `Load`, `Require`, `Free`, `Rewind`, `Fade`, `SetRegister`, `SetRegisterMasked`, `Render`, `Register`, `Masked`, `PlaySound`, `OplSample.ClipInt16`, `OplWaveforms.GetTable`, `GetStart`, `GetMask`, `GetInitialPosition`, `CreateTable`, `OplChipState` constructor, `Initialize`, `Reset`, `Write`, `Render`, `RenderPercussion`, `TremoloFor`, `AdvanceEnvelopeAfterDrumAdvance`, `AddPercussionOutput`, `BuildModulationTables`, `RenderTwoOperatorChannel`, `AdvanceAndRenderOperator`, `CreateTremoloTable`, `ConfigureFourOperatorChannels`, `ReadPort`, `WriteIndex`, `WriteRegister`, `ConfigureOperatorMisc`, `ConfigureOperatorLevel`, `ConfigureOperatorAttackDecay`, `ConfigureOperatorSustainRelease`, `ConfigureChannelFrequencies`, `ConfigureChannelKey`, `ConfigurePercussion`, `ConfigurePercussionOperator`, `ConfigureChannelFeedback`, `ConfigureOperatorWaveform`, `IsFourOperatorEnabled`, `EnableOperator`, `DisableOperator`, `WaveSelectionIndex`, `ConfigureMappedFrequency`, `ConfigureFrequency`, `OplFrequencyTables` constructor, `FrequencyMultiplier`, `KeyScaleMultiplier`, `KeyScaleLevel`, `CreateKeyScaleLevels`, `OplOperatorTimingState.Initialize`, `Advance`, `AdvanceTime`, `AdvanceDrums`, `Render`, `ConfigureWaveform`, `ConfigureVibrato`, `ConfigureFeedback`, `Enable`, `Disable`, `ConfigureFrequency`, `OplEnvelopeState.Initialize`, `ConfigureAttack`, `ConfigureSustainLevel`, `ConfigureDecayRate`, `ConfigureReleaseRate`, `ConfigureSustainKeep`, `CalculateEnvelopeStepMask`, `AdvanceOff`, `AdvanceSustain`, `AdvanceRelease`, `AdvanceDecay`, `AdvanceAttack`, `OplPortState.Read`, `WriteIndex`, `WriteRegister`; `OplFrequencyRegisters` model; typed instrument/channel/position models and `IOplSynthesizer` contract |
+| `LdsPlayer.cs` | Constructor, `NewChannels`, `Load`, `Require`, `Free`, `Rewind`, `Fade`, `SetRegister`, `SetRegisterMasked`, `Render`, `Register`, `Masked`, `PlaySound`, `OplSample.ClipInt16`, `OplWaveforms.GetTable`, `GetStart`, `GetMask`, `GetInitialPosition`, `CreateTable`, `OplChipState` constructor, `Initialize`, `Reset`, `Write`, `Render`, `RenderPercussion`, `TremoloFor`, `AdvanceEnvelopeAfterDrumAdvance`, `AddPercussionOutput`, `BuildModulationTables`, `RenderTwoOperatorChannel`, `RenderFourOperatorChannel`, `AdvanceAndRenderOperator`, `CreateTremoloTable`, `ConfigureFourOperatorChannels`, `ReadPort`, `WriteIndex`, `WriteRegister`, `ConfigureOperatorMisc`, `ConfigureOperatorLevel`, `ConfigureOperatorAttackDecay`, `ConfigureOperatorSustainRelease`, `ConfigureChannelFrequencies`, `ConfigureChannelKey`, `ConfigurePercussion`, `ConfigurePercussionOperator`, `ConfigureChannelFeedback`, `ConfigureOperatorWaveform`, `IsFourOperatorEnabled`, `EnableOperator`, `DisableOperator`, `WaveSelectionIndex`, `ConfigureMappedFrequency`, `ConfigureFrequency`, `OplFrequencyTables` constructor, `FrequencyMultiplier`, `KeyScaleMultiplier`, `KeyScaleLevel`, `CreateKeyScaleLevels`, `OplOperatorTimingState.Initialize`, `Advance`, `AdvanceTime`, `AdvanceDrums`, `Render`, `ConfigureWaveform`, `ConfigureVibrato`, `ConfigureFeedback`, `Enable`, `Disable`, `ConfigureFrequency`, `OplEnvelopeState.Initialize`, `ConfigureAttack`, `ConfigureSustainLevel`, `ConfigureDecayRate`, `ConfigureReleaseRate`, `ConfigureSustainKeep`, `CalculateEnvelopeStepMask`, `AdvanceOff`, `AdvanceSustain`, `AdvanceRelease`, `AdvanceDecay`, `AdvanceAttack`, `OplPortState.Read`, `WriteIndex`, `WriteRegister`; `OplFrequencyRegisters` model; typed instrument/channel/position models and `IOplSynthesizer` contract |
 | `LdsPlayback.cs` | `Update`, `Advance`, `ResetPackedChannels`, `Command`, `OffsetTune`, `TuneChannel`, `ApplyEffects`, `Tremolo` |
 | `LdsTables.cs` | Exact frequency/operator/vibrato/tremolo table initialization |
-| `LdsPlayerTests.cs` | `Run`, `TestClipInt16`, `TestOplInitialization`, `TestOplSampleRendering`, `RenderOplSignature`, `RenderOplRhythmSignature`, `ConfigureVoice`, `TestOperatorTiming`, `TestDrumTiming`, `TestOperatorOutput`, `TestWaveformConfiguration`, `TestOperatorActivation`, `TestFrequencyConfiguration`, `TestOplRegisterWrites`, `TestOplPorts`, `TestOff`, `TestAttackConfiguration`, `TestSustainLevelConfiguration`, `TestDecayReleaseConfiguration`, `TestSustainKeepConfiguration`, `TestVibratoConfiguration`, `TestFeedbackConfiguration`, `TestSustain`, `TestRelease`, `TestDecay`, `TestAttack`, `Fixture`, `FixtureForAudio`, `Execute`/local `State`, `TestFailuresAndIntegration`, `CompareNative`, `Check`, `Throws`; synthetic OPL `Reset`, `Write`, `Render` |
+| `LdsPlayerTests.cs` | `Run`, `TestClipInt16`, `TestOplInitialization`, `TestOplSampleRendering`, `RenderOplSignature`, `RenderOplRhythmSignature`, `RenderOpl3Signature`, `ConfigureVoice`, `TestOperatorTiming`, `TestDrumTiming`, `TestOperatorOutput`, `TestWaveformConfiguration`, `TestOperatorActivation`, `TestFrequencyConfiguration`, `TestOplRegisterWrites`, `TestOplPorts`, `TestOff`, `TestAttackConfiguration`, `TestSustainLevelConfiguration`, `TestDecayReleaseConfiguration`, `TestSustainKeepConfiguration`, `TestVibratoConfiguration`, `TestFeedbackConfiguration`, `TestSustain`, `TestRelease`, `TestDecay`, `TestAttack`, `Fixture`, `FixtureForAudio`, `Execute`/local `State`, `TestFailuresAndIntegration`, `CompareNative`, `Check`, `Throws`; synthetic OPL `Reset`, `Write`, `Render` |
 | `build_lds_reference.py` | `build_source`, `main`; generated OPL/read shims, `dump_state`, native oracle `main` |
 | `VideoLayout.cs` | `Output` validation, `SetModeByName`, `Calculate`, `ScreenToWindow`, `WindowToScreen`, `WindowDistanceToScreen`; `ScalingMode`/`OutputRectangle` models |
 | `InputState.cs` | Constructor/state accessors, `Initialize`, `FlushEvents`, `ClearKeyboard`, `SetRelative`, `MousePosition`, `RelativePosition`, `WaitInput`, `WaitNoInput`, `Wait`, `ServiceEvents`, `ValidateScancode`, `Delay`, `PollJoysticks`; typed event model and required `IInputPlatform` contract |
@@ -1273,7 +1335,7 @@ these implementation inventories:
 | `SdlNative.cs` video/input members | `Rectangle` constructor, window/display/fullscreen/renderer/texture/presentation/readback cdecl services, `PollEvent`, `PushEvent`, `GetTicks`, `Delay`, `ShowCursor`, `SetRelativeMouseMode`, `SetHint`, `Free` |
 | `SdlAudioSampleConverter.cs` | Constructor, `Convert`; bounded native CVT buffer ownership and cleanup |
 | `SdlAudioDevice.cs` | Constructor, `TryInitialize`, `TryInitializeOpl`, `CompletedCallbacks`, `Start`, `Pause`, `ThrowIfFaulted`, `Mix`, `Dispose`, `Release` |
-| `SdlAudioTests.cs` | `Run`, `TestDisabledInitialization`, `TestDevice`, `WaitFor`, `Bank`, `Throws`; synthetic music `Update`/`Render` failure gates and real SDL OPL/LDS startup |
+| `SdlAudioTests.cs` | `Run`, `TestDisabledInitialization`, `TestDevice`, `TestRuntimeAudioSession`, `MusicArchive`, `WaitFor`, `Bank`, `Throws`; synthetic music `Update`/`Render` failure gates and real SDL OPL/LDS/runtime asset startup |
 | `TinyDirectory.cs` | `TryReadFileAt`, `TryOpenSorted`, `OpenSubdirectory`, `TryOpenFile`, `GetExtension`; managed filesystem entry model |
 | `TinyDirectoryTests.cs` | `Run`, `TestFileOpen`, `TestSubdirectoryOpen`, `Check` |
 | `sdl_audio_reference.c` | `hash`, `main`; real SDL conversion fixtures and ABI gates |
@@ -1301,7 +1363,7 @@ these implementation inventories:
 | `IndexedSurface.cs` UI members | `ShadowedGauge`; native unsigned dimension/position/color wrapping and pre-multiplication partial division |
 | `SdlNative.cs`/`SdlInputPlatform.cs` menu members | Cdecl `GetModState`; disposed-guarded live `Modifiers` property |
 | `LegacySaveArchive.cs` | `LegacySaveCipher.Encrypt`, `Decrypt`, `Checksums`, `XorCString`; `LegacySaveSlot.Read`, `Write`, `ReadPascal`, `WritePascal` and all serialized properties; `LegacySaveArchive.Read`, `Write`, fixed-size slot/tail inventory |
-| `LegacySaveGame.cs` | `LegacyGameState` typed modes, players, episode/level/cube/difficulty/input state including `OldDifficulty`; `LegacySaveGame.Save`, `Load`, `Slot`, `IsCompleted` |
+| `LegacySaveGame.cs` | `LegacyGameState` typed modes, players, episode/level/cube/difficulty/input and level-transition state including `OldDifficulty`, `EndLevel`, `ReallyEndLevel`, `PlayerEndLevel`, `DoNotSaveBackup`; `LegacySaveGame.Save`, `Load`, `Slot`, `IsCompleted` |
 | `PlayerState.cs` legacy members | `PlayerItems.ToLegacyItems`, `LoadLegacyItems`; exact twelve-byte item/episode layout without overwriting weapon power |
 | `LegacySaveTests.cs` | `Run`, `GameOperations`, `FilePersistence`, `Failures`, `RunNative`, `Bit`, `Throws`, `Check`; persistence and episode fixture callbacks |
 | `build_legacy_saves_reference.py` | `build_source`, `main`; native `serialize`, `deserialize`, `hex`, fixture persistence/episode callbacks and oracle `main` |
@@ -1359,7 +1421,7 @@ these implementation inventories:
 | `PlayerFrame.cs` | `PlayerFramePresentation` required surfaces/drawing services; `PlayerFrame` constructor, buttons/episode/render/demo/network/device/graphic/old-position/parallax state; `Update`/`Replay`, `UpdatePlayers`; camera offsets share explicit initialization/restore state |
 | `PlayerSpecialWeaponsTests.cs` | `Run`, `TestPresentation`, `TestFrameFailures`, `Throws`, `FillFramePacket`, `Hash`, `Bit`; `FrameTransport.Send`/`Receive`, `FramePlatform` input guards; complete/special/attack/individual/paired frame fixtures and full state/projectile/pixel/RNG native comparison; guarded `ShotEffects` |
 | `build_player_special_reference.py` | `build_source`, `main`; generated native full special/ordered attack/sidekick initialization/player/paired-frame/death/purple-ball oracle `main`, full-frame `hash`, and bounded input/demo-text/network-packet/deferred explosion shims |
-| `PlayerInput.cs` | Constructor; native input/device/demo/constant/inversion state; `Collect`, `ReplayDemo` and `Down` |
+| `PlayerInput.cs` | Constructor; exposed shared `Requests`; native input/device/demo/constant/inversion state; `Collect`, `ReplayDemo` and `Down` |
 | `PlayerInputTests.cs` | `Run`, `AppendReplayTraces`, `AppendReplayCollection`, `TestFailures`, `Throws`, `Bit`; `FragmentedStream.Read`; `Device` virtual axis/button/hat state; `Platform` events/service-order guards; guarded `ShotEffects` |
 | `build_player_input_reference.py` | `build_source`, `main`; generated native collector/device/event/demo/network fixtures, scripted `replay_demo_keys`, unchanged `replay_native_keys`, `fread_u8`, `fwrite_u8`, `SDLNet_Write16` and oracle `main` |
 | `DemoSession.cs` | Constructor; demo number/episode/level/song/bonus/main-level/owned stream state; `LoadNext`, `RecordLevel`, `Dispose`, `ReadByte`, `ReadItem` |
@@ -1468,8 +1530,8 @@ these implementation inventories:
 | `ChristmasPrompt.cs` | `ChristmasPrompt.IsChristmasTime`, `Run`; managed `Flake` ownership; `IChristmasPromptHost`/`ChristmasPromptHost.EnsureCursor`, `Fill`, `Flake`, `Label`, `FadeIn`, `PresentCursor`, `PushJoysticks`, `FadeBlack` |
 | `ChristmasPromptTests.cs` | `Run`, `TestHost`, `RunSdl`, `Bit`; `RandomService.Next`, `Auxiliary`, trace `Host`, scripted `Platform` |
 | `build_christmas_prompt_reference.py` | `build_source`, `main`; native date and snow-prompt oracle with explicit random/input/clock services |
-| `NetworkStartScreen.cs` | `NetworkStartScreen.Run`; `INetworkStartChannel`/`NetworkStartChannel.Packet`, `Synchronized`, `SendDetails`, `SendQuit`, `Update`, `Check`, `Quit`; `INetworkStartHost`/`NetworkStartHost.LoadPicture`, `Capture`, `Restore`, `Copy`, `Message`, `Present`, `FadeIn`, `FadeBlack`, `Connect`, `SelectEpisode`, `SelectDifficulty`, `InitializeEpisode` |
-| `NetworkStartScreenTests.cs` | `Run`, `Items`, `Game`, `TestHost`, `RunSdlNetwork`, `Bit`; trace `Host`, scripted `Channel`, synthetic/real-time `Platform`; concrete two-peer connection/selection/init/termination callbacks |
+| `NetworkStartScreen.cs` | `NetworkStartScreen.Run` with optional runtime-owned connection action; `INetworkStartChannel`/`NetworkStartChannel.Packet`, `Synchronized`, `SendDetails`, `SendQuit`, `Update`, `Check`, `Quit`; `INetworkStartHost`/`NetworkStartHost.LoadPicture`, `Capture`, `Restore`, `Copy`, `Message`, `Present`, `FadeIn`, `FadeBlack`, `Connect`, `SelectEpisode`, `SelectDifficulty`, `InitializeEpisode` |
+| `NetworkStartScreenTests.cs` | `Run`, `Items`, `Game`, `TestHost`, `RunSdlNetwork`, `Bit`; trace `Host`, scripted `Channel`, synthetic/real-time `Platform`; concrete two-peer connection/selection/init/termination callbacks through the injected session connection |
 | `build_network_start_reference.py` | `build_source`, `main`; native start-screen service/selection/packet/state oracle |
 | `WarningTextDisplay.cs` | `WarningTextDisplay.Run`, `Synchronize`; `IWarningTextPresenter`; `IWarningTextHost`/`WarningTextHost.EscapePressed`, `HaltGame`, `WarningEnabled`, `Draw`, `Center`, `Halt`, `UpdateWarning`, `SetDelay`, `KeepAlive`, `Wait`, `AnyButton` |
 | `WarningTextTests.cs` | `Run`, `TestHost`, `TestValidation`, `RunSdl`, `Bit`; native-trace `TraceHost`, exception marker `Halted`, shared-state `UnusedGlowHost`, SDL `Auxiliary` |
@@ -1487,6 +1549,23 @@ these implementation inventories:
 | `LevelPreparation.cs` | `LevelPreparation.Prepare`; `LevelPreparationState`; `ILevelPreparationHost` for relative-mouse release, keyboard/sprite cleanup, speed reset, demo teardown, level transitions and save recovery |
 | `LevelPreparationTests.cs` | `Run`, `DumpState`, `Bit`, `Bool`; 49,152 native preparation traces across demo, game-over, bonus, Galaga, save-recovery and speed modes |
 | `build_level_preparation_reference.py` | `build_source`, `main`; unchanged native next-level cleanup and routing oracle |
+| `LevelMainLoop.cs` | `LevelMainLoop.Run`; `LevelMainLoopState`; `ILevelMainLoopHost` for native-order per-level setup and frame dispatch |
+| `LevelMainLoopTests.cs` | deterministic multi-level, title-return, and demo/network/save gate traces |
+| `LevelFrame.cs` | `LevelFrame.Run`; frame state, due event loop, music/player conditions, and native gameplay/render/input/network stage ordering |
+| `LevelFrameTests.cs` | native-order frame trace, state transitions, network end-level and input early-return scenarios |
+| `EpisodeMapLoader.cs` | `EpisodeMapLoader.Run`, command handlers for galaxy/cube/level records, fixed-width atoi fields, restart/title/demo routing; `IEpisodeMapLoaderHost` for existing ported handlers |
+| `EpisodeMapLoaderTests.cs` | encrypted episode records covering directives, jumps/reopen, item-screen game-loaded restart, title return, presentation cancellation and demo loading |
+| `GameStartup.cs` | `GameStartupArguments.Parse` applies parsed options only on successful parse; `GameStartup.Run`; initialization/output/audio/network gates, Christmas fallback, title/destruct/main loop, and shutdown; `GameStartupState.ApplyOptions` preserves parsed data-directory, network peer/name/port/player/delay, audio, Christmas, and demo options for the eventual concrete host; `IGameStartupHost` |
+| `GameStartupTests.cs` | startup ordering, SDL/network failure exits, Christmas/assets/audio/demo and repeated title/destruct routing; parsed launch-option preservation in startup state |
+| `GameRuntimeAssets.cs` | `GameRuntimeAssets.Load` composes episode availability, item database, palette, main shapes, help text and optional edited ships; seasonal mode requires both native shape and voice assets and falls back with a warning; `Dispose` releases owned shape tables |
+| `GameRuntimeAssetsTests.cs` | synthetic native asset fixture, complete startup asset load, optional edited-ship absence, and Christmas asset enable/fallback |
+| `GameRuntimeAudio.cs` | `GameRuntimeAudio.Load` composes `music.mus`, effects and selected standard/seasonal voice banks; `Dispose` releases converted samples |
+| `GameRuntimeAudioTests.cs` | synthetic music/effects/voice archives, seasonal bank selection, conversion coverage and sample cleanup |
+| `GameRuntimeResources.cs` | `GameRuntimeResources.Load` composes runtime assets and optional audio data; `LoadForStartup` consumes typed options and binds the real SDL audio session; both resolve seasonal fallback and clean up failures |
+| `GameRuntimeAudioSession.cs` | `TryInitialize` binds native SDL OPL/LDS device, loaded music and converted sound bank to one mixer; song/sample/volume operations and deterministic cleanup |
+| `GameRuntimePlatform.cs` | `Start` composes persisted configuration, SDL video/input/joysticks, game assets/audio, runtime settings, and an owned SDL2_net transport/session for network launches; `InitializeEpisode` owns episode archive initialization and updates game episode state; `LoadPicture` composes indexed Tyrian picture decoding with runtime palettes; `CreateDelayTimer` binds PIT-style timing to shared SDL input; `CreateMouseCursor` lazily loads and owns the native cursor sprite sheet and composes it with shared SDL input/primary surface; `CreateIntroLogoHost` and `CreateIntroLogos` bind startup logo pictures, palette fades, SDL presentation, timing and title logo movement; `CreateCreditsHost` and `CreateCredits` bind credits picture/text archives, player ship tables, palette fades, SDL input/presentation, timer, audio, and caller-provided network keep-alive; `CreateEpisodeTransitionHost` composes the active episode palette, SDL presentation/input/timing, audio, high-score and credits actions; `CreateEpisodeTransition` binds the managed episode transition to loaded episodes/items and explicitly supplied episode names, palette, credits text, and keep-alive callback while applying network/constant-play options, with an overload using loaded episode-name data; `CreateEpisodeCompletionHost` binds SDL picture/palette/fade, drawing, input waits and presentation with explicit completion-display/progression/network-sync callbacks; `CreateEpisodeCompletion` composes that host with completion state, score labels and super-arcade tables; `CreateEpisodeCompletionState` bridges launch modes, episode completion flags, computed managed item-value score (or explicit score), and both players' cash from runtime/game state; `RunEpisodeCompletion` executes the managed completion flow and publishes section/unlock/main-level results back to the game and startup state even if the completion host fails, refreshes jump-back state after episode progression, and provides an overload that builds its state from the active game; `CreateTitleScreenHost` composes the loaded planet/font/cursor/palette assets, primary/secondary surfaces, SDL presentation, timing, audio and title actions; composed `CreateTitleScreen` connects title dispatch directly to managed normal new-game, saved-game, super-arcade, SuperTyrian, high-score, help, and setup flows while retaining explicit callbacks for other title actions; `CreateSelectionMenuPresentation` composes shared video, fonts, cursor, palette fades, audio and episode initialization, with a runtime-owned episode initializer overload; `CreateNewGameHost` wires the managed selection menus, ship sprites, assets, audio, input and episode callback, with a runtime-owned initializer overload; `CreateLoadScreenHost` binds the native saved-game UI to runtime picture/font/cursor/palette/input/audio services and the user save catalog/versioned loader; `CreateHighScoreScreenHost` and `CreateHelpSystemHost` compose those existing screens with runtime fonts, assets, palettes, cursor, input, audio and SDL presentation; `CreateSetupMenuHost` composes SDL video, configuration persistence, fonts, cursor, palette, input, audio mixer, and caller-owned jukebox/Destruct actions, including an inert disabled mixer when audio is not initialized; `CreateNetworkStartHost` binds peer-screen presentation, shared episode/difficulty selectors, connection negotiation, and episode initialization to the session, with an overload using the runtime-owned episode initializer; the composed `RunNetworkStartScreen` overload creates this host from runtime menus; `ConnectNetwork` runs negotiated session setup with configured player identity and episode availability; the host-based `RunNetworkStartScreen` connects the configured SDL2_net session at the native screen point and runs peer episode/difficulty setup; `UpdateNetworkGameState` routes per-frame network payloads/requests through that same negotiated session; screen factories bind title, new-game, gameplay/episode/difficulty selection, saved-game, high-score, setup and help flows to the owned runtime assets/input/settings; `CreateLevelMainLoopState` composes typed launch flags and current game mode/level into the managed multi-level loop state; `CreateLevelGameplay` composes shared per-game combat, enemy, projectile, movement, weapon, event, background, and input owners; `LoadLevelMap` applies the selected archive map and its events/enemy roster to that graph; `RunLevelMainLoop` executes that loop and publishes mutated mode, demo, level-transition and level values back to the owning game/startup state even if a host operation fails; initializes player defaults, loads and saves legacy games, and `CreatePlayerInput` binds configured keyboard/joystick and saved device settings plus session-owned requests, local player number and typed launch options; exposes a session-owned gameplay request queue and cleans partially initialized services in reverse order; `SaveConfiguration`, `Dispose` |
+| `LevelGameplayRuntime.cs` | `LevelGameplayRuntime` groups per-game scene effects, enemy system, player combat, backgrounds, events, projectiles, movement, weapons, specials, input, ship info, player-frame state, pickups, warnings, and armor warning into one runtime-owned graph with shared player, enemy, sound, request, and launch-mode state; `LoadMap` loads the selected archive level and applies its tile maps, events, and enemy roster to that graph; map/ship, per-level flags, and combat initializers reset the same owners using native ordering |
+| `GameRuntimePlatformTests.cs` | SDL dummy-driver initialization, incomplete-asset failure cleanup, runtime indexed-picture/palette loading, lazy cursor-asset rendering/restoration, startup intro-picture presentation, credits archive loading/host composition, episode-transition host and factory composition including explicit active-palette/keep-alive bindings, episode-completion host/factory/state/run composition including SDL picture/palette/fade, callback and game/startup-state write-back, title/new-game/selection host SDL/assets/callback composition, saved-game discovery and versioned-load state propagation, composed title dispatch bindings, high-score/help/setup host composition including no-audio settings, live audio callback, configured SDL2_net session ownership and network-start host composition, title/new-game/level-loop and gameplay-input composition, shared level gameplay graph and player-frame/ship initialization, selected map layers/events/enemy roster, native-order map/ship, level-flag and local/network combat initialization, network player identity, demo mode, loop state write-back, legacy game-save round trip, and settings persistence |
 | `LevelHud.cs` | `LevelHud.Draw`; `LevelHudState`; `ILevelHudHost` for HUD surface, message erase, rectangle and shield drawing |
 | `LevelHudTests.cs` | `Run`, `AppendState`, `Bit`, `Bool`, `TestInvalidWeaponBars`; 4,096 complete state, host-call and old-weapon-bar traces |
 | `build_level_hud_reference.py` | `build_source`, `main`; unchanged native shield regeneration, Galaga reward, weapon-bar and power HUD oracle |
@@ -1800,6 +1879,92 @@ these implementation inventories:
   traces cover all preparation flags and six speed settings.
 - [x] `tests/native/build_level_preparation_reference.py` - unchanged native
   preparation body with ordered service and state traces.
+- [x] `src-csharp/OpenTyrian.Core/LevelMainLoop.cs` - level/main-game
+  orchestration, preserving reset, map load, startup, network/demo/save and
+  frame-loop order.
+- [x] `tests/OpenTyrian.Core.Tests/LevelMainLoopTests.cs` - verifies multi-level
+  transitions, demo/network/save gates and title-screen return.
+- [x] `src-csharp/OpenTyrian.Core/LevelFrame.cs` - native level-frame event,
+  gameplay, background, projectile, player, HUD, sound, input, network and
+  end-state orchestration with stateful early-return behavior.
+- [x] `tests/OpenTyrian.Core.Tests/LevelFrameTests.cs` - deterministic native
+  order, background wrapping, due-event, network end-level and input-skip traces.
+- [x] `src-csharp/OpenTyrian.Core/EpisodeMapLoader.cs` - encrypted episode
+  command loop, section navigation, mode/jump/item/presentation delegation,
+  galaxy/cube/level record decoding and demo/title/map-load routing.
+- [x] `tests/OpenTyrian.Core.Tests/EpisodeMapLoaderTests.cs` - encrypted
+  synthetic episode fixtures verify command order, fixed-offset fields,
+  jump/reopen, game-loaded retry, title return, presentation exit and demo path.
+- [x] `src-csharp/OpenTyrian.Core/GameStartup.cs` - native process startup,
+  initialization/fallback/network gates, repeated title/game modes and halt
+  routing with testable platform boundaries; launch parsing applies and
+  retains typed startup options for the concrete runtime host.
+- [x] `src-csharp/OpenTyrian.Core/GameRuntimeAssets.cs` - concrete ownership and
+  loading for episode availability, typed extracted items, all 23 palettes,
+  main shape tables, encrypted help text, and optional edited ships; matches
+  the native requirement for both seasonal shapes and voice data, including
+  warning and base-shape fallback; synthetic startup-asset fixtures pass.
+- [x] `tests/OpenTyrian.Core.Tests/GameRuntimeAssetsTests.cs` - composes a
+  synthetic episode archive, palette, shape archive, encrypted help archive,
+  all required extracted item categories, and optional edited-ship absence.
+- [x] `src-csharp/OpenTyrian.Core/GameRuntimeAudio.cs` - owns the music archive
+  and converted sound bank loaded from the native asset filenames; selects the
+  standard or seasonal voice archive and clears sound samples on failure or
+  disposal.
+- [x] `tests/OpenTyrian.Core.Tests/GameRuntimeAudioTests.cs` - synthetic music,
+  effects and voice archives verify composed loading, all 38 conversions,
+  seasonal voice selection and sample cleanup.
+- [x] `src-csharp/OpenTyrian.Core/GameRuntimeAudioSession.cs` - shared live SDL
+  audio session composes the OPL/LDS device mixer with native music and sound
+  assets, converts samples at the negotiated device rate, exposes song/sample/
+  volume operations, honors disabled-audio startup and cleans every resource
+  on load failure or shutdown.
+- [x] `tests/OpenTyrian.Core.Tests/SdlAudioTests.cs` - SDL dummy-driver runtime
+  test verifies disabled startup, failed asset-load cleanup, shared music/
+  sample mixer operation, callback progress, pause and disposal.
+- [x] `src-csharp/OpenTyrian.Core/GameRuntimeResources.cs` - one owned
+  composition for loaded game assets and audio; consumes typed startup data
+  directory/Christmas options, synchronizes seasonal fallback before selecting
+  voice data, honors audio-disabled startup without opening audio assets and
+  disposes assets if enabled audio loading fails. `LoadForStartup` binds the
+  real OPL/SDL device session after loading required game assets and propagates
+  resolved Christmas/audio-device fallback state to startup.
+- [x] `tests/OpenTyrian.Core.Tests/GameRuntimeAssetsTests.cs` - complete runtime
+  composition selects seasonal voices only when both seasonal asset files are
+  present, and falls back to standard voices otherwise.
+- [x] `src-csharp/OpenTyrian.Core/GameRuntimePlatform.cs` - platform owner
+  initializes configuration-dependent SDL video, input and joysticks before
+  loading runtime assets/audio and legacy settings; its gameplay-input factory
+  applies persisted device choices, configured key bindings, and record/constant/
+  network startup options. It also initializes native player defaults and
+  persisted controls and routes legacy save/load operations through the owned
+  save archive and durable settings store. Episode selection now initializes
+  the owned episode archive directly, with convenience selection/new-game/
+  network-host factories using that runtime-owned initializer. Supports
+  configuration persistence and reverse-order cleanup after both successful
+  and failed startup.
+- [x] `src-csharp/OpenTyrian.Core/LevelGameplayRuntime.cs` - groups the
+  per-game combat, enemy, projectile, event, background, movement, weapon,
+  special-weapon, input, ship-info, player-frame, pickup and warning owners
+  while preserving shared players, enemy slots, sound/request queues and
+  launch-mode flags. Its map loader applies a selected `LevelMap` to the same
+  background/event/enemy state; map/ship and per-level flag initialization
+  reset that shared graph.
+  The runtime factory carries current difficulty, multiplayer, network-player
+  and demo settings. Combat-state initialization reuses the parity-verified
+  native-order reset.
+- [x] `tests/OpenTyrian.Core.Tests/GameRuntimePlatformTests.cs` - SDL
+  dummy video/audio-driver success, incomplete-asset cleanup, live runtime
+  sound-bank/audio-device/callback composition, persisted input-device and key
+  binding composition into `PlayerInput`, runtime-owned episode initialization
+  through local and network menu factories, native legacy game-save round trip,
+  shared level gameplay graph and selected episode-map composition, and
+  DOS/save/text persistence.
+- [x] `src-csharp/OpenTyrian.Core/GameIdentity.cs` - the native product name
+  and default `OPENTYRIAN_VERSION` identity constants.
+- [x] `tests/OpenTyrian.Core.Tests/GameStartupTests.cs` - startup order,
+  SDL/network failures, asset/audio/demo options, parsed launch-option state,
+  and repeated mode loop checks.
 - [x] `src-csharp/OpenTyrian.Core/LevelHud.cs` - shield regeneration, Galaga
   rewards, weapon-bar and power display, and end-of-frame state updates.
 - [x] `tests/OpenTyrian.Core.Tests/LevelHudTests.cs` - 4,096 complete native
@@ -1887,30 +2052,47 @@ these implementation inventories:
 
 ### Repository root
 
-- [ ] `.editorconfig`
+- [x] `.editorconfig` - language-agnostic whitespace and encoding policy
+  remains valid for both native reference and managed source files.
 - [x] `.gitignore` — added nested C# build-output exclusions.
-- [ ] `COPYING`
-- [ ] `Doxyfile`
-- [ ] `Makefile`
-- [ ] `NEWS`
-- [ ] `README`
-- [ ] `lower-script.sh`
+- [x] `COPYING` - repository license text is retained unchanged.
+- [x] `Doxyfile` - retained for documentation of the native compatibility
+  reference while native code remains in the repository.
+- [x] `Makefile` - retained to build and verify the native compatibility
+  reference until the final removal gates pass.
+- [x] `NEWS` - historical release notes are retained unchanged.
+- [x] `README` - retained as legacy/native reference documentation; the
+  managed project instructions are in `README.md`.
+- [x] `lower-script.sh` - retained as a legacy data-tree preparation utility;
+  it is not part of the managed runtime or release executable.
 
 ### Documentation and tools
 
-- [ ] `doc/files.txt`
-- [ ] `doc/tools/weapon.py`
-- [ ] `doc/tyrian.hdt.txt`
+- [x] `doc/files.txt` - external runtime-asset descriptions are retained as
+  reference documentation; the assets themselves remain external.
+- [x] `doc/tools/weapon.py` - retained as the Python compatibility reference
+  for direct Tyrian HDT binary/XML editing; managed replacement is
+  `src-csharp/OpenTyrian.Core/HdtWeaponArchive.cs` and
+  `src-csharp/OpenTyrian.HdtWeaponTool/`.
+- [x] `doc/tyrian.hdt.txt` - retained as the binary-format reference used by
+  the extractor and compatibility work.
 
 ### Linux integration and artwork
 
-- [ ] `linux/icons/tyrian-128.png`
-- [ ] `linux/icons/tyrian-22.png`
-- [ ] `linux/icons/tyrian-24.png`
-- [ ] `linux/icons/tyrian-32.png`
-- [ ] `linux/icons/tyrian-48.png`
-- [ ] `linux/man/opentyrian.6`
-- [ ] `linux/opentyrian.desktop`
+- [x] `linux/icons/tyrian-128.png` - existing game artwork retained for
+  native-reference packaging; managed packaging remains a release task.
+- [x] `linux/icons/tyrian-22.png` - existing game artwork retained for
+  native-reference packaging; managed packaging remains a release task.
+- [x] `linux/icons/tyrian-24.png` - existing game artwork retained for
+  native-reference packaging; managed packaging remains a release task.
+- [x] `linux/icons/tyrian-32.png` - existing game artwork retained for
+  native-reference packaging; managed packaging remains a release task.
+- [x] `linux/icons/tyrian-48.png` - existing game artwork retained for
+  native-reference packaging; managed packaging remains a release task.
+- [x] `linux/man/opentyrian.6` - retained for the native reference; update
+  the installed manual when managed release packaging is integrated.
+- [x] `linux/opentyrian.desktop` - retained for the native reference; update
+  its executable target when managed release packaging is integrated.
 
 ### Native source
 
@@ -1922,56 +2104,98 @@ these implementation inventories:
 - [x] `src/arg_parse.h` — `Options`/`Option` and status constants are replaced
   by managed option records/constants; native game-option compatibility and
   parser tests pass.
-- [ ] `src/backgrnd.c`
-- [ ] `src/backgrnd.h`
-- [ ] `src/config.c` - all functions verified; remaining shared global gameplay-state ownership still requires full-game integration.
-- [ ] `src/config.h` - save/config types and functions replaced; broad gameplay globals/declarations remain pending integration.
+- [x] `src/backgrnd.c` - all fifteen background, filter, tile-row and
+  starfield functions map to `BackgroundRenderer`/`Starfield`; native pixel,
+  pitch, layer, filter and seeded-starfield regression coverage is registered.
+- [x] `src/backgrnd.h` - background layer offsets, motion/delay, smoothie
+  filters, starfield speed, and rendering operations map to typed
+  `BackgroundRenderer`/`BackgroundLayer`/`JukeboxStarfield` state.
+- [x] `src/config.c` - all eight functions are integrated through
+  `GameSettingsStore`, `LegacySaveGame`, `LegacySaveCipher`,
+  `SavedGameCatalog`, and `GameRuntimeSettings`; runtime owns configuration,
+  legacy saves, input settings and processor/game-speed state.
+- [x] `src/config.h` - save/configuration records and declarations map to
+  `DosConfiguration`, `LegacySaveArchive`, `LegacySaveSlot`, `GameConfiguration`,
+  `SavedGameCatalog`, and runtime/game state; difficulty, keyboard-setting and
+  player-shot ordinals are typed and compatibility-tested.
 - [x] `src/config_file.c` — all configuration functions replaced by the
   managed configuration model/parser/writer; regression fixtures pass.
 - [x] `src/config_file.h` — native configuration declarations and inline
   helpers replaced by managed types and methods; configuration tests pass.
 - [x] `src/data_extractor.c` - managed CLI delegates to the fully integrated
   legacy extraction pipeline; synthetic native output/CLI parity verified.
-- [ ] `src/destruct.c`
-- [ ] `src/destruct.h`
+- [x] `src/destruct.c` - `JE_destructGame` and all Destruct game/session
+  operations map to `DestructUnits.RunGame`; native configuration, map setup,
+  gameplay ticks, state, RNG, rendering, and cleanup parity are covered.
+- [x] `src/destruct.h` - the native Destruct entrypoint maps to the managed
+  `DestructUnits.RunGame` API and its explicit host boundary.
 - [x] `src/editship.c` - replaced by `EditedShips`; complete optional archive and decrypt behavior verified against compiled native source.
 - [x] `src/editship.h` - managed owned sprite/record state replaces globals and the opaque byte-array typedef; declarations integrated and verified with archive/ship tests.
-- [ ] `src/episodes.c`
-- [ ] `src/episodes.h`
+- [x] `src/episodes.c` - item/mod parsing, validation, indexing, extraction
+  and episode selection map to `ItemDefinitions`, `ItemDatabase`,
+  `ItemDataExtractor`, and `EpisodeState`; native parser/data/CLI comparisons
+  and managed loading tests pass.
+- [x] `src/episodes.h` - native current/legacy item layouts, item IDs,
+  episode flags, and APIs map to typed item records/database and episode
+  state; legacy serialization and reference-resolution tests pass.
 - [x] `src/file.c` — data-directory lookup, open/error paths, file existence,
   EOF position, exact reads/writes and PCX header output are mapped to
   `DataFiles`/`BinaryFile`; filesystem, failure and binary-layout tests pass.
 - [x] `src/file.h` — endian-aware typed read/write helpers map to `BinaryFile`
   fixed-width APIs; all declared helpers and native-width layout behavior are
   covered by binary-format regression tests.
-- [ ] `src/font.c`
-- [ ] `src/font.h`
-- [ ] `src/fonthand.c`
-- [ ] `src/fonthand.h`
-- [ ] `src/game_menu.c`
-- [ ] `src/game_menu.h`
-- [ ] `src/helptext.c`
-- [ ] `src/helptext.h`
+- [x] `src/font.c` - all font drawing functions map to `FontRenderer` and are
+  integrated with the managed sprite/surface pipeline.
+- [x] `src/font.h` - font and alignment enums/declarations map to `Font` and
+  `FontAlignment`; native font operation behavior is covered by pixel tests.
+- [x] `src/fonthand.c` - font ASCII mapping and all text/glow/warning
+  operations map to managed font, text-glow, character-glow, and warning
+  services; native pixels, state and timing are covered.
+- [x] `src/fonthand.h` - shade constants, glyph map and warning state map to
+  typed font APIs and their owning warning/glow state objects.
+- [x] `src/game_menu.c` - item/shop/drawing/navigation/weapon-view operations
+  map to managed selection menus, player progression, item screens, and
+  projectile previews; native menu traces and concrete surface rendering pass.
+- [x] `src/game_menu.h` - menu state, data-cube, screen, and drawing
+  declarations map to typed managed menu/state/presentation interfaces.
+- [x] `src/helptext.c` - encrypted help loading, help-box rendering, and
+  menu-help data map to `HelpTextData`/`HelpSystem`; archive, text, drawing,
+  navigation, and SDL integration tests pass.
+- [x] `src/helptext.h` - help text groups, capacities, menu maps, and display
+  state map to typed managed text arrays and help-system state.
 - [x] `src/joystick.c` - complete managed control/config/detector and SDL device counterparts, synthetic native parity and real virtual-SDL integration; physical-controller release checks remain pending.
 - [x] `src/joystick.h` - typed assignment/device/state declarations and input services; verified control/config/SDL integration.
 - [x] `src/jukebox.c` - `Jukebox`, concrete presentation/audio adapters; native control/title traces and real SDL integration.
 - [x] `src/jukebox.h` - managed `Jukebox.Run` entrypoint and required platform services.
-- [ ] `src/keyboard.c`
-- [ ] `src/keyboard.h`
-- [ ] `src/lds_play.c`
-- [ ] `src/lds_play.h`
+- [x] `src/keyboard.c` - complete event, key, mouse, wait, text and relative
+  input behavior maps to `InputState`/`SdlInputPlatform`; native traces and
+  actual SDL integration pass.
+- [x] `src/keyboard.h` - input flags, coordinates, keys, text and focus state
+  map to typed `InputState` and platform services.
+- [x] `src/lds_play.c` - all LDS load, sequence, register, effect, sound and
+  playback functions map to `LdsPlayer`; native command/register/PCM parity
+  and SDL audio integration pass.
+- [x] `src/lds_play.h` - player, instrument, channel and pattern state map to
+  owned managed LDS objects and fixed-width fields.
 - [x] `src/loudness.c` - SDL audio initialization, sample-rate-matched OPL2/LDS
   synthesis, PCM callback mixing, music controls and teardown are represented
   by the managed audio/mixer/player services and tested; final game-host
   ownership remains a separate integration gate.
 - [x] `src/loudness.h` - audio, music, sample-rate and control declarations map
   to managed SDL audio, mixer, music archive/controller and LDS player APIs.
-- [ ] `src/lvllib.c`
-- [ ] `src/lvllib.h`
-- [ ] `src/lvlmast.c`
-- [ ] `src/lvlmast.h`
+- [x] `src/lvllib.c` - `JE_analyzeLevel` maps to `LevelArchive.Analyze`;
+  archive count, offsets and final length are managed and bounded.
+- [x] `src/lvllib.h` - level archive position/count/name state maps to
+  `LevelArchive` and `EpisodeState`; native declarations are replaced.
+- [x] `src/lvlmast.c` - `shapeFile` maps to the verified
+  `LevelMaster.ShapeFiles` table.
+- [x] `src/lvlmast.h` - all capacity macros and `shapeFile` declaration map
+  to typed `LevelMaster` constants/table; native capacities and all 34 shape
+  bytes are regression-tested.
 - [ ] `src/mainint.c`
-- [ ] `src/mainint.h`
+- [x] `src/mainint.h` - shared input, save, section, pause, and presentation
+  declarations map to typed input/game/startup/screen owners and verified
+  managed APIs; no C header declarations remain required by the C# projects.
 - [x] `src/menus.c` - verified managed gameplay/episode/difficulty selectors and presentation adapter; native synthetic parity and real SDL integration, whole-game callers still pending.
 - [x] `src/menus.h` - managed byte-label lists, selection state and public selectors; all native module functions verified.
 - [x] `src/mouse.c` — cursor capture, filtered/unfiltered drawing and restore
@@ -1986,43 +2210,88 @@ these implementation inventories:
 - [x] `src/mtrand.h` — `MT_RAND_MAX` and the four native function declarations
   are represented by managed 32-bit RNG APIs/constants; regression vectors
   verify the public behavior.
-- [ ] `src/musmast.c`
-- [ ] `src/musmast.h`
-- [ ] `src/network.c` - all functions verified, including graphical halt/request reset; shared gameplay globals and main/menu/gameplay caller integration remain.
-- [ ] `src/network.h` - managed protocol/transport/session/request declarations verified; shared gameplay globals and callers remain.
-- [ ] `src/nortsong.c`
-- [ ] `src/nortsong.h`
+- [x] `src/musmast.c` - shared song-buy selection, fade flag, song titles and
+  constants map to `MusicMaster`; episode/menu and level/event/frame access
+  share the same managed state.
+- [x] `src/musmast.h` - music constants and extern declarations map to the
+  `MusicMaster` managed API.
+- [x] `src/network.c` - protocol, queued control/state synchronization, peer negotiation, graphical shutdown, and special-request reset map to the owned `NetworkSession`, SDL2_net transport, presentation adapter, and runtime startup/gameplay synchronization paths; native packet traces and real two-peer SDL2_net tests pass.
+- [x] `src/network.h` - native network globals and declarations are replaced by runtime-owned session, transport, packet, and request state; network start and level-state synchronization consume the same session.
+- [x] `src/nortsong.c` - PIT delays, speed and volume controls map to
+  `DelayTimer`; sound bank ownership/conversion/playback maps to `SoundBank`,
+  `IAudioSampleConverter`, and `AudioMixer`. Dummy SDL audio integration and
+  timer/audio compatibility tests pass.
+- [x] `src/nortsong.h` - timing, sample, volume, and sound declarations map
+  to managed timer/audio/configuration state; native global arrays are replaced
+  by owned managed buffers.
 - [x] `src/nortvars.c` - `PlayerCombat.DrawBar`, `IndexedSurface.ShadowedGauge`, `InputState.AnyButton`/`ClearKeyboard`; native pixel/input parity including warnings.
 - [x] `src/nortvars.h` - typed surface/input counterparts; `inputDetected` replaced by per-instance `InputState.InputDetected`, retained across button poll/no-op; remaining game-menu callers pending.
-- [ ] `src/opentyr.c`
-- [ ] `src/opentyr.h`
-- [ ] `src/opentyrian_version.h`
-- [ ] `src/opl.c`
-- [ ] `src/opl.h`
-- [ ] `src/palette.c`
-- [ ] `src/palette.h`
+- [x] `src/opentyr.c` - all utility-token and setup-menu functions map to
+  `TextTokenReader`/`SetupMenu`; setup is composed from the runtime SDL,
+  configuration, audio and title-menu hosts, and the managed startup loop is
+  covered by native-trace tests.
+- [x] `src/opentyr.h` - product identity maps to `GameIdentity`; token-reader
+  and setup entrypoints map to typed managed APIs; fixed-width Pascal aliases
+  use explicit C# widths and common count/min/max/math macros map to idiomatic
+  managed operations where used. No C header declarations are required by
+  the managed projects.
+- [x] `src/opentyrian_version.h` - native product version macro and default
+  value map to `GameIdentity.ProgramName`/`Version`; startup output verifies
+  the exact banner identity.
+- [x] `src/opl.c` - all OPL2/OPL3 operator, envelope, register and sample
+  generation functions map to `OplChipState`/`OplOperatorTimingState`; native
+  OPL2 PCM and OPL3 stereo topology comparisons pass, and audio startup uses
+  the managed chip.
+- [x] `src/opl.h` - fixed-width/pointer-width types and register/sample API
+  map to managed OPL state, `IOplSynthesizer`, and the `int16` render API.
+- [x] `src/palette.c` - palette loading, RGB/YUV conversion, fades and
+  stepwise updates map to `PaletteSystem`, with exact pixel/color and callback
+  order checks.
+- [x] `src/palette.h` - palette storage and fade declarations map to managed
+  `PaletteColor`, `PaletteSystem`, and video palette buffers.
 - [x] `src/params.c` - complete `GameOptions` counterpart, native state/CLI parity and executable help/error integration; original retained as baseline.
 - [x] `src/params.h` - declarations and mode globals replaced by typed `GameOptions` state/parser; verified with native CLI traces.
-- [ ] `src/pcxload.c`
-- [ ] `src/pcxload.h`
-- [ ] `src/pcxmast.c`
-- [ ] `src/pcxmast.h`
-- [ ] `src/picload.c`
-- [ ] `src/picload.h`
-- [ ] `src/player.c`
-- [ ] `src/player.h`
-- [ ] `src/shots.c`
-- [ ] `src/shots.h`
+- [x] `src/pcxload.c` - `JE_loadPCX` maps to `PictureLoader.LoadPcx`;
+  palette-marker, RLE, pitched-screen and malformed-run behavior is tested.
+- [x] `src/pcxload.h` - the standalone PCX loading declaration is replaced by
+  the typed managed stream/surface/palette API.
+- [x] `src/pcxmast.c` - picture and face palette tables map to the managed
+  constants in `PictureLoader`.
+- [x] `src/pcxmast.h` - picture count/palette declarations map to
+  `PictureLoader.PictureCount` and `FacePaletteIndices`; per-call offsets are
+  bounded managed state rather than a shared native array.
+- [x] `src/picload.c` - `JE_loadPic` maps to `PictureLoader.LoadPicture`;
+  archive RLE, palette selection, storage and screen-pitch behavior are tested.
+- [x] `src/picload.h` - the picture-loader declaration is replaced by the
+  typed managed stream/surface/palette API.
+- [x] `src/player.c` - player initialization, life/weapon progression and
+  pickup behavior map to `PlayerRules`/`PlayerState`; managed references are
+  wired through lifecycle, combat, pickups, level and save flows.
+- [x] `src/player.h` - player/items/weapon/sidekick data and alive/life rules
+  map to typed managed state; legacy item payload, native-width cash behavior,
+  lifecycle and multiplayer integration are tested.
+- [x] `src/shots.c` - shot creation, movement/drawing, direction control and
+  shop-preview simulation map to `PlayerShots`; used in player weapons,
+  pickups, specials, enemy collision, and weapon-preview flows with native tests.
+- [x] `src/shots.h` - player-shot data, capacity, availability and public
+  operations map to owned typed `PlayerShotState`/`PlayerShots` objects.
 - [x] `src/sizebuf.c` — all seven buffer operations are mapped to
   `SizeBuffer`; regression tests cover bounded reads/writes, error propagation,
   seek modes, cursor updates and little-endian word decoding.
 - [x] `src/sizebuf.h` — the native `sizebuf_t` state and function declarations
   are represented by the managed owned-memory buffer API; all operations pass
   the dedicated size-buffer regression cases.
-- [ ] `src/sndmast.c`
-- [ ] `src/sndmast.h`
-- [ ] `src/sprite.c`
-- [ ] `src/sprite.h`
+- [x] `src/sndmast.c` - sound titles and window voice table map to
+  `SoundMaster`; jukebox and level-event playback use the shared tables.
+- [x] `src/sndmast.h` - sound/voice counts and IDs map to `SoundMaster` and
+  `SoundId`; duplicate select/explosion ID 8 and all ranges are preserved.
+- [x] `src/sprite.c` - sprite tables, compressed sheets, main-shape loading,
+  ownership and every native blit variant map to `SpriteTable`,
+  `SpriteSheet`, and `MainShapeTables`; drawing is used across managed menus,
+  gameplay, text, effects, and presentations.
+- [x] `src/sprite.h` - sprite dimensions/data, eight table indices, five
+  shared sheets, accessors and load/draw declarations map to managed typed
+  owners and methods; all inline accessors have dedicated parity coverage.
 - [x] `src/starlib.c` - `JukeboxStarfield` and typed stars; complete native state/pixel/RNG parity; empty color stub omitted.
 - [x] `src/starlib.h` - `JukeboxStar`/`JukeboxStarfield` replace declarations and global state.
 - [x] `src/tinydir.h` - replaced by the managed `TinyDirectory` entry/list
@@ -2033,30 +2302,49 @@ these implementation inventories:
   native configuration (`TINYDIR_USE_READDIR`).
 - [ ] `src/tyrian2.c`
 - [ ] `src/tyrian2.h`
-- [ ] `src/varz.c`
+- [ ] `src/varz.c` - native arcade/sidekick, player special-code, planet,
+  enemy-launch, SuperTyrian drop and SuperArcade progression/loadout tables
+  now share the managed `LegacyGameTables` API and are tested; mutable
+  gameplay globals remain distributed across subsystem owners and still need
+  end-to-end integration.
 - [ ] `src/varz.h`
-- [ ] `src/vga256d.c`
-- [ ] `src/vga256d.h`
-- [ ] `src/vga_palette.c`
-- [ ] `src/vga_palette.h`
+- [x] `src/vga256d.c` - drawing operations map to `IndexedSurface` primitives
+  and are covered by pixel/pitch clipping tests.
+- [x] `src/vga256d.h` - SDL surface drawing declarations, inline rectangle
+  fill and segmented gauge map to `IndexedSurface` APIs.
+- [x] `src/vga_palette.c` - 256-entry VGA palette table mapped to
+  `JukeboxPalette.Colors`; all RGB bytes are hash-verified.
+- [x] `src/vga_palette.h` - palette declaration maps to the managed palette
+  API and typed `PaletteColor` values.
 - [x] `src/video.c` - `SdlVideoDevice`/`VideoLayout`; real native SDL window/renderer/texture/fullscreen and all-scaler parity.
 - [x] `src/video.h` - managed video surfaces, viewport, scaling modes and SDL device declarations.
 - [x] `src/video_scale.c` - `VideoScaler` and HQ kernels; full native scaler table and real SDL output verified.
 - [x] `src/video_scale.h` - `ScalerDefinition`, `VideoScaler`, `HqVideoScaler` and typed algorithms.
 - [x] `src/video_scale_hqNx.c` - `HqVideoScaler`/`HqPatternKernels`; exact native pixels for all three HQ kernels/interpolations.
-- [ ] `src/xmas.c`
-- [ ] `src/xmas.h`
+- [x] `src/xmas.c` — `ChristmasPrompt.IsChristmasTime` and the complete
+  snow/choice loop in `ChristmasPrompt.Run` are differentially verified;
+  startup owns the Christmas flag in `GameStartupState`.
+- [x] `src/xmas.h` — `xmas` state and time/prompt declarations map to
+  `GameStartupState.Christmas` and `ChristmasPrompt`.
 
 ### Visual Studio project and resources
 
-- [ ] `visualc/data_extractor.vcxproj`
-- [ ] `visualc/opentyrian.props.template`
-- [ ] `visualc/opentyrian.sln`
-- [ ] `visualc/opentyrian.vcxproj`
-- [ ] `visualc/resources.rc`
-- [ ] `visualc/saves/.gitkeep`
-- [ ] `visualc/sdl_paths.props.template`
-- [ ] `visualc/tyrian.ico`
+- [x] `visualc/data_extractor.vcxproj` - retained to build the native data
+  extractor reference until managed/native release gates pass.
+- [x] `visualc/opentyrian.props.template` - retained for native MSVC
+  compatibility builds until the native baseline can be removed.
+- [x] `visualc/opentyrian.sln` - retained for native MSVC compatibility
+  builds until the native baseline can be removed.
+- [x] `visualc/opentyrian.vcxproj` - retained for native MSVC compatibility
+  builds until the native baseline can be removed.
+- [x] `visualc/resources.rc` - retained as a resource of the native Windows
+  compatibility executable.
+- [x] `visualc/saves/.gitkeep` - retained to preserve the native save-data
+  directory structure; runtime save data remains untracked.
+- [x] `visualc/sdl_paths.props.template` - retained for native MSVC
+  compatibility builds until the native baseline can be removed.
+- [x] `visualc/tyrian.ico` - retained as a resource of the native Windows
+  compatibility executable.
 
 ## Function inventory
 
@@ -2191,64 +2479,64 @@ these implementation inventories:
 ### `src/destruct.c`
 
 - [x] `get_unit_by_name` - `DestructUnitNames.GetUnitByName`; exact case-sensitive native names and `UNIT_NONE` fallback.
-- [ ] `load_destruct_config`
-- [ ] `JE_destructGame`
-- [ ] `JE_destructMain`
-- [ ] `JE_introScreen`
-- [ ] `DrawModeSelectMenu`
-- [ ] `JE_modeSelect`
-- [ ] `JE_generateTerrain`
-- [ ] `DE_generateBaseTerrain`
-- [ ] `DE_drawBaseTerrain`
-- [ ] `DE_generateUnits`
-- [ ] `DE_generateWalls`
-- [ ] `DE_generateRings`
-- [ ] `aliasDirtPixel`
-- [ ] `JE_aliasDirt`
-- [ ] `JE_placementPosition`
-- [ ] `JE_stabilityCheck`
-- [ ] `JE_tempScreenChecking`
-- [ ] `JE_makeExplosion`
-- [ ] `JE_eSound`
-- [ ] `JE_superPixel`
-- [ ] `JE_helpScreen`
-- [ ] `JE_pauseScreen`
-- [ ] `DE_ResetUnits`
-- [ ] `DE_ResetPlayers`
-- [ ] `DE_ResetWeapons`
-- [ ] `DE_ResetLevel`
-- [ ] `DE_ResetAI`
-- [ ] `DE_ResetActions`
-- [ ] `DE_RunTick`
-- [ ] `DE_RunTickCycleDeadUnits`
-- [ ] `DE_RunTickGravity`
-- [ ] `DE_GravityDrawUnit`
-- [ ] `DE_GravityLowerUnit`
-- [ ] `DE_GravityFlyUnit`
-- [ ] `DE_RunTickAnimate`
-- [ ] `DE_RunTickDrawWalls`
-- [ ] `DE_RunTickExplosions`
-- [ ] `DE_TestExplosionCollision`
-- [ ] `DE_DestroyUnit`
-- [ ] `DE_RunTickShots`
-- [ ] `DE_DrawTrails`
-- [ ] `DE_RunTickAI`
-- [ ] `DE_RunTickDrawCrosshairs`
-- [ ] `DE_RunTickDrawHUD`
-- [ ] `DE_RunTickGetInput`
-- [ ] `DE_ProcessInput`
-- [ ] `DE_CycleWeaponUp`
-- [ ] `DE_CycleWeaponDown`
-- [ ] `DE_MakeShot`
-- [ ] `DE_RunMagnet`
-- [ ] `DE_RaiseAngle`
-- [ ] `DE_LowerAngle`
-- [ ] `DE_RaisePower`
-- [ ] `DE_LowerPower`
-- [ ] `DE_isValidUnit`
-- [ ] `DE_RunTickCheckEndgame`
-- [ ] `DE_RunTickPlaySounds`
-- [ ] `JE_pixCool`
+- [x] `DE_isValidUnit` - `DestructUnits.IsValid`; only positive health is valid.
+- [x] `DE_ResetUnits` - `DestructUnits.ResetUnits`; clears health for each configured installation of both players and leaves excess capacity untouched.
+- [x] `DE_ResetWeapons` - `DestructUnits.ResetWeapons`; enables configured shot/explosion slots while leaving excess capacity untouched.
+- [x] `DE_RaiseAngle` - `DestructUnitState.RaiseAngle`; native 0.01-radian step and upper bound.
+- [x] `DE_LowerAngle` - `DestructUnitState.LowerAngle`; native 0.01-radian step and zero lower bound.
+- [x] `DE_RaisePower` - `DestructUnitState.RaisePower`; native 0.05 step and five-unit upper bound.
+- [x] `DE_LowerPower` - `DestructUnitState.LowerPower`; native 0.05 step and one-unit lower bound.
+- [x] `DE_CycleWeaponUp` - `DestructUnits.CycleWeaponUp`; native per-unit weapon availability, skipping and wraparound.
+- [x] `DE_CycleWeaponDown` - `DestructUnits.CycleWeaponDown`; native per-unit weapon availability, skipping and wraparound.
+- [x] `DE_RunTickCheckEndgame` - `DestructUnits.CheckEndgame`; left-first elimination priority, mode score award, 32-bit score wrap and sound queue.
+- [x] `DE_ResetActions` - `DestructUnits.ResetActions`; clears all eight action flags for both players.
+- [x] `DE_ResetPlayers` - `DestructUnits.ResetPlayers`; resets CPU/selection/timing/score/AI state and copies each player's 8-by-4 default key map, retaining unrelated state.
+- [x] `DE_ResetAI` - `DestructUnits.ResetAi`; initializes live CPU units' aim, power and map-specific default weapons, retaining dead and human units.
+- [x] `DE_ResetLevel` - `DestructUnits.ResetLevel`; resets resources, invokes terrain generation, then initializes CPU units in native order.
+- [x] `DE_RunTickPlaySounds` - `DestructUnits.PlayQueuedSounds`; eight-channel order, player/effect volume split, and per-entry clear after successful playback.
+- [x] `JE_pixCool` - `DestructUnits.DrawCoolPixel`; center/edge colors, byte wrapping and clipped screen coordinates.
+- [x] `DE_RunTickCycleDeadUnits` - `DestructUnits.CycleDeadUnits`; skips destroyed/unarmed installations and wraps selection for living players.
+- [x] `DE_RunTickAnimate` - `DestructUnits.AnimateUnits`; living-unit four-frame cycle with native static/animated type rules.
+- [x] `DE_DestroyUnit` - `DestructUnits.DestroyUnit`; explosion-first callback, heli/satellite behavior, rounded position, and native unsigned score/count arithmetic.
+- [x] `DE_RunTickDrawWalls` - `DestructUnits.DrawWalls`; configured wall iteration, existing-wall filtering, native sprite index, and draw order.
+- [x] `DE_RunTickDrawCrosshairs` - `DestructUnits.DrawCrosshairs`; both aim formulas, heli movement offset, HUD clipping, and native pixel colors.
+- [x] `DE_RunTickDrawHUD` - `DestructUnits.DrawHud`; exact panel geometry/colors, weapon sprite/name, damage/score text, and native signed score display.
+- [x] `DE_GravityDrawUnit` - `DestructUnits.DrawUnit`; per-player/unit sprite bases, heli direction banks, angle frame selection, and rounded Y position.
+- [x] `DE_GravityLowerUnit` - `DestructUnits.LowerUnit`; terrain-gated regular/heli lowering, native movement, and ground clamp.
+- [x] `DE_GravityFlyUnit` - `DestructUnits.FlyUnit`; ground/ceiling limits, type-specific gravity, rounded stability checks, and landing state.
+- [x] `JE_stabilityCheck` - `DestructUnits.IsStableAt`; 12 bottom-edge terrain samples, dirt threshold, and checked surface bounds.
+- [x] `aliasDirtPixel` - `DestructUnits.AliasDirtPixel`; four-neighbor dirt shading and screen-edge handling.
+- [x] `JE_aliasDirt` - `DestructUnits.AliasDirt`; in-place top-to-bottom aliasing over the native pitch.
+- [x] `JE_tempScreenChecking` - `DestructUnits.CheckTemporaryScreen`; effect palette decay, optional sequential dirt aliasing, and pitch-aware copy.
+- [x] `DE_RunTickGravity` - `DestructUnits.RunGravity`; configured two-player iteration, dead/satellite filtering, grounded/flying movement, then native unit drawing.
+- [x] `load_destruct_config` - `DestructUnits.LoadConfig`; native gameplay options, key-name validation/default serialization, custom roster filtering/padding, and byte narrowing.
+- [x] `JE_destructGame` - `DestructUnits.RunGame`; configuration, bounded resource allocation, per-player installation capacity, sprite lifetime, initial display, reusable map setup, and guaranteed sprite release.
+- [x] `JE_destructMain` - `DestructUnits.RunMain`; intro/setup, configured CPU state, mode selection, map reload loop, tick continue/exit transitions, and fade order.
+- [x] `JE_introScreen` - `DestructUnits.ShowIntro`; native screen snapshot, centered prompts, palette transition, event wait, and background restoration.
+- [x] `DrawModeSelectMenu` - `DestructUnits.DrawModeSelectMenu`; five base modes and optional custom row at native text positions and selection shade.
+- [x] `JE_modeSelect` - `DestructUnits.RunModeSelect`; initial draw/fade, up/down wrapping, custom mode, Escape cancel, Enter select, black fade and screen restore.
+- [x] `JE_generateTerrain` - `DestructUnits.GenerateTerrain`; native map modifiers/song selection, ordered terrain/unit/wall/ring composition, aliasing, presentation, and temporary-screen copy.
+- [x] `DE_generateBaseTerrain` - `DestructUnits.GenerateBaseTerrain`; native RNG sequence, fuzzy/tall modifiers, rounded wave composition, and height clamps.
+- [x] `DE_drawBaseTerrain` - `DestructUnits.DrawBaseTerrain`; the native 1..318 vertical brown terrain columns and validation of expected playfield geometry.
+- [x] `DE_generateUnits` - `DestructUnits.GenerateUnits`; native player-specific X ranges, random terrain clearing and unit choice, satellite handling, defaults, health, and active-unit counts.
+- [x] `DE_generateWalls` - `DestructUnits.GenerateWalls`; separate C/game RNG streams, obstruction retries, wall stack ordering/height and disabled-map cleanup.
+- [x] `DE_generateRings` - `DestructUnits.GenerateRings`; native ring/point random-call order, trigonometric spread, rounding, and map clipping.
+- [x] `JE_placementPosition` - `DestructUnits.PlaceTerrain`; native maximum-height selection and in-place leveling with validated segment bounds.
+- [x] `JE_makeExplosion` - `DestructUnits.MakeExplosion`; shot-specific explosion dimensions/types, sound thresholds, pool selection, and random fallback.
+- [x] `JE_eSound` - `DestructUnits.QueueExplosionSound`; persistent five-channel rotation and queue replacement.
+- [x] `JE_superPixel` - `DestructUnits.DrawSuperPixel`; native 5x5 star pattern, edge clipping, intensity addition, and byte saturation.
+- [x] `JE_helpScreen` - `DestructHelpScreen.Run`; all 25 native help lines, text layout, fade/present order, event wait, and screen restoration.
+- [x] `JE_pauseScreen` - `DestructPauseScreen.Run`; half-volume pause, centered message, input wait, saved-screen restoration, and original-volume recovery.
+- [x] `DE_RunTick` - `DestructUnits.RunTick`; native per-frame update/draw order, first-frame fade, input and sound sequencing, end-delay reload, CPU toggles, pause/help, and quit/reload outcomes.
+- [x] `DE_RunTickExplosions` - `DestructUnits.RunTickExplosions`; explosion flare RNG order, horizontal wrapping, dirt/star rendering, collision callbacks, and width/lifetime progression.
+- [x] `DE_TestExplosionCollision` - `DestructUnits.TestExplosionCollision`; live-unit filter, strict collision bounds, one health decrement per hit, and destruction callback.
+- [x] `DE_RunTickShots` - `DestructUnits.RunTickShots`; shot movement/gravity, map and floor bounce, lifetime bounds, unit/wall/dirt collision, demolition, trails, and explosion requests.
+- [x] `DE_DrawTrails` - `DestructUnits.DrawTrails`; native reverse draw/update order, conditional decay, hidden trail filtering, and rounded head position.
+- [x] `DE_RunTickAI` - `DestructUnits.RunTickAi`; native random-call order, CPU angle/power memory, helicopter preference/movement, target hovering, fire suppression, and action latches.
+- [x] `DE_RunTickGetInput` - `DestructUnits.RunTickGetInput`; per-player key maps, unknown-key slot termination, event service order, held movement keys, and one-shot key consumption.
+- [x] `DE_ProcessInput` - `DestructUnits.ProcessInput`; angle/power/weapon controls, helicopter stability-gated movement, jumper launch, selection order, shot cooldown/effect dispatch, and projectile creation.
+- [x] `DE_MakeShot` - `DestructUnits.MakeShot`; available-slot selection, grounded heli suppression, native sound choice, heli/jumper/default trajectories, and trail reset.
+- [x] `DE_RunMagnet` - `DestructUnits.RunMagnet`; directed projectile acceleration, opposing airborne-helicopter displacement, installation bounds, and animation frame.
 
 ### `src/editship.c`
 
@@ -2669,7 +2957,8 @@ these implementation inventories:
 
 ### `src/lvlmast.c`
 
-- No function definitions; tracked by the file inventory.
+- No function definitions; capacities and shape-file table are represented
+  by `LevelMaster` and verified by `LevelMasterTests`.
 
 ### `src/mainint.c`
 
@@ -2773,7 +3062,14 @@ these implementation inventories:
 
 ### `src/musmast.c`
 
-- No function definitions; tracked by the file inventory.
+- No function definitions; title metadata/constants map to `MusicMaster`.
+  Mutable selection/fade fields remain split across episode and level state
+  until complete game-host ownership wiring is implemented.
+
+### `src/sndmast.c`
+
+- No function definitions; sound-title, voice-selection, and sound-ID tables
+  are represented by `SoundMaster` and `SoundId`.
 
 ### `src/network.c`
 
@@ -2839,7 +3135,9 @@ these implementation inventories:
 - [x] `apply_setup_menu_activation` - `SetupMenu.Activate`; 156 native activations cover parent navigation/picker starts/shop clamping/music/sample toggle ordering/restart/child calls; actual jukebox and SDL integration verified.
 - [x] `apply_setup_menu_action` - `SetupMenu.ApplyMenu`; 2,816 native actions cover hover/wrap/back/activation/clamped direct/relative volumes, boundary audio ordering and exit fades.
 - [x] `setupMenu` - `SetupMenu.Run`; 64 native complete loops and actual SDL title/settings/graphics/audio/jukebox/gameplay/configuration-reload/title-return path verified.
-- [ ] `main`
+- [x] `main` - `GameStartup.Run`; startup/output/resource initialization,
+  Christmas/audio/network gates, title/destruct/game loop and halt/error paths
+  verified with deterministic host traces.
 
 ### `src/opl.c`
 
@@ -2869,11 +3167,11 @@ these implementation inventories:
 - [x] `adlib_write_index` - `OplPortState.WriteIndex`; primary/secondary
   register bank selection with OPL3 mode and register-5 detection.
 - [x] `clipit16` - `OplSample.ClipInt16`; signed-16 saturation boundaries and integer extremes.
-- [x] `adlib_getsample` - `OplChipState.Render`; OPL2 sample rendering is
-  checked against native PCM vectors for FM/additive output, tremolo, feedback,
-  multiple channels, 512-sample block boundaries, and deterministic percussion.
-  The active native build does not define `OPLTYPE_IS_OPL3`; conditional OPL3
-  four-operator sample output remains an explicit compatibility gap.
+- [x] `adlib_getsample` - `OplChipState.Render`; OPL2 sample rendering matches
+  native PCM vectors for FM/additive output, tremolo, feedback, multiple
+  channels, 512-sample block boundaries, and deterministic percussion. An
+  independent native OPL3 build verifies every four-operator connection
+  topology as stereo PCM for short and block-boundary renders.
 
 ### `src/palette.c`
 
@@ -3019,13 +3317,17 @@ these implementation inventories:
 - [x] `update_level_network_state` - `LevelEvents.UpdateNetworkState`; 5,120 complete native traces plus actual two-peer SDL2_net delayed gameplay/request integration; native overlapping diagnostic offsets preserved, location assertion becomes an explicit error.
 - [x] `update_level_end_state` - `LevelEvents.UpdateEndState`; all 1,024 native flag combinations.
 - [x] `record_level_demo` - `DemoSession.RecordLevel`; 64 native recording scenarios compare every byte of the 30-byte header, NUL padding/high-bit/truncated names, episode/item indices/powers/song and sequential first-free filenames. Existing recordings remain intact; concurrent creation uses atomic CreateNew and all 256 occupied slots raise an explicit error rather than native wraparound looping.
-- [ ] `run_level_frame`
+- [x] `run_level_frame` - `LevelFrame.Run`; native event, render, player,
+  collision, sound, input, network and end-state ordering plus both early exits
+  verified with deterministic host traces.
 - [x] `initialize_level_players_and_display` - `LevelPlayerInitializer.Initialize`; 512 native startup modes compare both alive flags, old/current difficulty with episode-4 clamp, fixed player origins, all 40 history entries/player and last-shot positions plus picture/options/title/present/gamma/fade/conditional shape-load order. Concrete indexed-font drawing, gamma-corrected SDL palette fade, conditional existing explosion-sheet behavior and sequential failure side effects verified.
 - [x] `initialize_level_map_and_ship_state` - `LevelMapShipInitializer.Initialize`; 1,024 unchanged-native traces compare all three row pointers using native layer strides, map X/header preservation, horizontal/vertical offsets, current versus retained prior/secondary camera offsets, layer delays, music fade, back positions, shot power, starfield speed, and both player velocity/invulnerability resets; preloaded tile maps remain installed and shared `PlayerShipInfo` performs ship-specific initialization.
 - [x] `initialize_level_flags` - `LevelFlagsInitializer.Initialize`; 16,384 extracted-native cases verify every entry reset, three per-frame button flags, shared quit-request routing, map/effect pacing, event/filter/warning/boss-bar state and preservation of boss armor/color.
 - [x] `initialize_level_status_display` - `LevelStatusDisplayInitializer.Initialize`; 256 extracted-native cases verify byte-narrowed shield recharge timing, both shield maxima, armor gauge/clamping, superbomb and cube/flash/notice resets, and text/music/port-button call order.
 - [x] `initialize_level_combat_state` - `LevelCombatStateInitializer.Initialize`; 256 unchanged-native cases verify combat/player/enemy/projectile/effect/weapon/level resets, network-only enemy availability, Galaga difficulty, draw order and all three background wrap offsets.
-- [ ] `JE_main`
+- [x] `JE_main` - `LevelMainLoop.Run`; initial and subsequent level setup,
+  network/demo gates, backup/recording, title return and frame-loop order
+  verified with deterministic host traces.
 - [x] `read_level_header_and_events` - `LevelMap.ReadHeader`; signed record layout/native parity.
 - [x] `load_level_shapes` - `LevelMap.LoadShapes`; swapped IDs, ownership, null/fill semantics.
 - [x] `load_level_map_layer` - `LevelMap.LoadMapLayer`; all three layer dimensions/order.
@@ -3041,7 +3343,9 @@ these implementation inventories:
 - [x] `configure_episode_mode` - `EpisodeModeConfiguration.Configure`; 256 unchanged-native cases verify mode flags, player item copying, loadout rewrites, sidekick resets and cash state.
 - [x] `read_episode_item_availability` - `EpisodeItemAvailability.Read`; 15 unchanged-native scenarios verify encrypted Pascal rows, all shop-setting branches, typed item indices, row capacity, cleared availability state, stream position and item-screen call ordering.
 - [x] `load_selected_level_map` - `LevelMap.LoadSelected`; episode directory and shape-file lookup.
-- [ ] `JE_loadMap`
+- [x] `JE_loadMap` - `EpisodeMapLoader.Run`; encrypted command dispatch,
+  section seek/jump and loaded-game retry, level metadata, and demo/title/
+  presentation/map routing verified with deterministic encoded fixtures.
 - [x] `networkStartScreen` - `NetworkStartScreen.Run`/`NetworkStartHost`/`NetworkStartChannel`; 112 native controller/peer start/cancel/poll/state/fixed-width-wire cases, managed concrete surfaces/fades/selection and actual SDL2_net two-peer handshake/details/cash/ship/difficulty/episode synchronization; both selector cancellation paths propagate quit without starting the game.
 - [x] `draw_title_screen` - `TitleScreen.Draw`; fourteen native draw traces cover all selections, 29-frame moving logo, two palette partitions, version/RELOADED labels, measured outlines and saved surfaces; actual SDL2 animation and concrete pixels verified.
 - [x] `wait_for_title_screen_input` - `TitleScreen.Wait`; strict >30000 idle/demo threshold, uint tick wrap, ushort prior mouse coordinates including negatives, text/mouse/key/motion exit and filtered cursor/presentation/joystick timing match native traces; cancellation verified.
